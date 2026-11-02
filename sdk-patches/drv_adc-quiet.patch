@@ -1,0 +1,26 @@
+--- a/rtos/rtthread/bsp/sifli/drivers/drv_adc.c
++++ b/rtos/rtthread/bsp/sifli/drivers/drv_adc.c
+@@ -485,11 +485,13 @@
+ #endif /* ADC_VBAT_DEDICATED_CHANNEL_SUPPORT */
+ 
+     //LOG_I("ADC vol %d , reg %f, max %d, min %d\n", *value, fave, data[ADC_SW_AVRA_CNT - 1], data[0]);
++#ifdef DRV_ADC_DEBUG_PRINT  /* local change (meshcore-sf32): was unconditional, floods the console */
+ #ifdef BSP_GPADC_SUPPORT_MULTI_CH_SAMPLING
+     rt_kprintf("ch[%d]origin:%d, voltage:%d;\n", channel, adc_origin, *value);
+ #else
+     rt_kprintf("ch[%d]voltage=%d;%f\n", channel, *value, fval);
+ #endif
++#endif
+ 
+     r = rt_sem_release(&gpadc_lock);
+     RT_ASSERT(RT_EOK == r);
+@@ -618,7 +620,9 @@
+ #endif
+ 
+     read_arg->value = (rt_uint32_t)(HAL_ADC_RegToVoltageFloat((float)data, &g_adc_calib_ctx) * 10);   // based on 0.1 mv for more accurate
++#ifdef DRV_ADC_DEBUG_PRINT  /* local change (meshcore-sf32): was unconditional */
+     rt_kprintf("adc control origin data %d, Voltage %d\n", data, read_arg->value);
++#endif
+ 
+     r = rt_sem_release(&gpadc_lock);
+     RT_ASSERT(RT_EOK == r);

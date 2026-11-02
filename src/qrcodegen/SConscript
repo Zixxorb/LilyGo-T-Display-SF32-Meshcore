@@ -1,0 +1,10 @@
+# Nayuki's QR Code generator (MIT; copy from the SiFli SDK's LVGL), for the companion
+# UI's "share contact" QR code.
+import os
+from building import *
+
+cwd = GetCurrentDir()
+objs = []
+if os.getenv('SF32_FIRMWARE', 'repeater') == 'companion':
+    objs = DefineGroup('QRCodeGen', Glob('*.c'), depend=[''], CPPPATH=[cwd])
+Return('objs')

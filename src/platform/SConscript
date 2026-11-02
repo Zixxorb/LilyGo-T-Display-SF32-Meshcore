@@ -1,0 +1,42 @@
+# T-Display-SF32 platform code: board, radio driver, RTC, RNG and MeshCore's target.h.
+import os
+from building import *
+
+cwd = GetCurrentDir()
+src = Glob('*.cpp') + Glob('*.c')
+# The BLE transport needs the Bluetooth stack, which only the companion project enables.
+if os.getenv('SF32_FIRMWARE', 'repeater') != 'companion':
+    src = [s for s in src if not s.name.startswith('SF32SerialBLEInterface')]
+
+# SF32_UI_DEMO=t_t_U_240,300 ./build.sh companion: test firmware that plays touch
+# input, one step every 8 s from 10 s after boot (screenshots with
+# tools/sf32_debug_uart.py shot; UI work only). Steps: t = tap, L = long press,
+# U / D = swipe up / down, l / r = swipe left / right, X,Y = tap at panel coordinates
+# (menus), . = wait, B = show the battery-empty screen;
+# '_' separates.
+# SF32_UI_DEMO_TIME=<epoch>: set the RTC to this at boot, even backwards.
+defs = []
+if os.getenv('SF32_MOTION_LOG'):  # SF32_MOTION_LOG=1: print the accelerometer every second
+    defs.append('SF32_MOTION_LOG')
+if os.getenv('SF32_I2C_SCAN'):  # SF32_I2C_SCAN=1: log an I2C bus scan 5 s after boot
+    defs.append('SF32_I2C_SCAN_AT_BOOT')
+if os.getenv('SF32_PM_LOG'):  # SF32_PM_LOG=1: count time asleep (power manager)
+    defs.append('SF32_PM_LOG')
+if os.getenv('SF32_SENSOR_PROBE'):  # SF32_SENSOR_PROBE=1: list the motion hub's sensors at boot
+    defs.append('SF32_SENSOR_PROBE')
+if os.getenv('SF32_SOUND_LOG'):  # SF32_SOUND_LOG=1: print each sound played
+    defs.append('SF32_SOUND_LOG')
+if os.getenv('SF32_FRAME_LOG'):  # SF32_FRAME_LOG=1: print frame / transition times
+    defs.append('SF32_FRAME_LOG')
+if os.getenv('SF32_REMOTE_TOUCH'):  # SF32_REMOTE_TOUCH=1: debug builds only: tools/touch.sh taps/swipes over USB
+    defs.append('SF32_REMOTE_TOUCH')
+if os.getenv('SF32_UI_DEMO'):
+    defs.append(('SF32_UI_DEMO_SEQ', '\\"' + os.getenv('SF32_UI_DEMO') + '\\"'))
+    if os.getenv('SF32_UI_DEMO_TIME'):
+        defs.append(('SF32_UI_DEMO_TIME', os.getenv('SF32_UI_DEMO_TIME')))
+
+# variant.h supplies LORA_* defaults used by target.cpp
+group = DefineGroup('Platform', src, depend=[''], CPPPATH=[cwd], LOCAL_CPPDEFINES=defs,
+                    LOCAL_CCFLAGS=' -include sf32_platform.h -include variant.h')
+
+Return('group')

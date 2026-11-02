@@ -1,0 +1,110 @@
+# Third-party libraries and MeshCore itself.
+#
+# MeshCore/ is a symlink to ../../MeshCore-main, so MeshCore is used unmodified
+# and can be updated in place. Source paths stay relative so objects land in the
+# build directory (the SDK requires this).
+import os
+from building import *
+
+cwd = GetCurrentDir()
+mc = os.path.join(cwd, 'MeshCore')
+objs = []
+
+# rweather/Crypto 0.4.0, only the files MeshCore uses (SHA256, SHA512, AES128, Ed25519 verify).
+objs += DefineGroup('Crypto', Glob('Crypto/*.cpp'), depend=[''],
+                    CPPPATH=[os.path.join(cwd, 'Crypto')])
+
+# orlp/ed25519 as bundled with MeshCore (keygen, sign, key exchange). C sources.
+objs += DefineGroup('ed25519', Glob('MeshCore/lib/ed25519/*.c'), depend=[''],
+                    CPPPATH=[os.path.join(mc, 'lib', 'ed25519')])
+
+# electroniccats/CayenneLPP 1.6.1. Built without ARDUINO defined, so it uses its
+# plain C++ mode and doesn't need ArduinoJson. Its polyline code relies on Arduino.h
+# for <cstdint>, so we include that explicitly. One local fix: see lib/README.md.
+objs += DefineGroup('CayenneLPP', Glob('CayenneLPP/*.cpp'), depend=[''],
+                    CPPPATH=[os.path.join(cwd, 'CayenneLPP')],
+                    LOCAL_CCFLAGS=' -include cstdint')
+
+# MeshCore core and the helpers a repeater needs. This is an explicit list because
+# many helpers are platform-specific. CommonRadioPrefs uses target.h (src/platform).
+MESHCORE_SRC = [
+    'src/Packet.cpp',
+    'src/Dispatcher.cpp',
+    'src/Mesh.cpp',
+    'src/Utils.cpp',
+    'src/Identity.cpp',
+    'src/helpers/AdvertDataHelpers.cpp',
+    'src/helpers/ClientACL.cpp',
+    'src/helpers/CommonCLI.cpp',
+    'src/helpers/CommonRadioPrefs.cpp',
+    'src/helpers/ConfigSerializer.cpp',
+    'src/helpers/DynamicConfigSerializer.cpp',
+    'src/helpers/IdentityStore.cpp',
+    'src/helpers/RegionMap.cpp',
+    'src/helpers/StaticPoolPacketManager.cpp',
+    'src/helpers/TransportKeyStore.cpp',
+    'src/helpers/TxtDataHelpers.cpp',
+    'src/helpers/ui/MomentaryButton.cpp',
+]
+objs += DefineGroup('MeshCore', [File(os.path.join('MeshCore', s)) for s in MESHCORE_SRC],
+                    depend=[''],
+                    CPPPATH=[os.path.join(mc, 'src'),
+                             os.path.join(cwd, 'base64')],  # densaugeo/base64 1.4.0 (BaseChatMesh)
+                    # supplies Arduino.h, FS.h and FILESYSTEM to every MeshCore file
+                    LOCAL_CCFLAGS=' -include sf32_platform.h')
+
+# The application: MeshCore's simple_repeater (default), simple_room_server
+# (SF32_FIRMWARE=room_server) or companion_radio (SF32_FIRMWARE=companion), compiled
+# unmodified. These files pick a filesystem by
+# platform and #error otherwise. RP2040_PLATFORM (for these files only) selects their
+# LittleFS branch, which our src/arduino/LittleFS.h maps onto the internal flash
+# volume. variant.h holds the board's defaults (LORA_*, ...), like a variant's build_flags.
+firmware = os.getenv('SF32_FIRMWARE', 'repeater')
+if os.getenv('SF32_SELFTEST') == '1':
+    pass
+elif firmware == 'companion':
+    cr = 'MeshCore/examples/companion_radio/'
+    # The screen UI is our own copy of MeshCore's ui-new (src/companion_ui/: adds the
+    # theme, clock, menus, editors); the rest of the companion is MeshCore's, unmodified.
+    ui = os.path.join(cwd, '..', 'src', 'companion_ui')
+    objs += DefineGroup('Companion',
+                        [File(cr + f) for f in ('main.cpp', 'MyMesh.cpp', 'DataStore.cpp')] +
+                        [File('../src/companion_ui/UITask.cpp')] +  # relative: the linker breaks on spaces
+                        [File('MeshCore/src/helpers/' + f) for f in ('BaseChatMesh.cpp', 'ArduinoSerialInterface.cpp')],
+                        depend=[''],
+                        CPPPATH=[os.path.join(mc, 'examples', 'companion_radio'), ui],
+                        CPPDEFINES=['SF32_COMPANION'],
+                        # scripted UI test builds (SF32_UI_DEMO, see src/platform/SConscript)
+                        LOCAL_CPPDEFINES=['RP2040_PLATFORM'] + (['SF32_UI_TEST'] if os.getenv('SF32_UI_DEMO') else []) +
+                                         (['SF32_FRAME_LOG'] if os.getenv('SF32_FRAME_LOG') else []) +
+                                         (['SF32_SOUND_LOG'] if os.getenv('SF32_SOUND_LOG') else []) +
+                                         (['SF32_SOUND_STRESS'] if os.getenv('SF32_SOUND_STRESS') else []) +
+                                         (['SF32_NOISE_TEST'] if os.getenv('SF32_NOISE_TEST') else []) +
+                                         (['SF32_RAINBOW_TEST'] if os.getenv('SF32_RAINBOW_TEST') else []) +
+                                         (['SF32_CPU_TEST'] if os.getenv('SF32_CPU_TEST') else []) +
+                                         (['SF32_CPU_TOGGLE_TEST'] if os.getenv('SF32_CPU_TOGGLE_TEST') else []) +
+                                         (['SF32_PM_LOG'] if os.getenv('SF32_PM_LOG') else []) +
+                                         (['SF32_SUN_TEST'] if os.getenv('SF32_SUN_TEST') else []),  # Sun face at a test place
+                        # compat/ first: provides <helpers/rp2040/SerialBLEInterface.h> (the SF32 one)
+                        LOCAL_CCFLAGS=' "-I' + os.path.join(cwd, '..', 'src', 'platform', 'compat') + '"'
+                                      ' -include sf32_companion.h -include sf32_platform.h -include variant.h',
+                        )
+elif firmware == 'room_server':
+    objs += DefineGroup('RoomServer',
+                        [File('MeshCore/examples/simple_room_server/' + f) for f in ('main.cpp', 'MyMesh.cpp', 'UITask.cpp')],
+                        depend=[''],
+                        CPPPATH=[os.path.join(mc, 'examples', 'simple_room_server')],
+                        CPPDEFINES=['SF32_ROOM_SERVER'],
+                        LOCAL_CCFLAGS=' -include sf32_platform.h -include variant.h',
+                        LOCAL_CPPDEFINES=['RP2040_PLATFORM'])
+elif firmware == 'repeater':
+    objs += DefineGroup('Repeater',
+                        [File('MeshCore/examples/simple_repeater/' + f) for f in ('main.cpp', 'MyMesh.cpp', 'UITask.cpp')],
+                        depend=[''],
+                        CPPPATH=[os.path.join(mc, 'examples', 'simple_repeater')],
+                        LOCAL_CCFLAGS=' -include sf32_platform.h -include variant.h',
+                        LOCAL_CPPDEFINES=['RP2040_PLATFORM'])
+else:
+    raise Exception('SF32_FIRMWARE must be "repeater", "room_server" or "companion"')
+
+Return('objs')

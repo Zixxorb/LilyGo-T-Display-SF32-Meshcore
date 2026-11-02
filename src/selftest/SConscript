@@ -1,0 +1,7 @@
+from building import *
+
+cwd = GetCurrentDir()
+group = DefineGroup('SelfTest', Glob('*.cpp'), depend=[''], CPPPATH=[cwd],
+                    LOCAL_CCFLAGS=' -include sf32_platform.h')
+
+Return('group')

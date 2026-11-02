@@ -1,0 +1,21 @@
+# Application. The normal build is the repeater (main.cpp). SF32_SELFTEST=1
+# builds the bring-up self-tests (selftest/) instead.
+import os
+from building import *
+
+cwd = GetCurrentDir()
+selftest = os.getenv('SF32_SELFTEST') == '1'
+
+objs = []
+if not selftest:
+    # SF32_LOG_LEVEL=LOG_LVL_INFO ./build.sh ... keeps log output on the console (debugging)
+    defs = [('SF32_LOG_LEVEL', os.getenv('SF32_LOG_LEVEL'))] if os.getenv('SF32_LOG_LEVEL') else []
+    objs += DefineGroup('Applications', ['main.cpp'], depend=[''], CPPPATH=[cwd], LOCAL_CPPDEFINES=defs)
+
+for d in sorted(os.listdir(cwd)):
+    if d == 'selftest' and not selftest:
+        continue
+    if os.path.isfile(os.path.join(cwd, d, 'SConscript')):
+        objs = objs + SConscript(os.path.join(d, 'SConscript'))
+
+Return('objs')

@@ -1,0 +1,12 @@
+# build output
+project*/build_*/
+project*/.sconsign.dblite
+project*/__pycache__/
+__pycache__/
+*.pyc
+
+# fetched by setup.sh
+lib/MeshCore
+
+# local UI test screenshots
+shots/
