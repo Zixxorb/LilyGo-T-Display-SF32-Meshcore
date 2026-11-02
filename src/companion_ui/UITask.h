@@ -81,6 +81,7 @@ struct SF32UIPrefs {
   uint8_t adv_mesh = 0;        // auto advert, flood: ADV_MESH_HOURS index (0 off)
   uint8_t adv_page_mesh = 0;   // the Advert page's long press: 0 nearby, 1 whole mesh (flood)
   uint8_t usb_app = 0;         // the app protocol over USB too (SF32UsbInterface): PC apps, observer
+  uint8_t rotation = 0;        // 0 normal, 1 turned 180 degrees, 2 auto (by how it's held)
 };
 
 class UITask : public AbstractUITask {
@@ -260,6 +261,7 @@ public:
   void openQr();   // share this node's contact as a QR code (ui_qr.inc)
   void closeQr();
   void openFlashlight();
+  void applyRotation();  // ui_power.inc: Display > Rotation (auto: from the accelerometer)
   bool sendAdvert(bool mesh_wide);  // ui_adverts.inc: nearby (zero hop) or the whole mesh
   void advertLoop();                // scheduled adverts (Settings > Auto advert)
   uint8_t _adv_nearby_h = 0, _adv_mesh_h = 0;

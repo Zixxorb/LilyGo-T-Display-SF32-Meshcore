@@ -57,6 +57,8 @@ void UITask::openMenu(MenuKind kind) {
     timeoutLabel(tmp, _ui_prefs.timeout_idx);
     m->add("Timeout", ACT_SET_TIMEOUT, tmp);
     m->add("Always-on", ACT_SET_AOD, _ui_prefs.aod ? "On" : "Off");
+    static const char* const ROT_NAMES[] = {"Normal", "Flipped", "Auto"};
+    m->add("Rotation", ACT_ROTATION, ROT_NAMES[_ui_prefs.rotation % 3]);
     m->add("Back", ACT_SETTINGS);
     m->setSelected(keep_sel);
     setCurrScreen(menu);
@@ -190,6 +192,13 @@ void UITask::menuAction(uint8_t action) {
       showAlert(sendAdvert(true) ? "Advert sent to mesh" : "Advert failed..", 1000);
       break;
     case ACT_ADVERTS_MENU: openMenu(MENU_ADVERTS); break;
+    case ACT_ROTATION:  // normal -> flipped -> auto
+      _ui_prefs.rotation = (_ui_prefs.rotation + 1) % 3;
+      saveUIPrefs();
+      motion.setActive(_ui_prefs.lift_wake || _ui_prefs.flip_quiet || _ui_prefs.rotation == 2);
+      applyRotation();
+      openMenu(_menu_kind);
+      break;
     case ACT_USB_APP:
       _ui_prefs.usb_app = !_ui_prefs.usb_app;
       saveUIPrefs();
@@ -376,13 +385,13 @@ void UITask::menuAction(uint8_t action) {
     case ACT_LOGS: openLogs(); break;
     case ACT_SET_LIFT:
       _ui_prefs.lift_wake = !_ui_prefs.lift_wake;
-      motion.setActive(_ui_prefs.lift_wake || _ui_prefs.flip_quiet);
+      motion.setActive(_ui_prefs.lift_wake || _ui_prefs.flip_quiet || _ui_prefs.rotation == 2);
       saveUIPrefs();
       openMenu(_menu_kind);
       break;
     case ACT_SET_FLIP:
       _ui_prefs.flip_quiet = !_ui_prefs.flip_quiet;
-      motion.setActive(_ui_prefs.lift_wake || _ui_prefs.flip_quiet);
+      motion.setActive(_ui_prefs.lift_wake || _ui_prefs.flip_quiet || _ui_prefs.rotation == 2);
       saveUIPrefs();
       openMenu(_menu_kind);
       break;

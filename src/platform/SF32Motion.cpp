@@ -16,6 +16,11 @@ extern "C" {
 SF32Motion motion;
 
 #define SAMPLE_MS        100
+// auto-rotate: the accelerometer axis along the screen's up-down direction (0 x, 1 y) and
+// its sign when held the right way up (measured on the board 2026-11-02: held upright
+// normally, x = -1.0 g, y and z ~0)
+#define ROT_AXIS 0
+#define ROT_SIGN (-1.0f)
 #define STILL_TICKS      15      // 1.5 s of stillness before a pick-up can count
 #define STILL_DEV        0.06f   // max change between samples (g) that still counts as still
 #define PICKUP_COS       0.94f   // tilt > ~20 deg from the resting direction
@@ -90,6 +95,19 @@ void SF32Motion::poll() {
   // face down, with a little hysteresis (1 s to enter, 0.5 s to leave)
   if (z < FACE_DOWN_Z) { _up_count = 0; if (++_down_count >= 10) _face_down = true; }
   else if (z > FACE_UP_Z) { _down_count = 0; if (++_up_count >= 5) _face_down = false; }
+
+  // which way up (auto-rotate): gravity along the screen's up-down axis, against the board's
+  // "top" (ROT_AXIS, ROT_SIGN: see the defines). Upright enough (> 0.55 g along it) for 0.8 s.
+  {
+    float up = ROT_SIGN * (ROT_AXIS == 0 ? x : y);
+    int want = up > 0.55f ? 1 : (up < -0.55f ? -1 : 0);
+    if (want != 0 && want == _side_want) {
+      if (++_side_count >= 8) _side = want;
+    } else {
+      _side_want = want;
+      _side_count = 0;
+    }
+  }
 
   // still: barely any change since the last sample
   float d = fabsf(x - _px) + fabsf(y - _py) + fabsf(z - _pz);

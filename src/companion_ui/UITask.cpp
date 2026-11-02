@@ -272,7 +272,8 @@ void UITask::begin(DisplayDriver* display, SensorManager* sensors, NodePrefs* no
   // SF32: the app protocol over USB as well as Bluetooth (Settings > USB app)
   interface_manager.addInterface(InterfaceType::USB, &usb_app_interface);
   if (_ui_prefs.usb_app) usb_app_interface.enable(); else usb_app_interface.disable();
-  motion.setActive(_ui_prefs.lift_wake || _ui_prefs.flip_quiet);  // SF32: accelerometer only if used
+  motion.setActive(_ui_prefs.lift_wake || _ui_prefs.flip_quiet || _ui_prefs.rotation == 2);  // SF32: accelerometer only if used
+  applyRotation();
   motion.begin();                       // SF32: BHI260AP (background)
   InternalFS.remove("/sf32_steps");     // SF32: left over from the removed step counter
   batt_history.begin();                 // SF32

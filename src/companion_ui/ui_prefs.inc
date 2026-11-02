@@ -34,7 +34,8 @@ void UITask::resumeOrReset() {
 #define SF32_UI_PREFS_MAGIC_V12 0x5346553C  // "SFU<": + power saving (sleep)
 #define SF32_UI_PREFS_MAGIC_V13 0x5346553D  // "SFU=": + auto adverts
 #define SF32_UI_PREFS_MAGIC_V14 0x5346553E  // "SFU>": + Advert page long press: nearby / mesh
-#define SF32_UI_PREFS_MAGIC     0x5346553F  // "SFU?": + USB app
+#define SF32_UI_PREFS_MAGIC_V15 0x5346553F  // "SFU?": + USB app
+#define SF32_UI_PREFS_MAGIC     0x53465540  // "SFU@": + rotation
 
 static const uint8_t  BRIGHTNESS_STEPS[] = {25, 50, 80, 100};
 static const uint16_t TIMEOUT_SECS[] = {15, 30, 60, 300, 0};  // 0 = on while on USB power (else 60 s)
@@ -45,13 +46,18 @@ void UITask::loadUIPrefs() {
   int n = f ? f.read((uint8_t*)&p, sizeof(p)) : 0;
   if (n == sizeof(p) && p.magic == SF32_UI_PREFS_MAGIC) {
     _ui_prefs = p;
+  } else if (n >= 38 && p.magic == SF32_UI_PREFS_MAGIC_V15) {  // up to usb_app
+    _ui_prefs = p;
+    _ui_prefs.rotation = SF32UIPrefs().rotation;
   } else if (n >= 37 && p.magic == SF32_UI_PREFS_MAGIC_V14) {  // up to adv_page_mesh
     _ui_prefs = p;
     _ui_prefs.usb_app = SF32UIPrefs().usb_app;
+    _ui_prefs.rotation = SF32UIPrefs().rotation;
   } else if (n >= 36 && p.magic == SF32_UI_PREFS_MAGIC_V13) {  // up to adv_mesh
     _ui_prefs = p;
     _ui_prefs.adv_page_mesh = SF32UIPrefs().adv_page_mesh;
     _ui_prefs.usb_app = SF32UIPrefs().usb_app;
+    _ui_prefs.rotation = SF32UIPrefs().rotation;
   } else if (n >= 34 && p.magic == SF32_UI_PREFS_MAGIC_V12) {  // up to power_save (the rest was padding)
     SF32UIPrefs defaults;
     _ui_prefs = p;
@@ -59,6 +65,7 @@ void UITask::loadUIPrefs() {
     _ui_prefs.adv_mesh = defaults.adv_mesh;
     _ui_prefs.adv_page_mesh = defaults.adv_page_mesh;
     _ui_prefs.usb_app = defaults.usb_app;
+    _ui_prefs.rotation = defaults.rotation;
   } else if (n >= 32 && p.magic == SF32_UI_PREFS_MAGIC_V11) {  // up to hidden_pages (the rest: defaults)
     SF32UIPrefs defaults;
     _ui_prefs = p;
@@ -129,6 +136,7 @@ void UITask::loadUIPrefs() {
   if (_ui_prefs.sig_interval >= NUM_SIG_INTERVALS) _ui_prefs.sig_interval = 1;
   if (_ui_prefs.sos_chan >= MAX_GROUP_CHANNELS) _ui_prefs.sos_chan = 0;
   if (_ui_prefs.dst_rule >= DST_RULES) _ui_prefs.dst_rule = DST_OFF;
+  if (_ui_prefs.rotation > 2) _ui_prefs.rotation = 0;
   applyBrightness();
 }
 

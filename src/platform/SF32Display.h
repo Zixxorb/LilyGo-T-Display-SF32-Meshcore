@@ -62,6 +62,8 @@ public:
   // logical px (clock hands, dial ticks)
   void drawLineAA(float x0, float y0, float x1, float y1, float width);
   // A sharp rectangle in panel pixels (0..479, plus the burn-in shift), e.g. QR modules
+  void setFlipped(bool f);  // turn the picture 180 degrees (the LCD controller mirrors it: free)
+  bool flipped() const { return _flipped; }
   void fillWholePanel(uint16_t color);  // every pixel, outside the drawing area too
   void fillPanelRect(int px, int py, int w, int h);
   // drawXbm, drawn `scale` times larger (smoothed), e.g. 1.5 for big page icons
@@ -94,6 +96,7 @@ private:
 
   rt_device_t _lcd = nullptr;
   bool _on = false;
+  bool _flipped = false;
   uint8_t _brightness = 80;
   Transition _transition = TRANSITION_NONE;
   bool _wake_pending = false;

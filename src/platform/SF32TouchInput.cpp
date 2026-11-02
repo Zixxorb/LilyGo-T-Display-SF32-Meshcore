@@ -77,6 +77,7 @@ void SF32TouchInput::update() {
   while (pending-- > 0) {
     struct touch_message m;
     if (rt_device_read((rt_device_t)_dev, 0, &m, 1) != 1) continue;
+    if (_flipped) { m.x = 479 - m.x; m.y = 479 - m.y; }  // turned 180 degrees (auto-rotate)
     if (m.event == TOUCH_EVENT_DOWN || m.event == TOUCH_EVENT_MOVE) {
       if (!_down) {
         _down = true;

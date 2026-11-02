@@ -347,6 +347,13 @@ void SF32Display::drawLineAA(float x0, float y0, float x1, float y1, float width
   }
 }
 
+void SF32Display::setFlipped(bool f) {
+  if (f == _flipped || !_lcd) return;
+  waitFlush();
+  rt_device_control(_lcd, RTGRAPHIC_CTRL_ROTATE_180, RT_NULL);  // toggles 0 <-> 180
+  _flipped = f;
+}
+
 void SF32Display::fillWholePanel(uint16_t color) {  // edge to edge, margins too (flashlight)
   fill16(s_fb, color, PANEL_W * PANEL_H);
 }

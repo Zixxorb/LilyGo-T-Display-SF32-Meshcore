@@ -124,6 +124,12 @@ Controls:
   until the next). Sunrise / sunset come from the node's location as set in the app
   (ui_sun.inc, the sunrise equation; no network); the Info face shows the next one too.
   Long press the clock, or its swipe-up menu > Face, or Settings > Display > Clock face.
+- **Rotation** (Settings > Display): Normal, Flipped (180 degrees) or Auto (from the
+  accelerometer: held upright one way or the other for 0.8 s; lying flat keeps the last).
+  The LCD controller mirrors the picture (free, partial updates included) and touches are
+  turned with it. 180 degrees only: the controller can't do 90, and doing it in software
+  would cost a full-frame copy per update. Axis calibrated on the board (`ROT_AXIS`,
+  `ROT_SIGN` in SF32Motion.cpp).
 - **Settings** is in this order: what you see, what you hear, sensors, radio, system.
   **Display** (theme, clock face, brightness, timeout, always-on), **Pages** (show/hide
   each home page; the clock always shows; swipes and page dots skip hidden ones),
@@ -475,5 +481,4 @@ handler's saved registers.
 - To do / ideas:
   - Power: stage 2 (an event-driven main loop instead of waking every 25 ms), then deep
     sleep with the motion hub's wake gestures.
-  - BHI260AP: auto-rotate the screen.
   - WiFi (needs the T-SF32-Keyboard expansion's ESP32-C6, per LilyGo).

@@ -12,6 +12,9 @@ public:
   bool ready() const { return _ready; }
   bool faceDown() const { return _face_down; }
   bool takePickup();      // true once per pick-up
+  // held upright (screen facing you, more or less): +1 the right way up, -1 upside down,
+  // 0 not known yet (lying flat, or not held long enough). Keeps the last answer while flat.
+  int uprightSide() const { return _side; }
   // the accelerometer runs only while a motion feature needs it (saves power)
   void setActive(bool on);
 
@@ -24,6 +27,7 @@ private:
   unsigned long _next = 0;
   bool _face_down = false, _pickup = false;
   int _down_count = 0, _up_count = 0;
+  int _side = 0, _side_count = 0, _side_want = 0;
   // stillness: the reference direction while lying still
   float _rx = 0, _ry = 0, _rz = 0;
   int _still_ticks = 0;

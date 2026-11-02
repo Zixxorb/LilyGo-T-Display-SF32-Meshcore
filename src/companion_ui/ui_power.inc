@@ -9,11 +9,27 @@
 #define DIM_BRIGHTNESS     10
 #define SHIFT_PERIOD_MS    180000UL  // move the layout every 3 min
 
+// Display > Rotation: normal, turned 180 degrees, or auto (the way it's held, from the
+// accelerometer; lying flat keeps the last). The LCD controller mirrors the picture and
+// the touch coordinates turn with it.
+void UITask::applyRotation() {
+  bool flip = _ui_prefs.rotation == 1;
+  if (_ui_prefs.rotation == 2) {
+    int side = motion.uprightSide();
+    flip = side == 0 ? ((SF32Display*)_display)->flipped() : side < 0;
+  }
+  if (flip == ((SF32Display*)_display)->flipped()) return;
+  ((SF32Display*)_display)->setFlipped(flip);
+  touch_input.setFlipped(flip);
+  _next_refresh = 0;
+}
+
 void UITask::powerCare() {
   unsigned long now = millis();
 
   // motion: pick up to wake; laid face down turns the screen off
   motion.poll();
+  if (_ui_prefs.rotation == 2 && _display && _display->isOn()) applyRotation();
   bool picked = motion.takePickup();
   if (picked && _aod && _ui_prefs.lift_wake) exitAOD();
   if (picked && _ui_prefs.lift_wake && _display && !_display->isOn() &&
