@@ -339,6 +339,11 @@ void UITask::menuAction(uint8_t action) {
       if (curr == menu) closeMenu();
       _next_refresh = 0;
       break;
+    case ACT_SIG_FINDER:
+      signal_tester.startFinder();
+      if (curr == menu) closeMenu();
+      _next_refresh = 0;
+      break;
     case ACT_SIG_INTERVAL:
       _ui_prefs.sig_interval = (_ui_prefs.sig_interval + 1) % NUM_SIG_INTERVALS;
       saveUIPrefs();

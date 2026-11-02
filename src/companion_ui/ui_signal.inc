@@ -3,6 +3,9 @@
 // discovery request, like the Discover page) every few seconds and shows how well the
 // best one (or a chosen one) hears us and we hear it, with a beep per ping whose pitch
 // follows the signal. For walking around to find dead spots. Stops by itself after 30 min.
+// Finder (Signal menu > Finder): locked onto one repeater, a ping every 5 s, and whether
+// you're getting warmer or colder by its signal strength (RSSI: keeps rising as you get
+// close, where SNR tops out). No compass on the board, so no direction, just the trend.
 
 #define SIG_ROUND_MS    5000UL               // replies counted for this long after a ping
 #define SIG_MAX_RUN_MS  (30UL * 60 * 1000)   // auto stop (airtime, battery)
@@ -11,6 +14,7 @@
 
 static const uint8_t SIG_INTERVALS[] = {10, 15, 30, 60};  // seconds
 #define NUM_SIG_INTERVALS (sizeof(SIG_INTERVALS) / sizeof(SIG_INTERVALS[0]))
+#define SIG_FINDER_MS   5000UL               // finder: ping interval (zero hop, nearby only)
 
 class SignalTester {
 public:
@@ -27,10 +31,19 @@ public:
   char lock_name[32] = "";
   int8_t hist[SIG_HIST];  // link quality per ping (min of in/out, dB x4), SIG_NONE if none
   int hist_n = 0;
+  // finder
+  bool finder = false;
+  int last_rssi = 0, best_rssi = -200;  // dBm, the target's reply as we hear it
+  int trend = 0;                        // +1 warmer, -1 colder, 0 about the same / unknown
+  int8_t rssi_hist[4];                  // the last few replies, for the trend
+  int rssi_n = 0;
 
   SignalTester() { clear(); }
 
   void clear() {
+    rssi_n = 0;
+    trend = 0;
+    best_rssi = -200;
     pings = replies = 0;
     hist_n = 0;
     last_ok = false;
@@ -43,7 +56,12 @@ public:
     _next_ping = millis();
     _round_open = false;
   }
-  void stop() { running = false; _round_open = false; }
+  void stop() { running = false; _round_open = false; finder = false; }
+  void startFinder() {  // locked onto the current target (or the first to answer)
+    clear();
+    finder = true;
+    start();
+  }
 
   // a bit more than a full round: what to show as "next ping in"
   int secsToNextPing() const {
@@ -71,7 +89,7 @@ public:
     }
     if (!_round_open && (long)(millis() - _next_ping) >= 0) {
       ping();
-      _next_ping = millis() + SIG_INTERVALS[interval_idx % NUM_SIG_INTERVALS] * 1000UL;
+      _next_ping = millis() + (finder ? SIG_FINDER_MS : SIG_INTERVALS[interval_idx % NUM_SIG_INTERVALS] * 1000UL);
       return true;
     }
     return false;
@@ -82,11 +100,13 @@ public:
     const uint8_t* prefix = &packet->payload[6];
     if (locked && memcmp(prefix, lock_prefix, 8) != 0) { _heard++; return; }
     float in = radio_driver.getLastSNR(), out = ((int8_t)packet->payload[1]) / 4.0f;
+    int rssi = (int)radio_driver.getLastRSSI();
     _heard++;
     if (!_got || fminf(in, out) > fminf(_in, _out)) {
       _got = true;
       _in = in;
       _out = out;
+      _rssi = rssi;
       memcpy(_prefix, prefix, 8);
     }
   }
@@ -97,6 +117,7 @@ private:
   uint32_t _tag = 0;
   uint8_t _heard = 0;
   float _in = 0, _out = 0;
+  int _rssi = 0;
   uint8_t _prefix[8], _last_prefix[8];
 
   void ping() {
@@ -130,9 +151,31 @@ private:
       else mesh::Utils::toHex(last_name, _prefix, 4);
       float link = fminf(_in, _out);
       q = (int8_t)constrain((int)lroundf(link * 4), -127, 127);
-      // pitch follows the link: -15 dB low, +10 dB high
-      int hz = 500 + (int)((constrain(link, -15.0f, 10.0f) + 15.0f) * 60.0f);
-      sound.tone(hz, 90, vol);
+      if (finder) {
+        if (!locked) {  // the first to answer becomes the one to find
+          memcpy(lock_prefix, _prefix, 8);
+          StrHelper::strncpy(lock_name, last_name, sizeof(lock_name));
+          locked = true;
+        }
+        // warmer / colder: this reply against the average of the few before (3 dB either way)
+        last_rssi = _rssi;
+        if (rssi_n >= 2) {
+          int sum = 0, n = rssi_n < 4 ? rssi_n : 4;
+          for (int k = 0; k < n; k++) sum += rssi_hist[k];
+          float avg = (float)sum / n;
+          trend = _rssi > avg + 3 ? 1 : (_rssi < avg - 3 ? -1 : 0);
+        }
+        memmove(rssi_hist + 1, rssi_hist, 3);
+        rssi_hist[0] = (int8_t)constrain(_rssi, -128, 127);
+        if (rssi_n < 4) rssi_n++;
+        if (_rssi > best_rssi) best_rssi = _rssi;
+        // pitch follows the signal strength: -120 dBm low, -40 high
+        sound.tone(400 + (constrain(_rssi, -120, -40) + 120) * 20, 90, vol);
+      } else {
+        // pitch follows the link: -15 dB low, +10 dB high
+        int hz = 500 + (int)((constrain(link, -15.0f, 10.0f) + 15.0f) * 60.0f);
+        sound.tone(hz, 90, vol);
+      }
     } else {
       sound.tone(260, 110, vol, 2);  // no reply: two low beeps
     }

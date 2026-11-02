@@ -196,6 +196,11 @@ Controls:
   of the last 40 pings (no reply: red tick). A beep per ping, higher for a better link, two
   low beeps for no reply (follows the Sound setting). Swipe up > Target locks onto the
   repeater just heard. The screen stays on while testing; it stops by itself after 30 min.
+  **Finder** (Signal menu): locked onto one repeater (the target, or the first to answer),
+  a ping every 5 s, its signal strength big (RSSI, which keeps rising as you get close,
+  where SNR tops out) and **warmer / colder / about the same** against the few pings
+  before (3 dB either way), the best so far, and a beep whose pitch follows the strength.
+  No compass on the board, so no direction: walk, and follow the trend. Tap to stop.
 - **Mesh SOS**: triple-press button A, or swipe down > Send SOS. A 5 s countdown with
   beeps (Cancel button, or press A), then it sends "SOS! I need help. Location: lat,lon.
   Battery N%." to the channel in Settings > SOS to (default: the first channel,
@@ -470,6 +475,5 @@ handler's saved registers.
 - To do / ideas:
   - Power: stage 2 (an event-driven main loop instead of waking every 25 ms), then deep
     sleep with the motion hub's wake gestures.
-  - A repeater finder (warmer / colder by signal while walking; no compass on the board).
   - BHI260AP: auto-rotate the screen.
   - WiFi (needs the T-SF32-Keyboard expansion's ESP32-C6, per LilyGo).

@@ -602,7 +602,11 @@ public:
         char iv[8];
         sprintf(iv, "%d s", SIG_INTERVALS[_task->uiPrefs().sig_interval % NUM_SIG_INTERVALS]);
         m.begin("Signal");
-        m.add(signal_tester.running ? "Stop test" : "Start test", ACT_SIG_TOGGLE);
+        if (signal_tester.finder) m.add("Stop finder", ACT_SIG_TOGGLE);
+        else {
+          m.add(signal_tester.running ? "Stop test" : "Start test", ACT_SIG_TOGGLE);
+          m.add("Finder", ACT_SIG_FINDER);  // warmer / colder to one repeater
+        }
         m.add("Every", ACT_SIG_INTERVAL, iv);
         m.add("Target", ACT_SIG_LOCK, signal_tester.locked ? signal_tester.lock_name : "Best");
         m.add("Clear results", ACT_SIG_CLEAR);
@@ -992,6 +996,45 @@ public:
       themeLabel(display, 8, 61, "packets per hour");
       drawActivityGraph(display, 10, 73, 108, 30);
       next_render = 30000;
+    } else if (_page == HomePage::SIGNAL && signal_tester.finder) {
+      // the finder: the target, its signal strength big, warmer / colder
+      SignalTester& st = signal_tester;
+      themeHeader(display, "Finder", mv);
+      display.setTextSize(1);
+      display.setColor(UIColor::secondary_txt);
+      char nm[40];
+      if (st.locked) {
+        display.translateUTF8ToBlocks(nm, st.lock_name, sizeof(nm));
+        display.drawTextEllipsized(6, 28, 116, nm);
+      } else display.drawTextCentered(W / 2, 28, "finding a repeater...");
+      if (st.rssi_n > 0) {
+        sprintf(tmp, "%d", st.last_rssi);
+        display.setTextSize(4);
+        display.setColor(st.last_ok ? UIColor::primary_txt : UIColor::secondary_txt);
+        int w = display.getTextWidth(tmp);
+        display.setCursor((W - w) / 2 - 8, 40);
+        display.print(tmp);
+        display.setTextSize(1);
+        display.setColor(UIColor::secondary_txt);
+        display.setCursor((W + w) / 2 - 6, 58);
+        display.print("dBm");
+        const char* word = st.trend > 0 ? "warmer" : st.trend < 0 ? "colder" : (st.rssi_n >= 3 ? "about the same" : "keep walking");
+        display.setTextSize(2);
+        display.setColor(st.trend > 0 ? THEME_GOOD : st.trend < 0 ? THEME_RED : UIColor::secondary_txt);
+        display.drawTextCentered(W / 2, 76, st.last_ok ? word : "no reply");
+        display.setTextSize(1);
+        display.setColor(UIColor::secondary_txt);
+        sprintf(tmp, "best %d dBm  -  SNR %.1f dB", st.best_rssi, st.last_in);
+        display.drawTextCentered(W / 2, 98, tmp);
+      } else {
+        display.setTextSize(1);
+        display.setColor(UIColor::secondary_txt);
+        display.drawTextCentered(W / 2, 60, st.pings ? "no reply yet" : "pinging...");
+      }
+      sprintf(tmp, "every 5 s  -  tap to stop");
+      display.setColor(UIColor::secondary_txt);
+      display.drawTextCentered(W / 2, 110, tmp);
+      next_render = 1000;
     } else if (_page == HomePage::SIGNAL) {
       themeHeader(display, "Signal", mv);
       SignalTester& st = signal_tester;
