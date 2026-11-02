@@ -297,6 +297,7 @@ public:
   void onQueueSizeChanged(int offline_queue_size) override;
   void onDiscoveredContact(ContactInfo &contact, bool is_new, uint8_t path_len, const uint8_t* path) override;
   void onControlDataRecv(const mesh::Packet* pkt) override;
+  bool onUnhandledResponse(const ContactInfo &from, uint32_t tag, const uint8_t* data, uint8_t len) override;  // SF32: My Nodes
 
   // from AbstractUITask
   void notify(UIEventType t = UIEventType::none) override;

@@ -13,6 +13,7 @@
 //   ui_activity.inc      mesh activity: packets per hour, channel use (Activity page)
 //   ui_sun.inc           sunrise / sunset (Sun and Info clock faces)
 //   ui_adverts.inc       adverts: nearby / mesh, now or on a schedule
+//   ui_nodes.inc         My Nodes: starred contacts, last heard, battery on request
 //   ui_home.inc          HomeScreen: clock, status, battery, heard, radio, bluetooth,
 //                        advert, bot, discover, signal and power pages
 //   ui_screens.inc       themes, About, Logs, Time zone, always-on display, Night mode hours
@@ -134,6 +135,7 @@ public:
 #include "ui_activity.inc"  // mesh activity (Activity page): packets per hour, channel use
 #include "ui_sun.inc"  // sunrise / sunset from the node's location (Sun and Info clock faces)
 #include "ui_adverts.inc"  // send adverts now / on a schedule (Settings > Auto advert)
+#include "ui_nodes.inc"  // My Nodes (Nodes page): starred contacts, battery on request
 
 #include "ui_home.inc"  // HomeScreen: the pages (clock, status, heard, radio, bluetooth, advert, discover, power)
 
@@ -443,6 +445,13 @@ void UITask::onDiscoveredContact(ContactInfo &contact, bool is_new, uint8_t path
   }
 }
 
+// SF32: a reply MeshCore's companion code doesn't know: maybe My Nodes' battery request
+bool UITask::onUnhandledResponse(const ContactInfo &from, uint32_t tag, const uint8_t* data, uint8_t len) {
+  if (!my_nodes.onResponse(from, tag, data, len)) return false;
+  _next_refresh = 0;
+  return true;
+}
+
 void UITask::onControlDataRecv(const mesh::Packet* packet) {
 #if UI_DISCOVER_SCREEN
   if (packet->payload_len >= 14 && (packet->payload[0] & 0xF0) == CTL_TYPE_NODE_DISCOVER_RESP) {
@@ -532,6 +541,7 @@ void UITask::loop() {
   if (batt_history.due()) batt_history.loop(getBattMilliVolts(), board.isExternalPowered());  // SF32
   mesh_activity.loop();  // SF32: packet counts per hour (Activity page)
   advertLoop();          // SF32: scheduled adverts (Settings > Auto advert)
+  if (my_nodes.expire()) _next_refresh = 0;  // SF32: My Nodes: no reply
   if (signal_tester.loop(_ui_prefs.sig_interval, (SF32Sound::Volume)_ui_prefs.sound) && curr == home) _next_refresh = 0;
   if (signal_tester.running && _display != NULL && _display->isOn() && !_aod) {
     _auto_off = millis() + autoOffMillis();  // SF32: stays on while testing (stops by itself)

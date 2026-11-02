@@ -102,7 +102,7 @@ with two extra pages:
 Every screen uses a "MeshCore" theme (MeshCore's slate #1F2937, a blue accent, black
 background): page title with an accent bar, compact battery, content on rounded cards,
 page dots. Pages: Clock, Status, Battery, Heard, Radio, Bluetooth, Advert, Bot, Discover,
-Signal, Activity, Power.
+Signal, Activity, Nodes, Power.
 
 Controls:
 - Button **A** / **tap**: next page. Double tap: previous page. Long press: select.
@@ -176,6 +176,12 @@ Controls:
   off / every 12, 24, 48 h, both off by default. Advert / Heard / Radio page menus: **Send
   nearby** or **Send to mesh** now; the Advert page's menu > **Long press** picks what its
   long press sends (Nearby / Mesh).
+- **Nodes** page (My Nodes): the contacts starred as favourites in the app (up to 4):
+  when each was last heard, direct / hops / flood, and its battery when you tap its row:
+  one telemetry request to that node (at most one every 20 s, nothing on a schedule, so
+  the mesh isn't loaded with polling). The reply comes back through MeshCore's
+  `onUnhandledResponse` and isn't pushed to the phone. A node answers only if its own
+  telemetry setting shares with us; repeaters want a login for it ("no reply").
 - **USB app** (Settings, off by default): the MeshCore app protocol over the USB serial
   port as well as Bluetooth (both at once), for PC apps (meshcore-cli, the Python
   library) and as an **observer**: every packet heard is pushed raw with its SNR / RSSI
@@ -464,7 +470,6 @@ handler's saved registers.
 - To do / ideas:
   - Power: stage 2 (an event-driven main loop instead of waking every 25 ms), then deep
     sleep with the motion hub's wake gestures.
-  - My Nodes (battery / last heard of chosen nodes, asked only on demand), a repeater
-    finder (warmer / colder by signal while walking; no compass on the board).
+  - A repeater finder (warmer / colder by signal while walking; no compass on the board).
   - BHI260AP: auto-rotate the screen.
   - WiFi (needs the T-SF32-Keyboard expansion's ESP32-C6, per LilyGo).

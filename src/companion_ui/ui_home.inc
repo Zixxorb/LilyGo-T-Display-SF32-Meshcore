@@ -23,6 +23,7 @@ class HomeScreen : public UIScreen {
 #endif
     SIGNAL,    // SF32: signal tester (ui_signal.inc)
     ACTIVITY,  // SF32: packets heard per hour, channel use (ui_activity.inc)
+    NODES,     // SF32: My Nodes: starred contacts (ui_nodes.inc)
 #ifndef UI_NO_HIBERNATE
     SHUTDOWN,
 #endif
@@ -343,6 +344,7 @@ public:
 #endif
       case HomePage::SIGNAL: return "Signal";
       case HomePage::ACTIVITY: return "Activity";
+      case HomePage::NODES: return "Nodes";
 #ifndef UI_NO_HIBERNATE
       case HomePage::SHUTDOWN: return "Power";
 #endif
@@ -496,6 +498,7 @@ public:
   bool wantsTaps() const {
     return _page == HomePage::BOT || _page == HomePage::SIGNAL
         || (_page == HomePage::CLOCK && _task->getUnreadCount() > 0)  // the envelope opens messages
+        || _page == HomePage::NODES  // a row: ask that node for its battery
 #if UI_DISCOVER_SCREEN
         || _page == HomePage::DISCOVERY
 #endif
@@ -509,6 +512,14 @@ public:
     if (_page == HomePage::CLOCK) {  // the unread envelope (top left): the messages
       if (x < 64 && y < 30 && _task->getUnreadCount() > 0) { _task->showMessages(); return true; }
       return false;
+    }
+    if (_page == HomePage::NODES) {  // a node's row: ask it for its battery
+      ContactInfo fav[NODES_MAX];
+      int n = my_nodes.favourites(fav, NODES_MAX), shown = n < NODES_MAX ? n : NODES_MAX;
+      int row = (y - 27) / 24;
+      if (y < 27 || row >= shown) return false;
+      if (!my_nodes.ask(fav[row])) _task->showAlert(my_nodes.waiting() ? "Still waiting for a reply" : "Wait a few seconds", 1200);
+      return true;
     }
     if (_page == HomePage::BOT) {  // tap anywhere: bot on/off
       _task->menuAction(ACT_BOT_TOGGLE);
@@ -889,6 +900,68 @@ public:
       } else {
         drawBatteryGraph(display, 10, 60, 108, 40);
       }
+    } else if (_page == HomePage::NODES) {
+      themeHeader(display, "Nodes", mv);
+      ContactInfo fav[NODES_MAX];
+      int total = my_nodes.favourites(fav, NODES_MAX), shown = total < NODES_MAX ? total : NODES_MAX;
+      if (total == 0) {
+        display.setTextSize(1);
+        display.setColor(UIColor::secondary_txt);
+        display.drawTextCentered(W / 2, 50, "Star contacts as favourites");
+        display.drawTextCentered(W / 2, 61, "in the app to list them here");
+        display.drawTextCentered(W / 2, 80, "tap one for its battery");
+      }
+      uint32_t now = rtc_clock.getCurrentTime();
+      for (int i = 0; i < shown; i++) {
+        const ContactInfo& c = fav[i];
+        int y = 27 + i * 24;
+        themeCard(display, 4, y, 120, 22);
+        char name[sizeof(c.name)];
+        display.translateUTF8ToBlocks(name, c.name, sizeof(name));
+        display.setTextSize(1);
+        // right: the battery, as asked
+        NodeReading* r = my_nodes.reading(c.id.pub_key, false);
+        char bat[24] = "";
+        ColorVal bc = UIColor::secondary_txt;
+        if (r && r->state == 1) strcpy(bat, "asking...");
+        else if (r && r->state == 3) { strcpy(bat, "no reply"); bc = UIColor::warning_txt; }
+        else if (r && r->state == 2 && r->mv) {
+          int pct = sf32BatteryPercent(r->mv);
+          sprintf(bat, "%d.%02dV %d%%", r->mv / 1000, (r->mv % 1000) / 10, pct);
+          bc = pct <= 15 ? UIColor::warning_txt : THEME_ACCENT;
+        } else if (r && r->state == 2) strcpy(bat, "no battery data");
+        else strcpy(bat, "tap: battery");
+        int bw = display.getTextWidth(bat);
+        display.setColor(UIColor::primary_txt);
+        display.drawTextEllipsized(8, y + 3, 112 - bw - 4, name);
+        display.setColor(bc);
+        display.drawTextRightAlign(120, y + 3, bat);
+        // second line: last heard, hops, and how old the battery reading is
+        char heard[16], line[48];
+        if (c.lastmod && now >= c.lastmod) formatAge(heard, now - c.lastmod); else strcpy(heard, "-");
+        if (c.out_path_len == OUT_PATH_UNKNOWN) sprintf(line, "heard %s  -  flood", heard);
+        else {
+          int hops = c.out_path_len & 63;
+          if (hops == 0) sprintf(line, "heard %s  -  direct", heard);
+          else sprintf(line, "heard %s  -  %d hop%s", heard, hops, hops == 1 ? "" : "s");
+        }
+        display.setColor(UIColor::secondary_txt);
+        display.setCursor(8, y + 12);
+        display.print(line);
+        if (r && r->state == 2 && r->at && now >= r->at) {
+          char age[12];
+          formatAge(age, now - r->at);
+          display.drawTextRightAlign(120, y + 12, age);
+        }
+      }
+      if (total > shown) {
+        char more[32];
+        sprintf(more, "+%d more starred", total - shown);
+        display.setTextSize(1);
+        display.setColor(UIColor::secondary_txt);
+        display.drawTextCentered(W / 2, 27 + shown * 24, more);
+      }
+      next_render = my_nodes.waiting() ? 1000 : 30000;
     } else if (_page == HomePage::ACTIVITY) {
       themeHeader(display, "Activity", mv);
       // last hour / last 24 h / channel use
