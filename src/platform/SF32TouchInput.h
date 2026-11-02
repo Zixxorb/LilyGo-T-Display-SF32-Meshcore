@@ -46,6 +46,7 @@ public:
   unsigned long stillHeldMs();
   // this touch is used up (a hold did its thing): its lift does nothing (no tap or swipe)
   void consumeTouch() { _consumed = true; }
+  void unconsumeTouch() { _consumed = false; }  // changed our mind (the hold became a swipe)
   // Vertical speed (panel px per ms) when the finger last lifted, for flick scrolling.
   float releaseVelocity() const { return _release_vy; }
 

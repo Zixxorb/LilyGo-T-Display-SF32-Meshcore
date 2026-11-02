@@ -465,6 +465,8 @@ void UITask::handleTouchMenus() {
       _auto_off = millis() + autoOffMillis();
     } else if (_hold_frac > 0 || _hold_done) {
       if (_hold_frac > 0) _next_refresh = 0;  // the ring goes
+      // moved before the ring was full: a swipe after all, let it count
+      if (_hold_frac > 0 && !_hold_done && touch_input.fingerDown()) touch_input.unconsumeTouch();
       _hold_frac = 0;
       if (!touch_input.fingerDown()) _hold_done = false;
     }

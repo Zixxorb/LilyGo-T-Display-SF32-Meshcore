@@ -56,10 +56,17 @@ public:
     _next_ping = millis();
     _round_open = false;
   }
-  void stop() { running = false; _round_open = false; finder = false; }
+  void stop() {
+    running = false;
+    _round_open = false;
+    if (finder && _finder_locked) locked = false;  // the finder's own lock: back to "best"
+    finder = false;
+    _finder_locked = false;
+  }
   void startFinder() {  // locked onto the current target (or the first to answer)
     clear();
     finder = true;
+    _finder_locked = false;
     start();
   }
 
@@ -114,6 +121,7 @@ public:
 private:
   unsigned long _started = 0, _next_ping = 0, _sent_at = 0;
   bool _round_open = false, _got = false;
+  bool _finder_locked = false;  // the finder locked on by itself (undone when it stops)
   uint32_t _tag = 0;
   uint8_t _heard = 0;
   float _in = 0, _out = 0;
@@ -156,6 +164,7 @@ private:
           memcpy(lock_prefix, _prefix, 8);
           StrHelper::strncpy(lock_name, last_name, sizeof(lock_name));
           locked = true;
+          _finder_locked = true;
         }
         // warmer / colder: this reply against the average of the few before (3 dB either way)
         last_rssi = _rssi;
