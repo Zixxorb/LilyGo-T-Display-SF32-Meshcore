@@ -123,13 +123,15 @@ Controls:
   sunrise to sunset with the sun on it, a pale moon below at night, the times and how long
   until the next). Sunrise / sunset come from the node's location as set in the app
   (ui_sun.inc, the sunrise equation; no network); the Info face shows the next one too.
-  Long press the clock, or its swipe-up menu > Face, or Settings > Display > Clock face.
-- **Rotation** (Settings > Display): Normal, Flipped (180 degrees) or Auto (from the
-  accelerometer: held upright one way or the other for 0.8 s; lying flat keeps the last).
-  The LCD controller mirrors the picture (free, partial updates included) and touches are
-  turned with it. 180 degrees only: the controller can't do 90, and doing it in software
-  would cost a full-frame copy per update. Axis calibrated on the board (`ROT_AXIS`,
-  `ROT_SIGN` in SF32Motion.cpp).
+  **Hold** the clock (a ring fills around the finger; at 0.6 s the next face comes up, while
+  still holding, with a pop; let go before that and nothing happens), or its swipe-up
+  menu > Face, or Settings > Display > Clock face.
+- **Rotation** (Settings > Display): Normal, Right, Upside down, Left, or **Auto** (the way
+  it's held, from the accelerometer: one way up for 0.8 s; lying flat keeps the last). The
+  panel turns the picture itself (CO5300 MADCTL row/column swap and mirrors: free, partial
+  updates included; the SF32LB52's LCD controller can only mirror top to bottom), touches
+  turn with it, and it's set again after the panel powers up (waking re-initialises it).
+  Axes calibrated on the board (`ROT_AXIS`, `ROT_SIGN`, `ROT_SIDE_POS` in SF32Motion.cpp).
 - **Settings** is in this order: what you see, what you hear, sensors, radio, system.
   **Display** (theme, clock face, brightness, timeout, always-on), **Pages** (show/hide
   each home page; the clock always shows; swipes and page dots skip hidden ones),
@@ -310,7 +312,7 @@ after boot: `t` tap, `L` long press, `U`/`D` swipe up/down, `l`/`r` swipe left/r
 panel coordinates, `.` wait. `SF32_UI_DEMO_TIME=<epoch>` also sets the RTC at boot. Reflash the normal
 build afterwards.
 Live remote touch (debug builds only): `SF32_REMOTE_TOUCH=1 ./build.sh companion`, then
-`tools/touch.sh press . up . tap 240 300 . right` (taps at panel pixels, swipes, button
+`tools/touch.sh press . up . tap 240 300 . right . hold 240 300 800` (taps at panel pixels, swipes, holds, button
 presses; "." waits) writes a command word over the debug channel. Normal builds don't
 have the hook. Screenshots can't be limited the same way: they read memory through the
 chip's hardware debug port, the same one flashing uses, so anyone with the USB cable and

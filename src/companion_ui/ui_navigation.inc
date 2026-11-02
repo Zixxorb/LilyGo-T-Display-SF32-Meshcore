@@ -57,8 +57,8 @@ void UITask::openMenu(MenuKind kind) {
     timeoutLabel(tmp, _ui_prefs.timeout_idx);
     m->add("Timeout", ACT_SET_TIMEOUT, tmp);
     m->add("Always-on", ACT_SET_AOD, _ui_prefs.aod ? "On" : "Off");
-    static const char* const ROT_NAMES[] = {"Normal", "Flipped", "Auto"};
-    m->add("Rotation", ACT_ROTATION, ROT_NAMES[_ui_prefs.rotation % 3]);
+    static const char* const ROT_NAMES[] = {"Normal", "Upside down", "Auto", "Right", "Left"};  // by stored value
+    m->add("Rotation", ACT_ROTATION, ROT_NAMES[_ui_prefs.rotation % 5]);
     m->add("Back", ACT_SETTINGS);
     m->setSelected(keep_sel);
     setCurrScreen(menu);
@@ -192,13 +192,15 @@ void UITask::menuAction(uint8_t action) {
       showAlert(sendAdvert(true) ? "Advert sent to mesh" : "Advert failed..", 1000);
       break;
     case ACT_ADVERTS_MENU: openMenu(MENU_ADVERTS); break;
-    case ACT_ROTATION:  // normal -> flipped -> auto
-      _ui_prefs.rotation = (_ui_prefs.rotation + 1) % 3;
+    case ACT_ROTATION: {  // Normal -> Auto -> Right -> Upside down -> Left -> Normal
+      static const uint8_t NEXT[5] = {2, 4, 3, 1, 0};  // by stored value
+      _ui_prefs.rotation = NEXT[_ui_prefs.rotation % 5];
       saveUIPrefs();
       motion.setActive(_ui_prefs.lift_wake || _ui_prefs.flip_quiet || _ui_prefs.rotation == 2);
       applyRotation();
       openMenu(_menu_kind);
       break;
+    }
     case ACT_USB_APP:
       _ui_prefs.usb_app = !_ui_prefs.usb_app;
       saveUIPrefs();
@@ -440,6 +442,33 @@ void UITask::handleTouchMenus() {
                 curr == qr_screen || curr == scan_screen;
   touch_input.setDirectTaps(curr == menu || editor || page_taps);
   if (_display == NULL || !_display->isOn()) return;
+
+  // Hold on the clock to change its face: after a moment a ring fills around the finger,
+  // and when it's full (0.6 s) the next face comes up, while still holding. Let go before
+  // that: nothing at all (not a tap).
+  if (curr == home && h->onClockPage() && !_aod) {
+    unsigned long held = touch_input.stillHeldMs();
+    if (held >= 250) {
+      touch_input.consumeTouch();  // from here on its lift does nothing
+      float f = (held - 250) / 350.0f;
+      _hold_frac = f > 1 ? 1 : f;
+      if (f >= 1 && !_hold_done) {
+        _hold_done = true;
+        _hold_frac = 0;
+        // the next face, without the name pop-up (the face itself shows it changed)
+        _ui_prefs.clock_face = (_ui_prefs.clock_face + 1) % NUM_CLOCK_FACES;
+        saveUIPrefs();
+        _next_refresh = 0;
+        if (_ui_prefs.touch_snd) sound.chime(SF32Sound::CHIME_POP, tapVolume());  // a fuller "done" than a tap
+      }
+      if (!_hold_done) _next_refresh = millis() + 30;
+      _auto_off = millis() + autoOffMillis();
+    } else if (_hold_frac > 0 || _hold_done) {
+      if (_hold_frac > 0) _next_refresh = 0;  // the ring goes
+      _hold_frac = 0;
+      if (!touch_input.fingerDown()) _hold_done = false;
+    }
+  }
 
   // Long lists (Settings, About): the finger drags them, a flick glides on.
   DragScroll* ds = NULL;

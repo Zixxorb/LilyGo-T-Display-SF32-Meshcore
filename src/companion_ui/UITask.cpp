@@ -857,6 +857,19 @@ void UITask::loop() {
 #ifdef SF32_FRAME_LOG
       rt_tick_t f1 = rt_tick_get();
 #endif
+      if (_hold_frac > 0 && curr == home) {  // SF32: the hold-to-change-face ring
+        SF32Display* sd = (SF32Display*)_display;
+        int lx, ly;
+        SF32Display::panelToLogical(touch_input.fingerX0(), touch_input.fingerY0(), lx, ly);
+        const float R = 13, PI2 = 6.2831853f;
+        int n = (int)(_hold_frac * 24);
+        for (int k = 0; k <= 24; k++) {
+          float a = k * PI2 / 24;
+          float x = lx + sinf(a) * R, y = ly - cosf(a) * R;
+          sd->setColor(k <= n ? THEME_ACCENT : THEME_DIM);
+          sd->drawLineAA(x, y, x, y, k <= n ? 2.6f : 1.4f);
+        }
+      }
       if (millis() < _banner_expiry) {  // SF32: new message banner (top)
         char from[sizeof(_banner_from)], text[sizeof(_banner_text)];
         _display->translateUTF8ToBlocks(from, _banner_from, sizeof(from));

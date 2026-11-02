@@ -29,9 +29,9 @@ public:
   // coordinates instead (menus hit-test them).
   void setDirectTaps(bool on) { _direct = on; }
   bool takeTap(int& x, int& y);
+  void setRotation(int rot) { _rot = rot & 3; }  // the picture's quarter turns: touches follow
   // true once after each lift while the screen is on (touch feedback)
-  void setFlipped(bool f) { _flipped = f; }  // the picture is turned 180 degrees: so are touches
-    uint8_t takeClick() { uint8_t c = _click; _click = 0; return c; }  // 0 none, 1 tap, 2 swipe
+  uint8_t takeClick() { uint8_t c = _click; _click = 0; return c; }  // 0 none, 1 tap, 2 swipe
 
   // Touch controller (CST9220) scan mode: low power while the screen is off (a slower scan
   // that still reports a touch, which wakes the screen), normal while it's on.
@@ -41,6 +41,11 @@ public:
   bool fingerDown() { update(); return _down; }
   int fingerY0() const { return _y0; }  // where this touch started
   int fingerY() const { return _y; }
+  int fingerX0() const { return _x0; }
+  // a press held in place (hold gestures): how long, 0 if not touching or it moved
+  unsigned long stillHeldMs();
+  // this touch is used up (a hold did its thing): its lift does nothing (no tap or swipe)
+  void consumeTouch() { _consumed = true; }
   // Vertical speed (panel px per ms) when the finger last lifted, for flick scrolling.
   float releaseVelocity() const { return _release_vy; }
 
@@ -63,7 +68,8 @@ private:
   Gesture _gesture = Gesture::None;
   bool _direct = false;
   bool _tap_pending = false;
-  bool _flipped = false;
+  int _rot = 0;
+  bool _consumed = false;
   uint8_t _click = 0;
   bool _low_power = false;
   int _tap_x = 0, _tap_y = 0;

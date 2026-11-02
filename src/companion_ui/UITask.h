@@ -81,7 +81,7 @@ struct SF32UIPrefs {
   uint8_t adv_mesh = 0;        // auto advert, flood: ADV_MESH_HOURS index (0 off)
   uint8_t adv_page_mesh = 0;   // the Advert page's long press: 0 nearby, 1 whole mesh (flood)
   uint8_t usb_app = 0;         // the app protocol over USB too (SF32UsbInterface): PC apps, observer
-  uint8_t rotation = 0;        // 0 normal, 1 turned 180 degrees, 2 auto (by how it's held)
+  uint8_t rotation = 0;        // 0 normal, 1 upside down, 2 auto (by how it's held), 3 turned right, 4 left
 };
 
 class UITask : public AbstractUITask {
@@ -98,6 +98,8 @@ class UITask : public AbstractUITask {
   char _alert[80];
   char _banner_from[32], _banner_text[96];  // SF32: new message banner (showNewMessage)
   unsigned long _banner_expiry = 0;
+  float _hold_frac = 0;     // SF32: hold on the clock to change its face: the ring's progress
+  bool _hold_done = false;  //   (the face changed during this hold)
   unsigned long _alert_expiry;
   int _msgcount;
   unsigned long ui_started_at, next_batt_chck;

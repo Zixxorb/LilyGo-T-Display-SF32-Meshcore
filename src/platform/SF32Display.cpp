@@ -10,6 +10,9 @@ extern "C" void sf32_cpu_full_speed();  // SF32Board.cpp
 #define LOG_TAG "display"
 #include <ulog.h>
 
+extern "C" LCDC_HandleTypeDef* get_drv_lcd_handler(void);  // drv_lcd.c
+static void panel_rotate(int rot);  // setRotation()
+
 #define RGB565(r, g, b) (ColorVal)((((r) & 0xF8) << 8) | (((g) & 0xFC) << 3) | ((b) >> 3))
 
 // "MeshCore" theme: MeshCore's slate (#1F2937, its docs/brand colour) for bars, cards
@@ -347,11 +350,24 @@ void SF32Display::drawLineAA(float x0, float y0, float x1, float y1, float width
   }
 }
 
-void SF32Display::setFlipped(bool f) {
-  if (f == _flipped || !_lcd) return;
+// Rotation by the panel itself (CO5300 MADCTL: bit 7 MY rows mirrored, bit 6 MX columns
+// mirrored, bit 5 MV rows and columns swapped): free, partial updates included (they're
+// just addresses). The LCD controller's own mirroring isn't used (the SF32LB52's can only
+// mirror top to bottom). rot: quarter turns clockwise (0..3).
+static const uint8_t ROT_MADCTL[4] = {0x00, 0x60, 0xC0, 0xA0};
+static void panel_rotate(int rot) {
+  LCDC_HandleTypeDef* h = get_drv_lcd_handler();
+  uint8_t madctl = ROT_MADCTL[rot & 3];
+  HAL_LCDC_Exit_LP(h);  // the driver puts the controller back into low power after its next frame
+  HAL_LCDC_WriteU32Reg(h, (0x02 << 24) | (0x36 << 8), &madctl, 1);
+}
+
+void SF32Display::setRotation(int rot) {
+  rot &= 3;
+  if (rot == _rot || !_lcd) return;
   waitFlush();
-  rt_device_control(_lcd, RTGRAPHIC_CTRL_ROTATE_180, RT_NULL);  // toggles 0 <-> 180
-  _flipped = f;
+  panel_rotate(rot);
+  _rot = rot;
 }
 
 void SF32Display::fillWholePanel(uint16_t color) {  // edge to edge, margins too (flashlight)
@@ -585,6 +601,11 @@ void SF32Display::endFrame() {
   if (_wake_pending) {
     _wake_pending = false;
     waitFlush();
+    if (_rot) {  // powering on re-initialised the panel (rotation lost): set it, send again
+      panel_rotate(_rot);
+      flush(s_fb);
+      waitFlush();
+    }
     rt_device_control(_lcd, RTGRAPHIC_CTRL_SET_BRIGHTNESS, &_brightness);
   }
   uint16_t* t = s_shown;  // the new frame is now the shown one

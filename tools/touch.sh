@@ -4,6 +4,7 @@
 #   tools/touch.sh tap X Y     tap at panel pixel X,Y (0..479)
 #   tools/touch.sh up|down|left|right   swipe
 #   tools/touch.sh press       button-like press (wakes the screen)
+#   tools/touch.sh hold X Y MS  finger held still at X,Y for MS milliseconds, then lifted
 # Several steps in one call: tools/touch.sh up . tap 240 300 . down   ("." = wait 1.2 s)
 # Writes SF32TouchInput's sf32_remote_touch over the debug channel (see SF32TouchInput.cpp).
 cd "$(dirname "$0")/.."
@@ -28,6 +29,13 @@ while i < len(args):
     a = args[i]
     if a == ".":
         time.sleep(1.2); i += 1; continue
+    if a == "hold":
+        x, y, ms = int(args[i + 1]), int(args[i + 2]), int(args[i + 3]); i += 4
+        for v, wait in (((7 << 24) | (x << 12) | y, ms / 1000.0), (8 << 24, 0.2)):
+            ok = any(d.mem_write32(p, addr, v)[:1] == b"\xd3" or time.sleep(0.05) for _ in range(20))
+            time.sleep(wait)
+        print("hold sent")
+        continue
     if a == "tap":
         x, y = int(args[i + 1]), int(args[i + 2]); i += 3
         v = (1 << 24) | (x << 12) | y

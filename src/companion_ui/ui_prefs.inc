@@ -136,7 +136,7 @@ void UITask::loadUIPrefs() {
   if (_ui_prefs.sig_interval >= NUM_SIG_INTERVALS) _ui_prefs.sig_interval = 1;
   if (_ui_prefs.sos_chan >= MAX_GROUP_CHANNELS) _ui_prefs.sos_chan = 0;
   if (_ui_prefs.dst_rule >= DST_RULES) _ui_prefs.dst_rule = DST_OFF;
-  if (_ui_prefs.rotation > 2) _ui_prefs.rotation = 0;
+  if (_ui_prefs.rotation > 4) _ui_prefs.rotation = 0;
   applyBrightness();
 }
 

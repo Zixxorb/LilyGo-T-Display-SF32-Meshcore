@@ -352,6 +352,7 @@ public:
     }
   }
   void nextFace() { _task->menuAction(ACT_CLOCK_FACE); }
+  bool onClockPage() const { return _page == HomePage::CLOCK; }
 
   int renderClock(DisplayDriver& display) {
     ((SF32Display&)display).setSquareLayout(true);  // 128x128 over the whole panel

@@ -21,6 +21,7 @@ SF32Motion motion;
 // normally, x = -1.0 g, y and z ~0)
 #define ROT_AXIS 0
 #define ROT_SIGN (-1.0f)
+#define ROT_SIDE_POS 3  // turned so gravity runs along the other axis (+): this quarter turn (left side up: y = -0.83 g, wants 3; checked on the board)
 #define STILL_TICKS      15      // 1.5 s of stillness before a pick-up can count
 #define STILL_DEV        0.06f   // max change between samples (g) that still counts as still
 #define PICKUP_COS       0.94f   // tilt > ~20 deg from the resting direction
@@ -96,12 +97,12 @@ void SF32Motion::poll() {
   if (z < FACE_DOWN_Z) { _up_count = 0; if (++_down_count >= 10) _face_down = true; }
   else if (z > FACE_UP_Z) { _down_count = 0; if (++_up_count >= 5) _face_down = false; }
 
-  // which way up (auto-rotate): gravity along the screen's up-down axis, against the board's
-  // "top" (ROT_AXIS, ROT_SIGN: see the defines). Upright enough (> 0.55 g along it) for 0.8 s.
+  // which way up (auto-rotate): gravity along the screen's up-down axis (ROT_AXIS, ROT_SIGN)
+  // or across it; 0.55 g or more for 0.8 s
   {
-    float up = ROT_SIGN * (ROT_AXIS == 0 ? x : y);
-    int want = up > 0.55f ? 1 : (up < -0.55f ? -1 : 0);
-    if (want != 0 && want == _side_want) {
+    float up = ROT_SIGN * (ROT_AXIS == 0 ? x : y), side = ROT_SIGN * (ROT_AXIS == 0 ? y : x);
+    int want = up > 0.55f ? 0 : up < -0.55f ? 2 : side > 0.55f ? ROT_SIDE_POS : side < -0.55f ? (ROT_SIDE_POS + 2) % 4 : -1;
+    if (want >= 0 && want == _side_want) {
       if (++_side_count >= 8) _side = want;
     } else {
       _side_want = want;

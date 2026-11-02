@@ -9,18 +9,20 @@
 #define DIM_BRIGHTNESS     10
 #define SHIFT_PERIOD_MS    180000UL  // move the layout every 3 min
 
-// Display > Rotation: normal, turned 180 degrees, or auto (the way it's held, from the
-// accelerometer; lying flat keeps the last). The LCD controller mirrors the picture and
-// the touch coordinates turn with it.
+// Display > Rotation: fixed (normal, turned right / left, upside down) or auto (the way it's
+// held, from the accelerometer; lying flat keeps the last). The panel turns the picture
+// and the touch coordinates turn with it.
 void UITask::applyRotation() {
-  bool flip = _ui_prefs.rotation == 1;
-  if (_ui_prefs.rotation == 2) {
-    int side = motion.uprightSide();
-    flip = side == 0 ? ((SF32Display*)_display)->flipped() : side < 0;
+  static const int8_t FIXED[5] = {0, 2, -1, 3, 1};  // by stored value: quarter turns clockwise (Right = 3, Left = 1: checked on the board)
+  SF32Display* d = (SF32Display*)_display;
+  int rot = FIXED[_ui_prefs.rotation % 5];
+  if (rot < 0) {  // auto
+    int o = motion.orientation();
+    rot = o >= 0 ? o : d->rotation();
   }
-  if (flip == ((SF32Display*)_display)->flipped()) return;
-  ((SF32Display*)_display)->setFlipped(flip);
-  touch_input.setFlipped(flip);
+  if (rot == d->rotation()) return;
+  d->setRotation(rot);
+  touch_input.setRotation(rot);
   _next_refresh = 0;
 }
 

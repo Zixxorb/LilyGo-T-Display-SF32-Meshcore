@@ -38,7 +38,8 @@ bool SF32TouchInput::begin() {
 // here over the debug channel (needs the USB cable and a halt-capable debug link, so only
 // whoever holds the board can use it). Top byte: 1 tap at (x, y) panel px in the low
 // 24 bits (x << 12 | y), 2 swipe up, 3 swipe down, 4 swipe left, 5 swipe right, 6 button
-// press (as a tap with the screen off). Cleared once taken.
+// press (as a tap with the screen off), 7 finger down and held at (x, y), 8 it lifts.
+// Cleared once taken.
 // Debug builds only (SF32_REMOTE_TOUCH=1 ./build.sh companion): not in normal firmware.
 #ifdef SF32_REMOTE_TOUCH
 extern "C" volatile uint32_t sf32_remote_touch = 0;
@@ -60,6 +61,17 @@ void SF32TouchInput::update() {
       if (display.isOn()) { _gesture = kind == 2 ? Gesture::SwipeUp : Gesture::SwipeDown; _click = 2; }
     } else if (kind == 4 || kind == 5) {
       if (display.isOn()) { _pending = kind == 4 ? RotaryInputEvent::Next : RotaryInputEvent::Prev; _click = 2; }
+    } else if (kind == 7) {  // finger down and held at (x, y) (hold gestures), until kind 8
+      _down = true;
+      _consumed = false;
+      _x0 = _x = (rc >> 12) & 0xFFF;
+      _y0 = _y = rc & 0xFFF;
+      _down_at = millis();
+      _hist_n = 0;
+    } else if (kind == 8) {  // that finger lifts
+      if (_down && !_consumed && display.isOn() && _direct) { _tap_pending = true; _tap_x = _x0; _tap_y = _y0; }
+      _down = false;
+      _consumed = false;
     } else {  // a press (also a tap when taps aren't taken directly; wakes the screen)
       _press_from = millis();
       _press_until = _press_from + 60;
@@ -77,10 +89,16 @@ void SF32TouchInput::update() {
   while (pending-- > 0) {
     struct touch_message m;
     if (rt_device_read((rt_device_t)_dev, 0, &m, 1) != 1) continue;
-    if (_flipped) { m.x = 479 - m.x; m.y = 479 - m.y; }  // turned 180 degrees (auto-rotate)
+    if (_rot) {  // the picture is turned (SF32Display::setRotation): back to its coordinates
+      int px = m.x, py = m.y;
+      if (_rot == 1) { m.x = py; m.y = 479 - px; }
+      else if (_rot == 2) { m.x = 479 - px; m.y = 479 - py; }
+      else { m.x = 479 - py; m.y = px; }
+    }
     if (m.event == TOUCH_EVENT_DOWN || m.event == TOUCH_EVENT_MOVE) {
       if (!_down) {
         _down = true;
+        _consumed = false;
         _x0 = m.x;
         _y0 = m.y;
         _down_at = millis();
@@ -93,6 +111,10 @@ void SF32TouchInput::update() {
       _hist_t[k] = millis();
     } else if (m.event == TOUCH_EVENT_UP && _down) {
       _down = false;
+      if (_consumed) {  // a hold already did its thing: nothing on lift
+        _consumed = false;
+        continue;
+      }
       // speed over the last few samples (up to ~4 moves)
       _release_vy = 0;
       if (_hist_n >= 2) {
@@ -137,6 +159,12 @@ RotaryInputEvent SF32TouchInput::poll() {
   RotaryInputEvent e = _pending;
   _pending = RotaryInputEvent::None;
   return e;
+}
+
+unsigned long SF32TouchInput::stillHeldMs() {
+  update();
+  if (!_down || abs(_x - _x0) > TAP_MAX_PX || abs(_y - _y0) > TAP_MAX_PX) return 0;
+  return millis() - _down_at;
 }
 
 SF32TouchInput::Gesture SF32TouchInput::takeGesture() {
