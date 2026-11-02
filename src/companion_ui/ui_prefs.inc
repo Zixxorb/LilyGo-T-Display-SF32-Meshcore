@@ -33,7 +33,8 @@ void UITask::resumeOrReset() {
 #define SF32_UI_PREFS_MAGIC_V11 0x5346553B  // "SFU;": + clock face, hidden pages
 #define SF32_UI_PREFS_MAGIC_V12 0x5346553C  // "SFU<": + power saving (sleep)
 #define SF32_UI_PREFS_MAGIC_V13 0x5346553D  // "SFU=": + auto adverts
-#define SF32_UI_PREFS_MAGIC     0x5346553E  // "SFU>": + Advert page long press: nearby / mesh
+#define SF32_UI_PREFS_MAGIC_V14 0x5346553E  // "SFU>": + Advert page long press: nearby / mesh
+#define SF32_UI_PREFS_MAGIC     0x5346553F  // "SFU?": + USB app
 
 static const uint8_t  BRIGHTNESS_STEPS[] = {25, 50, 80, 100};
 static const uint16_t TIMEOUT_SECS[] = {15, 30, 60, 300, 0};  // 0 = on while on USB power (else 60 s)
@@ -44,15 +45,20 @@ void UITask::loadUIPrefs() {
   int n = f ? f.read((uint8_t*)&p, sizeof(p)) : 0;
   if (n == sizeof(p) && p.magic == SF32_UI_PREFS_MAGIC) {
     _ui_prefs = p;
+  } else if (n >= 37 && p.magic == SF32_UI_PREFS_MAGIC_V14) {  // up to adv_page_mesh
+    _ui_prefs = p;
+    _ui_prefs.usb_app = SF32UIPrefs().usb_app;
   } else if (n >= 36 && p.magic == SF32_UI_PREFS_MAGIC_V13) {  // up to adv_mesh
     _ui_prefs = p;
     _ui_prefs.adv_page_mesh = SF32UIPrefs().adv_page_mesh;
+    _ui_prefs.usb_app = SF32UIPrefs().usb_app;
   } else if (n >= 34 && p.magic == SF32_UI_PREFS_MAGIC_V12) {  // up to power_save (the rest was padding)
     SF32UIPrefs defaults;
     _ui_prefs = p;
     _ui_prefs.adv_nearby = defaults.adv_nearby;
     _ui_prefs.adv_mesh = defaults.adv_mesh;
     _ui_prefs.adv_page_mesh = defaults.adv_page_mesh;
+    _ui_prefs.usb_app = defaults.usb_app;
   } else if (n >= 32 && p.magic == SF32_UI_PREFS_MAGIC_V11) {  // up to hidden_pages (the rest: defaults)
     SF32UIPrefs defaults;
     _ui_prefs = p;

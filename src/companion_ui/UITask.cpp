@@ -35,6 +35,9 @@
 #include "SF32TouchInput.h"
 #include "SF32Sound.h"
 #include "SF32Motion.h"
+#include "SF32UsbInterface.h"
+#include <helpers/MultiSerialInterface.h>
+extern MultiSerialInterface interface_manager;  // companion main.cpp
 #include <helpers/rp2040/SerialBLEInterface.h>  // SF32SerialBLEInterface (compat/)
 
 extern SerialBLEInterface bluetooth_interface;  // MeshCore's companion main.cpp
@@ -264,6 +267,9 @@ void UITask::begin(DisplayDriver* display, SensorManager* sensors, NodePrefs* no
   createEditors();
   if (_display != NULL) loadUIPrefs();  // SF32: brightness, timeout, clock format
   _auto_off = millis() + autoOffMillis();  // SF32: again, now with the saved timeout (the first one used the 15 s default)
+  // SF32: the app protocol over USB as well as Bluetooth (Settings > USB app)
+  interface_manager.addInterface(InterfaceType::USB, &usb_app_interface);
+  if (_ui_prefs.usb_app) usb_app_interface.enable(); else usb_app_interface.disable();
   motion.setActive(_ui_prefs.lift_wake || _ui_prefs.flip_quiet);  // SF32: accelerometer only if used
   motion.begin();                       // SF32: BHI260AP (background)
   InternalFS.remove("/sf32_steps");     // SF32: left over from the removed step counter

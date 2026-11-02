@@ -176,6 +176,14 @@ Controls:
   off / every 12, 24, 48 h, both off by default. Advert / Heard / Radio page menus: **Send
   nearby** or **Send to mesh** now; the Advert page's menu > **Long press** picks what its
   long press sends (Nearby / Mesh).
+- **USB app** (Settings, off by default): the MeshCore app protocol over the USB serial
+  port as well as Bluetooth (both at once), for PC apps (meshcore-cli, the Python
+  library) and as an **observer**: every packet heard is pushed raw with its SNR / RSSI
+  (`PUSH_CODE_LOG_RX_DATA`), for logging or an MQTT bridge on the PC. 115200 baud, the
+  CH343 port (the console / flashing one; flashing still works). Nothing is written until
+  an app sends a frame; from then the console logs are paused (so they can't land inside
+  the app's frames) until the cable comes out or USB app is turned off
+  (`src/platform/SF32UsbInterface.cpp`).
 - **Signal** page (signal tester): tap to start/stop. Every 10/15/30/60 s (swipe up:
   Every) it pings the repeaters in direct range (zero-hop discovery request) and shows how
   well the best one hears us and we hear it (SNR), its name, replies/pings and a bar graph
@@ -454,10 +462,9 @@ handler's saved registers.
   the US preset.
 - Battery ADC clips at about 4.3 V (VBAT/2 into the ADC's range), so a full cell reads ~4.28 V.
 - To do / ideas:
-  - Power: measure the current draw; the SDK's full power manager (light/deep sleep)
-    and MeshCore's sleep mode (`board.sleep()` is a no-op) could save more.
-  - BHI260AP: auto-rotate the screen; a fall / no-motion safety alert.
-  - A USB companion build (MeshCore protocol over USB instead of Bluetooth).
-  - Touch on the repeater/room server screens; buttons B and C.
-  - Observer / WiFi (needs the T-SF32-Keyboard expansion's ESP32-C6, per LilyGo).
-  - Time zone from the phone (needs MeshCore companion protocol support).
+  - Power: stage 2 (an event-driven main loop instead of waking every 25 ms), then deep
+    sleep with the motion hub's wake gestures.
+  - My Nodes (battery / last heard of chosen nodes, asked only on demand), a repeater
+    finder (warmer / colder by signal while walking; no compass on the board).
+  - BHI260AP: auto-rotate the screen.
+  - WiFi (needs the T-SF32-Keyboard expansion's ESP32-C6, per LilyGo).

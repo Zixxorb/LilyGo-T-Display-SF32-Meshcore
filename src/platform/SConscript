@@ -4,9 +4,10 @@ from building import *
 
 cwd = GetCurrentDir()
 src = Glob('*.cpp') + Glob('*.c')
-# The BLE transport needs the Bluetooth stack, which only the companion project enables.
+# The BLE transport needs the Bluetooth stack, which only the companion project enables;
+# the USB app interface (the app protocol over USB) is the companion's too.
 if os.getenv('SF32_FIRMWARE', 'repeater') != 'companion':
-    src = [s for s in src if not s.name.startswith('SF32SerialBLEInterface')]
+    src = [s for s in src if not s.name.startswith('SF32SerialBLEInterface') and not s.name.startswith('SF32UsbInterface')]
 
 # SF32_UI_DEMO=t_t_U_240,300 ./build.sh companion: test firmware that plays touch
 # input, one step every 8 s from 10 s after boot (screenshots with

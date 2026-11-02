@@ -38,6 +38,7 @@ void UITask::openMenu(MenuKind kind) {
     m->add("Night mode", ACT_NIGHT_MENU);  // hours, dim, do not disturb
     m->add("Motion", ACT_MOTION_MENU);
     m->add("Bluetooth", ACT_SET_BT, isBluetoothEnabled() ? "On" : "Off");
+    m->add("USB app", ACT_USB_APP, _ui_prefs.usb_app ? "On" : "Off");  // the app protocol over USB
     m->add("Auto advert", ACT_ADVERTS_MENU);  // scheduled adverts
     {
       ChannelDetails ch;
@@ -189,6 +190,12 @@ void UITask::menuAction(uint8_t action) {
       showAlert(sendAdvert(true) ? "Advert sent to mesh" : "Advert failed..", 1000);
       break;
     case ACT_ADVERTS_MENU: openMenu(MENU_ADVERTS); break;
+    case ACT_USB_APP:
+      _ui_prefs.usb_app = !_ui_prefs.usb_app;
+      saveUIPrefs();
+      if (_ui_prefs.usb_app) usb_app_interface.enable(); else usb_app_interface.disable();
+      openMenu(_menu_kind);
+      break;
     case ACT_ADV_PAGE_MODE:  // the Advert page's long press: nearby / whole mesh
       _ui_prefs.adv_page_mesh = !_ui_prefs.adv_page_mesh;
       saveUIPrefs();

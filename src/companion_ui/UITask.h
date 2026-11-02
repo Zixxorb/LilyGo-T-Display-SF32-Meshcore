@@ -80,6 +80,7 @@ struct SF32UIPrefs {
   uint8_t adv_nearby = 0;      // auto advert, zero hop: ADV_NEARBY_HOURS index (0 off)
   uint8_t adv_mesh = 0;        // auto advert, flood: ADV_MESH_HOURS index (0 off)
   uint8_t adv_page_mesh = 0;   // the Advert page's long press: 0 nearby, 1 whole mesh (flood)
+  uint8_t usb_app = 0;         // the app protocol over USB too (SF32UsbInterface): PC apps, observer
 };
 
 class UITask : public AbstractUITask {
