@@ -66,3 +66,4 @@ for fw in companion repeater room_server; do
   (cd dist && python3 -m zipfile -c "$fw.zip" "$fw" && rm -rf "$fw")
   echo "dist/$fw.zip"
 done
+cp flasher/sf32-flash.py dist/

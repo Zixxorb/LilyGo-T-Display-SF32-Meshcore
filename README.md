@@ -29,7 +29,8 @@ device shows what's happening on the mesh, tests links, finds repeaters and keep
 - [Highlights](#highlights)
 - [Screenshots](#screenshots)
 - [Firmwares](#firmwares)
-- [Getting started](#getting-started)
+- [Flashing without building](#flashing-without-building)
+- [Getting started](#getting-started) (building it yourself)
 - [Using the companion](#using-the-companion)
 - [Repeater and room server](#repeater-and-room-server)
 - [Battery and power](#battery-and-power)
@@ -82,6 +83,23 @@ device shows what's happening on the mesh, tests links, finds repeaters and keep
 | **Room server** | `./build.sh room_server` | A shared message board on the mesh |
 
 All three share the node identity and settings on the board's flash, which survive reflashing.
+
+## Flashing without building
+
+No SDK or compiler needed: Python 3 and a USB cable.
+
+1. Install pyserial: `python3 -m pip install pyserial` (Windows: `py -m pip install pyserial`).
+2. Download [`flasher/sf32-flash.py`](flasher/sf32-flash.py) and a firmware zip
+   (`companion.zip`, `repeater.zip` or `room_server.zip`).
+3. Plug in the board and run:
+   ```sh
+   python3 sf32-flash.py companion.zip
+   ```
+
+It finds the board, downloads SiFli's flashing tool (`sftool`, checked against a pinned
+checksum) on the first run, and flashes. Your settings, contacts and node identity are
+kept. Run it with no arguments to pick a firmware from a menu (downloaded from this repo's
+latest release). Works on Linux, macOS and Windows (Windows may need the CH343 USB driver).
 
 ## Getting started
 

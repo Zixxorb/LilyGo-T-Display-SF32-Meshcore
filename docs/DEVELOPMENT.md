@@ -35,6 +35,7 @@ src/companion_ui/ the companion's screen UI: UITask.cpp is MeshCore's ui-new (ch
 src/selftest/     bring-up self-tests
 lib/              vendored Crypto, CayenneLPP, base64, and MeshCore (lib/MeshCore,
                   fetched by setup.sh, unmodified). See lib/README.md.
+flasher/          sf32-flash.py: the stand-alone flasher for users (no SDK; downloads sftool)
 tools/            sf32_debug_uart.py (flashing helper, crash debugging), shot.sh
                   (screenshots), touch.sh (remote touch, debug builds), pmstats.sh (sleep
                   counters), gen_font.py (the UI font)
