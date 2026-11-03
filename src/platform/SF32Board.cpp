@@ -79,17 +79,70 @@ static int sf32_pm_boot_hold(void) {
 }
 INIT_ENV_EXPORT(sf32_pm_boot_hold);
 
-#ifdef SF32_PM_LOG
-static volatile uint32_t s_sleep_ms = 0, s_sleeps = 0, s_sleep_start = 0;
-static void pm_notify(uint8_t event, uint8_t mode, void*) {
-  if (event == RT_PM_ENTER_SLEEP) s_sleep_start = HAL_GTIMER_READ();
-  else if (event == RT_PM_EXIT_SLEEP && s_sleep_start) {
-    s_sleep_ms += (uint32_t)((uint64_t)(HAL_GTIMER_READ() - s_sleep_start) * 1000 / HAL_LPTIM_GetFreq());
-    s_sleeps++;
-    s_sleep_start = 0;
-  }
+// Sleep counters for battery tests, in every build (a few words of RAM): from the moment
+// USB is unplugged until it's plugged back in (then they freeze, to be read over the debug
+// channel: sf32_pm_stats). How much of the time the chip slept, how often it woke and what
+// woke it (the wake source register's bits), how long something held it awake, and how
+// many times the main loop ran.
+extern "C" {
+struct SF32PmStats {
+  uint32_t magic;          // 'SFPM' once counting has started
+  uint32_t batt_ms;        // time on battery (since the unplug)
+  uint32_t slept_ms;       // of that, asleep
+  uint32_t sleeps;         // sleeps (= wakes)
+  uint32_t held_ms;        // time an awake reason was held (screen, audio, ...)
+  uint32_t loops;          // main loop passes
+  uint32_t held_mask_seen; // every awake reason that was held at some point (OR)
+  uint32_t wsr[17];        // wakes per wake source bit 0..15 (RTC, GPIO1, LPTIM1, PMUC, -, -, LP2HP req, LP2HP irq, PIN0..7), [16] other
+};
+volatile SF32PmStats sf32_pm_stats;
 }
+static volatile bool s_pm_counting = false;
+static volatile uint32_t s_pm_sleep_start = 0;
+extern "C" uint32_t pm_get_wakeup_src(void);
+
+#ifdef SF32_PM_LOG
+static volatile uint32_t s_sleep_ms = 0, s_sleeps = 0;
 #endif
+static void pm_notify(uint8_t event, uint8_t mode, void*) {
+  (void)mode;
+  if (event == RT_PM_ENTER_SLEEP) { s_pm_sleep_start = HAL_GTIMER_READ(); return; }
+  if (event != RT_PM_EXIT_SLEEP || !s_pm_sleep_start) return;
+  uint32_t ms = (uint32_t)((uint64_t)(HAL_GTIMER_READ() - s_pm_sleep_start) * 1000 / HAL_LPTIM_GetFreq());
+  s_pm_sleep_start = 0;
+#ifdef SF32_PM_LOG
+  s_sleep_ms += ms;
+  s_sleeps++;
+#endif
+  if (!s_pm_counting) return;
+  sf32_pm_stats.slept_ms += ms;
+  sf32_pm_stats.sleeps++;
+  uint32_t w = pm_get_wakeup_src();
+  bool any = false;
+  for (int b = 0; b < 16; b++) if (w & (1UL << b)) { sf32_pm_stats.wsr[b]++; any = true; }
+  if (!any || (w >> 16)) sf32_pm_stats.wsr[16]++;
+}
+
+// board.loop(): start counting at the unplug (afresh), freeze at the replug
+static void pm_stats_loop(bool external) {
+  static unsigned long last = 0;
+  unsigned long now = millis();
+  if (external) { s_pm_counting = false; return; }
+  if (!s_pm_counting) {
+    rt_base_t level = rt_hw_interrupt_disable();
+    memset((void*)&sf32_pm_stats, 0, sizeof(sf32_pm_stats));
+    sf32_pm_stats.magic = 0x5346504D;
+    s_pm_counting = true;
+    rt_hw_interrupt_enable(level);
+    last = now;
+    return;
+  }
+  uint32_t d = (uint32_t)(now - last);
+  last = now;
+  sf32_pm_stats.batt_ms += d;
+  sf32_pm_stats.loops++;
+  if (s_awake_mask) { sf32_pm_stats.held_ms += d; sf32_pm_stats.held_mask_seen |= s_awake_mask; }
+}
 #endif  // RT_USING_PM
 
 void SF32Board::holdAwake(uint8_t reason, bool hold) {
@@ -140,9 +193,7 @@ void SF32Board::begin() {
   if (rt_device_find("wdt")) rt_hw_watchdog_hook(0);
 #ifdef RT_USING_PM
   (void)idle_sleep;  // the power manager owns the idle thread (and sleeps the chip)
-#ifdef SF32_PM_LOG
   rt_pm_notify_set(pm_notify, RT_NULL);
-#endif
 #else
   rt_thread_idle_sethook(idle_sleep);
 #endif
@@ -190,6 +241,9 @@ void SF32Board::loop() {
       _btn_edges[i]++;
     }
   }
+#ifdef RT_USING_PM
+  pm_stats_loop(isExternalPowered());
+#endif
   if ((long)(now - _next_wdt_feed) >= 0) {
     _next_wdt_feed = now + WDT_FEED_MS;
     static rt_device_t wdt = rt_device_find("wdt");
