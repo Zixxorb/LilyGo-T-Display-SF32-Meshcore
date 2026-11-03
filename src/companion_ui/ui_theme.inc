@@ -39,6 +39,50 @@ static float sf32BatteryPercentF(uint16_t mv) {
 }
 static int sf32BatteryPercent(uint16_t mv) { return (int)sf32BatteryPercentF(mv); }
 
+// The charge shown for this board's own battery (header, Battery page, warnings, log).
+// On battery it's the voltage. While charging the charger lifts the voltage 0.1-0.2 V, so
+// the voltage alone would jump from 50 % to 80+ % on plugging in: instead it carries on
+// from the last reading before USB and climbs at a realistic pace (charger ~200 mA into
+// 480 mAh, slower near full), pulled up only by the voltage minus that lift; 100 % only
+// when the charger says it's done. Just after unplugging the voltage still reads high:
+// for half an hour it's never shown above what it was.
+#define CHG_LIFT_MV        150
+#define CHG_RATE_PCT_H     35.0f   // below 80 %
+#define CHG_RATE_TOP_PCT_H 15.0f   // 80 % and up (the charger tapers)
+#define CHG_SETTLE_MS      (30UL * 60 * 1000)
+static int sf32ShownPercent(uint16_t mv) {
+  static float est = -1;  // -1: none yet
+  static unsigned long last = 0, unplugged_at = 0;
+  static bool was_usb = false;
+  if (mv == 0) return 0;
+  unsigned long now = millis();
+  float dt_h = last ? (now - last) / 3600000.0f : 0;
+  last = now;
+  bool usb = board.isExternalPowered();
+  if (usb) {
+    float floor = sf32BatteryPercentF(mv > CHG_LIFT_MV ? mv - CHG_LIFT_MV : 0);
+    if (est < 0) est = floor;  // started on USB: nothing better to go on
+    uint8_t st = board.chargeState();
+    if (st == 3) est = 100;    // charge done
+    else if (st == 1 || st == 2) {
+      while (dt_h > 0) {       // (in steps: the pace changes at 80 %)
+        float step = dt_h > 0.05f ? 0.05f : dt_h;
+        est += step * (est < 80 ? CHG_RATE_PCT_H : CHG_RATE_TOP_PCT_H);
+        dt_h -= step;
+      }
+      if (floor > est) est = floor;
+      if (est > 99) est = 99;
+    }
+  } else {
+    if (was_usb) unplugged_at = now | 1;
+    float volt = sf32BatteryPercentF(mv);
+    if (est >= 0 && unplugged_at && now - unplugged_at < CHG_SETTLE_MS) { if (volt < est) est = volt; }
+    else { est = volt; unplugged_at = 0; }
+  }
+  was_usb = usb;
+  return (int)est;
+}
+
 static void themeCard(DisplayDriver& d, int x, int y, int w, int h) {
   d.setColor(THEME_CARD);
   d.fillRect(x, y, w, h);
@@ -67,7 +111,7 @@ static void themeHeader(DisplayDriver& d, const char* title, uint16_t mv) {
   d.drawRect(bx, by, 14, 8);
   d.fillRect(bx + 14, by + 2, 2, 4);
   if (mv > 0) {
-    int pct = sf32BatteryPercent(mv);
+    int pct = sf32ShownPercent(mv);
     d.setColor(pct <= 15 ? UIColor::warning_txt : UIColor::secondary_txt);
     d.fillRect(bx + 2, by + 2, (10 * pct + 50) / 100, 4);
     sprintf(tmp, "%d%%", pct);

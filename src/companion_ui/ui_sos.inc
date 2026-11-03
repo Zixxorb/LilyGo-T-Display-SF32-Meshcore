@@ -135,7 +135,7 @@ void UITask::sendSos() {
   if (lat != 0 || lon != 0) snprintf(loc, sizeof(loc), "%.5f,%.5f", lat, lon);
   else strcpy(loc, "unknown");
   snprintf(text, sizeof(text), "SOS! I need help. Location: %s. Battery %d%%. (%d/%d)", loc,
-           sf32BatteryPercent(getBattMilliVolts()), _sos_sent + 1, SOS_SENDS);
+           sf32ShownPercent(getBattMilliVolts()), _sos_sent + 1, SOS_SENDS);
   uint32_t ts = the_mesh.getRTCClock()->getCurrentTimeUnique();
 #ifdef SF32_UI_TEST  // scripted test builds: never put a test SOS on the air
   bool ok = false;

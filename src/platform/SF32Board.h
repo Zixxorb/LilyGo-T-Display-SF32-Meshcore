@@ -55,6 +55,7 @@ public:
     }
     return _ext;
   }
+  uint8_t chargeState() const { return _chg_state; }  // last polled (1 s): 0 not charging, 1 pre, 2 fast, 3 done
   bool isChargerActive() override { return readCharger() && (_chg_state == 1 || _chg_state == 2); }
   bool hasUsbPowerDetect() const override { return true; }
   bool isUsbPowered() override { return isExternalPowered(); }

@@ -68,7 +68,7 @@ public:
   void loop(uint16_t mv, bool usb) {  // when due()
     _next = millis() + BATT_LOG_PERIOD_S * 1000UL;
     if (mv == 0) return;
-    push((uint8_t)sf32BatteryPercent(mv) | (usb ? BATT_ON_USB : 0), mv, board.chipTempC());
+    push((uint8_t)sf32ShownPercent(mv) | (usb ? BATT_ON_USB : 0), mv, board.chipTempC());
     _d.last_t = clockNow();
     if (++_unsaved >= 4) save();
   }

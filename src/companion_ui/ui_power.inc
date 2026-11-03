@@ -56,10 +56,11 @@ void UITask::powerCare() {
   if ((long)(now - _next_batt_warn_check) >= 0) {
     _next_batt_warn_check = now + 10000;
     uint16_t mv = getBattMilliVolts();
+    sf32ShownPercent(mv);  // (keeps the charging estimate moving while the screen is off)
     if (board.isExternalPowered() || mv == 0) {
       _batt_warn_level = 0;
     } else {
-      int pct = sf32BatteryPercent(mv);
+      int pct = sf32ShownPercent(mv);
       if (pct <= BATT_CRITICAL_PCT && _batt_warn_level < 2) {
         _batt_warn_level = 2;
         if (_aod) exitAOD();  // important enough to wake the screen, fully
@@ -85,7 +86,7 @@ void UITask::powerCare() {
   if (_batt_warn_pending && _display && _display->isOn()) {
     _batt_warn_pending = false;
     char tmp[40];
-    sprintf(tmp, "Battery low: %d%%", sf32BatteryPercent(getBattMilliVolts()));
+    sprintf(tmp, "Battery low: %d%%", sf32ShownPercent(getBattMilliVolts()));
     showAlert(tmp, 3000);
     _next_refresh = 0;
   }

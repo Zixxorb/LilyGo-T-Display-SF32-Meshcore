@@ -167,7 +167,9 @@ Controls:
   in your contacts / **Post** the reply in the channel as `@[name] ...`). Each sender gets it at most once a
   day, at most one reply a minute, 3 s after the message, never to auto-replies. The page
   shows the reply count and who got the last one; each reply is also listed in Logs.
-- **Battery** page: charge, voltage, the chip's temperature (the SoC's own sensor, in °F: a few
+- **Battery** page: charge (from the voltage; while charging, which lifts the voltage, it
+  carries on from the reading before USB at the charger's pace, 100 % only when the charger
+  reports done), voltage, the chip's temperature (the SoC's own sensor, in °F: a few
   degrees above the room, more while charging), charging / estimated time left until the
   low-battery power-off (a straight line fitted through the charge, worked out from each
   sample's voltage, over up to the last 12 unplugged hours; the first half hour off the

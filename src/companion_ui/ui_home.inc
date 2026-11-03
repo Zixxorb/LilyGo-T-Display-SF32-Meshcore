@@ -48,7 +48,7 @@ class HomeScreen : public UIScreen {
 
   // ---- SF32: clock and time zone pages ----
 
-  static int batteryPercent(uint16_t mv) { return sf32BatteryPercent(mv); }
+  static int batteryPercent(uint16_t mv) { return sf32ShownPercent(mv); }
 
   // a real time: after 2025 and not MeshCore's guess after the clock was lost
   static bool timeIsSet(uint32_t now) { return now >= 1735689600UL && rtc_clock.timeKnown(); }
@@ -858,7 +858,7 @@ public:
     } else if (_page == HomePage::BATTERY) {
       themeHeader(display, "Battery", mv);
       bool usb = board.isExternalPowered();
-      int pct = mv ? sf32BatteryPercent(mv) : 0;
+      int pct = mv ? sf32ShownPercent(mv) : 0;
       display.setTextSize(3);
       display.setColor(usb ? THEME_GOOD : pct <= 15 ? UIColor::warning_txt : UIColor::primary_txt);
       sprintf(tmp, "%d%%", pct);
