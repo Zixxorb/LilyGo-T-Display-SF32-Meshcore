@@ -65,13 +65,15 @@ static int sf32ShownPercent(uint16_t mv) {
     uint8_t st = board.chargeState();
     if (st == 3) est = 100;    // charge done
     else if (st == 1 || st == 2) {
+      // after a full charge the charger tops up now and then: stay at 100 through it
+      float cap = est >= 100 ? 100 : 99;
       while (dt_h > 0) {       // (in steps: the pace changes at 80 %)
         float step = dt_h > 0.05f ? 0.05f : dt_h;
         est += step * (est < 80 ? CHG_RATE_PCT_H : CHG_RATE_TOP_PCT_H);
         dt_h -= step;
       }
       if (floor > est) est = floor;
-      if (est > 99) est = 99;
+      if (est > cap) est = cap;
     }
   } else {
     if (was_usb) unplugged_at = now | 1;

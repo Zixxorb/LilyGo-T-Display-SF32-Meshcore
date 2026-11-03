@@ -243,8 +243,13 @@ def prepare(port_name, baud):
         # channel answers "enter" even then, but a halt only lands while it's awake. Keep
         # trying for a while to catch an awake moment.
         halt = frame(b"\x40\x77" + struct.pack("<IH", DHCSR, 1) + struct.pack("<I", DHCSR_HALT))
-        end, entered, entered_at = time.time() + 15, False, 0.0
+        start = time.time()
+        end, entered, entered_at, ever = start + 15, False, 0.0, False
         while time.time() < end:
+            # this firmware answers "enter" within a moment even asleep: no answer at all
+            # for 3 s means another baud (or firmware), so don't wait the full 15 s
+            if not ever and time.time() - start > 3:
+                return False
             if not entered or time.time() - entered_at > 2:
                 port.write(frame(EXIT))  # a debug session left open drops memory access: leave it
                 port.flush()
@@ -253,6 +258,7 @@ def prepare(port_name, baud):
                 port.write(frame(ENTER))
                 port.flush()
                 entered = recv(port, 0.05)[:1] == b"\xd1"
+                ever = ever or entered
                 entered_at = time.time()
                 continue
             port.reset_input_buffer()

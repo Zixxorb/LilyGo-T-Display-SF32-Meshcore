@@ -7,16 +7,13 @@
 # It fetches pinned versions of what the port builds on into $SF32_CI_DIR (default .ci/):
 # LilyGo's SiFli SDK (only its sifli-sdk-v2.5.1 folder), the upstream SiFli SDK (only
 # rtos/env/packages, which LilyGo's lacks) and MeshCore, installs the SDK's toolchain (needs
-# uv) and runs ./setup.sh and ./build.sh. Change the pins below to move to newer versions.
+# uv) and runs ./setup.sh and ./build.sh. Change the pins in ci/pins.sh to move to newer versions.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 root="$(pwd -P)"
 
-LILYGO_SDK_REPO=https://github.com/Xinyuan-LilyGO/SlFli-SDK-Lilygo
-LILYGO_SDK_SHA=036b3649688477df9523f9c7884e77f883feed8f
-UPSTREAM_SDK_REPO=https://github.com/OpenSiFli/SiFli-SDK
-UPSTREAM_SDK_SHA=e203f6e0cc222204c6af236b9b2d0f33d16f0dc3
-export MESHCORE_REF="${MESHCORE_REF:-companion-v1.18.0}"
+source ci/pins.sh  # the versions it builds on
+export MESHCORE_REF="${MESHCORE_REF:-$MESHCORE_PIN}"
 
 work="${SF32_CI_DIR:-$root/.ci}"
 mkdir -p "$work"
