@@ -1,0 +1,32 @@
+name: Build firmware
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+
+      # the SDKs and the toolchain are big and change only when the pins in
+      # ci/build-all.sh do: keep them between runs
+      - uses: actions/cache@v4
+        with:
+          path: |
+            .ci
+            ~/.sifli
+          key: sdk-${{ hashFiles('ci/build-all.sh') }}
+
+      - name: Build companion, repeater, room server
+        run: ci/build-all.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: dist/*.zip

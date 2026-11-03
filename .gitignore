@@ -10,3 +10,7 @@ lib/MeshCore
 
 # local UI test screenshots
 shots/
+
+# CI (ci/build-all.sh)
+.ci/
+dist/

@@ -56,6 +56,14 @@ SF32_LOG_LEVEL=LOG_LVL_INFO ./build.sh companion   # keep log output (debugging)
 
 ## How the build fits together
 
+- **Automatic builds**: `ci/build-all.sh` builds all three firmwares on a clean machine:
+  it fetches pinned versions of LilyGo's SDK, the upstream SDK's `rtos/env/packages` and
+  MeshCore (`MESHCORE_REF`, default `companion-v1.18.0`) into `.ci/`, installs the SDK's
+  toolchain (needs `uv`), runs `setup.sh` and `build.sh`, and leaves
+  `dist/<firmware>.zip` (bootloader.bin, main.bin, ftab.bin, main.elf). GitHub Actions
+  (`.github/workflows/build.yml`) runs it on every push and keeps the zips as the run's
+  artifacts. To move to a newer SDK or MeshCore, change the pins in the script.
+
 - MeshCore sources are compiled with `-include sf32_platform.h` (Arduino.h, FS.h,
   `FILESYSTEM`) and the app's files also with `-include variant.h` (like a variant's
   build_flags). The companion also gets `-include sf32_companion.h`, which undefines the
