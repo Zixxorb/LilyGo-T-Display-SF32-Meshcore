@@ -214,7 +214,7 @@ Saved in `/sf32_ui` on the board.
 
 Click a feature to expand it.
 
-**Clock and time**
+#### 🕐 Clock and time
 
 <details>
 <summary><b>Clock faces</b></summary>
@@ -253,7 +253,7 @@ outliers are ignored. **Reset clock** (Settings > Clock, tap twice) sets the clo
 
 </details>
 
-**Messages and safety**
+#### ✉️ Messages and safety
 
 <details>
 <summary><b>Messages</b></summary>
@@ -276,7 +276,7 @@ times in all, until you tap Stop. The location is the node's as set in the app.
 
 </details>
 
-**Radio and mesh tools**
+#### 📡 Radio and mesh tools
 
 <details>
 <summary><b>Signal tester and repeater finder</b></summary>
@@ -339,7 +339,7 @@ menu > **Long press** picks what its long press sends.
 
 </details>
 
-**Everything else**
+#### 🧰 Everything else
 
 <details>
 <summary><b>Share QR, flashlight, rotation</b></summary>
