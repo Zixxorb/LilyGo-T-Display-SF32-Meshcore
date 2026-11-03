@@ -1,488 +1,423 @@
+<div align="center">
+
 # MeshCore for the LilyGo T-Display-SF32
 
-MeshCore firmware for the LilyGo T-Display-SF32 (SF32LB52 + SX1262 LoRa + 480x480 AMOLED):
-**companion** (phone app over Bluetooth, with a touch UI), **repeater** and
-**room server**. It's built on the LilyGo SiFli SDK and LilyGo's C RadioLib port.
-MeshCore itself is used unmodified.
+**A pocket MeshCore node with a 480x480 AMOLED touch screen.**
+
+Companion (phone app over Bluetooth, with its own touch UI) · Repeater · Room server
+
+![MeshCore](https://img.shields.io/badge/MeshCore-v1.18-1f2937)
+![Board](https://img.shields.io/badge/board-T--Display--SF32-3b82f6)
+![Radio](https://img.shields.io/badge/radio-SX1262%20915%20MHz-22c55e)
+![License](https://img.shields.io/badge/license-MIT-lightgrey)
+
+<img src="docs/images/face-color.png" width="200"> <img src="docs/images/face-sun.png" width="200"> <img src="docs/images/face-info.png" width="200">
+
+</div>
+
+MeshCore firmware for the LilyGo T-Display-SF32 (SiFli SF32LB52 + SX1262 LoRa + 480x480
+AMOLED). It's built on the LilyGo SiFli SDK and LilyGo's C RadioLib port; MeshCore itself
+is used unmodified.
+
+The companion is a **handheld node**, not a messenger: the phone does the messaging, the
+device shows what's happening on the mesh, tests links, finds repeaters and keeps time.
+
+---
+
+## Contents
+
+- [Highlights](#highlights)
+- [Screenshots](#screenshots)
+- [Firmwares](#firmwares)
+- [Getting started](#getting-started)
+- [Using the companion](#using-the-companion)
+- [Repeater and room server](#repeater-and-room-server)
+- [Battery and power](#battery-and-power)
+- [Status and to-do](#status-and-to-do)
+- [Development](#development)
+- [License and credits](#license-and-credits)
+
+## Highlights
+
+| | |
+|---|---|
+| 🕐 **6 clock faces** | Color, Sun (sunrise/sunset arc), Digital, Analog, Big, Info. Hold the clock to switch |
+| 📡 **Signal tools** | Signal tester, repeater **finder** (warmer/colder), 902-928 MHz **band scan** |
+| 📊 **Mesh at a glance** | Activity graph, heard nodes, **My Nodes** with on-demand battery |
+| 🔋 **Battery** | 48 h history graph, time left, low-battery protection |
+| 🆘 **Mesh SOS** | Triple-press A: location + battery to a channel, repeated |
+| 🔦 **Extras** | Flashlight (white/red), share contact QR, auto adverts, mesh time, rotation |
+| 💻 **USB app** | MeshCore app protocol over USB too: PC tools and a raw-packet **observer** |
+| 🎨 **Themes** | 9 colour themes plus Rainbow, night mode, always-on display, tap sounds |
+
+## Screenshots
+
+<table>
+<tr>
+<td align="center"><img src="docs/images/face-color.png" width="180"><br><sub>Color face</sub></td>
+<td align="center"><img src="docs/images/face-sun.png" width="180"><br><sub>Sun face</sub></td>
+<td align="center"><img src="docs/images/face-analog.png" width="180"><br><sub>Analog face</sub></td>
+<td align="center"><img src="docs/images/face-big.png" width="180"><br><sub>Big face</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/images/battery.png" width="180"><br><sub>Battery history</sub></td>
+<td align="center"><img src="docs/images/radio.png" width="180"><br><sub>Radio</sub></td>
+<td align="center"><img src="docs/images/bandscan.png" width="180"><br><sub>Band scan</sub></td>
+<td align="center"><img src="docs/images/nodes.png" width="180"><br><sub>My Nodes</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/images/face-info.png" width="180"><br><sub>Info face</sub></td>
+<td align="center"><img src="docs/images/settings.png" width="180"><br><sub>Settings</sub></td>
+<td align="center"><img src="docs/images/display.png" width="180"><br><sub>Display settings</sub></td>
+<td align="center"><img src="docs/images/powermenu.png" width="180"><br><sub>Power menu (swipe down)</sub></td>
+</tr>
+</table>
+
+## Firmwares
+
+| Firmware | Build | Use it for |
+|---|---|---|
+| **Companion** | `./build.sh companion` | Your own node: pairs with the MeshCore phone app over Bluetooth, full touch UI |
+| **Repeater** | `./build.sh repeater` | Extending the mesh. Configure with [config.meshcore.io](https://config.meshcore.io) |
+| **Room server** | `./build.sh room_server` | A shared message board on the mesh |
+
+All three share the node identity and settings on the board's flash, which survive reflashing.
 
 ## Getting started
 
-You need Linux or macOS with bash/zsh, git, and the board on USB.
+You need Linux or macOS with bash or zsh, git, and the board on USB.
 
-1. Get the LilyGo SiFli SDK v2.5.1 (https://github.com/Xinyuan-LilyGO/SlFli-SDK-Lilygo,
-   folder `sifli-sdk-v2.5.1`) and install its toolchain as LilyGo describes. Also get the
-   upstream SDK (`git clone https://github.com/OpenSiFli/SiFli-SDK`): LilyGo's download
-   lacks `rtos/env/packages`.
-2. `./setup.sh /path/to/sifli-sdk-v2.5.1 /path/to/SiFli-SDK` fetches MeshCore into
-   `lib/MeshCore` (pick a version with `MESHCORE_REF=<tag>`; developed against v1.18.0),
-   applies the SDK fixes in `sdk-patches/`, and links the SDK at `~/sifli-lilygo-sdk`
-   (its build breaks on paths with spaces).
-3. `./build.sh companion && ./flash.sh companion`.
+1. Get the [LilyGo SiFli SDK](https://github.com/Xinyuan-LilyGO/SlFli-SDK-Lilygo) v2.5.1
+   (folder `sifli-sdk-v2.5.1`) and install its toolchain as LilyGo describes. Also clone the
+   upstream [SiFli SDK](https://github.com/OpenSiFli/SiFli-SDK): LilyGo's download lacks
+   `rtos/env/packages`.
+2. Run setup. It fetches MeshCore into `lib/MeshCore` (pick a version with
+   `MESHCORE_REF=<tag>`; developed against v1.18.0), applies the SDK fixes in
+   `sdk-patches/`, and links the SDK at `~/sifli-lilygo-sdk` (its build breaks on paths
+   with spaces):
+   ```sh
+   ./setup.sh /path/to/sifli-sdk-v2.5.1 /path/to/SiFli-SDK
+   ```
+3. Build and flash:
+   ```sh
+   ./build.sh companion && ./flash.sh companion
+   ```
 
-Serial port permission on Linux: add yourself to the `uucp`/`dialout` group, or a udev
-rule such as `SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", MODE="0666"`.
+```sh
+./build.sh [repeater|room_server|companion]   # default: repeater
+./flash.sh [repeater|room_server|companion]   # flash over USB (auto-picks the port)
+./monitor.sh                                  # serial console at 115200; Ctrl+] to quit
+```
 
-## Usage (bash/zsh; the SDK scripts don't support fish)
+> [!TIP]
+> **Serial port permission on Linux:** add yourself to the `uucp`/`dialout` group, or add a
+> udev rule such as `SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", MODE="0666"`.
+> From fish, run the scripts as normal; they start bash themselves.
 
-    ./build.sh [repeater|room_server|companion]   # default: repeater
-    ./flash.sh [repeater|room_server|companion]   # flash over USB (auto-picks the port)
-    ./monitor.sh                                  # serial console at 115200; Ctrl+] to quit
+> [!IMPORTANT]
+> **Battery switch:** the red I/O switch on the board disconnects the battery. On **O** the
+> board only runs on USB, loses its clock on unplug, and the charger cycles with nothing
+> attached. Keep it on **I**.
 
-    ./build.sh selftest   # bring-up self-tests (steps 1-4), flash with ./flash.sh selftest
-    SF32_LOG_LEVEL=LOG_LVL_INFO ./build.sh companion   # keep log output (debugging)
+## Using the companion
 
-Each firmware builds in its own folder (`project/`, `project_room_server/`,
-`project_companion/`). From fish, run the scripts as normal; they start bash themselves.
-Settings and the node identity live on the board's flash and survive reflashing.
-All three firmwares share the same identity file.
+### Pairing
 
-**Power switch**: the red I/O switch on the board disconnects the battery. With it on
-**O**, the board only runs on USB, loses its clock on unplug, and the charger cycles with
-nothing attached. Keep it on **I**.
+The board advertises as `MeshCore-<name>`. On first connect the phone asks for a PIN: it's
+the 6-digit **Pin** shown on the screen (new each boot until a phone is paired). Pairing
+uses LE Secure Connections with bonding, so later connections need no PIN.
+
+> If a phone was paired with older test firmware, remove the device from the phone's
+> Bluetooth settings first.
+
+### Gestures
+
+| Gesture | Does |
+|---|---|
+| **Swipe left / right** | Next / previous page |
+| **Tap** or button **A** | Next page (double tap: previous; long press: select) |
+| **Swipe down** | Power menu: Flashlight, Screen off, Reboot, Power off, Send SOS |
+| **Swipe up** | The current page's menu, plus **Settings** |
+| **Swipe right** in Settings | Back one level |
+| **Hold** the clock | Next clock face (a ring fills; at 0.6 s it changes with a pop) |
+| **Triple-press A** | Mesh SOS |
+
+Any touch wakes a dark screen. Woken within 10 s, it comes back where it was; after that,
+on the clock. Long lists follow your finger and glide after a flick.
+
+### Pages
+
+| Page | Shows |
+|---|---|
+| **Clock** | Time, date, unread envelope (tap to read), battery. Six faces |
+| **Status** | Unread, messages waiting for the app, Bluetooth PIN or node name |
+| **Battery** | Charge, voltage, chip temperature, time left, 48 h graph |
+| **Heard** | Recently heard nodes |
+| **Radio** | Frequency, BW, SF, CR, TX power, noise floor. Menu: edit radio, band scan |
+| **Bluetooth** | Connection; menu: turn off, forget paired phones |
+| **Advert** | Send an advert (long press: nearby or whole mesh, your choice) |
+| **Bot** | Optional auto-reply to senders using 1-byte path hashes (off by default) |
+| **Discover** | Scan for nearby nodes |
+| **Signal** | Signal tester and repeater finder |
+| **Activity** | Packets per hour over 24 h and how busy the channel is |
+| **Nodes** | Your favourite contacts: last heard, hops, battery on tap |
+| **Power** | Tap for the power menu |
+
+Pages can be hidden in **Settings > Pages** (the clock always shows).
+
+### Settings
+
+| Menu | Contains |
+|---|---|
+| **Display** | Theme, clock face, brightness, timeout, always-on, rotation (Normal / Auto / Right / Upside down / Left) |
+| **Pages** | Show or hide each home page |
+| **Clock** | Time zone, daylight saving (off/US/EU), 12/24 h, mesh time, reset clock |
+| **Sound** | Volume, new-message alerts (all / direct / off), tap sound (click / pop / tick / off) |
+| **Night mode** | From, until, dim and how far, do not disturb |
+| **Motion** | Lift to wake, flip to quiet |
+| **Bluetooth** | On / off (remembered) |
+| **USB app** | The app protocol over USB as well (off by default) |
+| **Auto advert** | Nearby every 1/3/6/12 h, mesh every 12/24/48 h (both off by default) |
+| **SOS to** | The channel Mesh SOS goes to |
+| **Low power** | Let the chip sleep with the screen off (on by default) |
+| **Logs** | The last 20 events; tap one for a board snapshot |
+| **Power** | Screen off, reboot, power off |
+
+Saved in `/sf32_ui` on the board.
+
+### Features in detail
+
+<details>
+<summary><b>Clock faces</b></summary>
+
+- **Color**: a rainbow ring of minute dots filling up through the hour, a colour per digit, on true black.
+- **Sun**: the day as an arc from sunrise to sunset with the sun on it, a pale moon below
+  at night, the times and how long until the next. Worked out on the device from the
+  node's location as set in the app (the sunrise equation; no network).
+- **Digital**, **Analog**, **Big** (stacked hours and minutes), **Info** (time plus unread,
+  battery, phone and last-heard cards; also shows the next sunrise or sunset).
+
+Switch by holding the clock, from its swipe-up menu > Face, or Settings > Display > Clock face.
+The time comes from the phone app when it connects; until then the clock shows `--:--`.
+</details>
+
+<details>
+<summary><b>Time zone</b></summary>
+
+Settings > Clock > Time zone: **-** / **+**, **Done** (button A: click = +1 h, double
+click = -1 h, long press = done). The phone can't set it: MeshCore's companion protocol only
+sends UTC. With **Daylight saving** set to US or EU, the zone is your standard time (e.g.
+UTC-5 for US Eastern) and summer time is added automatically. It's MeshCore's own
+`tz_offset` setting (also `set tz.offset N` via the app's CLI).
+</details>
+
+<details>
+<summary><b>Signal tester and repeater finder</b></summary>
+
+**Signal tester** (Signal page, tap to start/stop): every 10/15/30/60 s it pings the
+repeaters in direct range (zero-hop discovery) and shows how well the best one hears us and
+we hear it (SNR), its name, replies/pings and a graph of the last 40 pings (no reply: red
+tick). A beep per ping, higher for a better link. Swipe up > Target locks onto the repeater
+just heard. The screen stays on while testing; it stops by itself after 30 min.
+
+**Finder** (Signal menu): locked onto one repeater, a ping every 5 s, its signal strength
+big (RSSI, which keeps rising as you get close) and **warmer / colder / about the same**
+against the last few pings, the best so far, and a beep whose pitch follows the strength.
+No compass on the board, so no direction: walk, and follow the trend.
+</details>
+
+<details>
+<summary><b>My Nodes</b></summary>
+
+The contacts you starred as favourites in the app (up to 4): when each was last heard,
+direct / hops / flood, and its battery **when you tap its row**: one telemetry request to
+that node, at most one every 20 s and nothing on a schedule, so the mesh isn't loaded with
+polling. A node answers only if its own telemetry setting shares with you; repeaters want a
+login for it ("no reply").
+</details>
+
+<details>
+<summary><b>Activity</b></summary>
+
+Packets heard in the last hour and 24 h, how busy the channel is (share of the time the
+radio spent receiving or sending) and packets per hour as a bar graph. From the radio's own
+counters: no extra traffic. RAM only (starts over at boot).
+</details>
+
+<details>
+<summary><b>Radio editor and band scan</b></summary>
+
+**Edit radio** (Radio page menu): one card per setting (Preset, Frequency, BW, SF, CR, TX
+power). Tap one for its own screen with saved vs new value, **-** / **+** (frequency has a
+step size and is limited to 902-928 MHz) and **Done**. Changes are tinted amber; **Apply N
+changes** lists them (old -> new) to confirm. Nothing reaches the radio until then.
+Presets: MeshCore's USA/Canada, Australia and New Zealand (narrow).
+
+**Band scan** (Radio page menu): the noise level across 902-928 MHz in 250 kHz steps, swept
+continuously, with max-hold marks, our channel marked, and the strongest frequency below.
+MeshCore keeps receiving while it runs. Tap to reset.
+</details>
+
+<details>
+<summary><b>Messages</b></summary>
+
+The device shows messages but doesn't send them: no typing or replies, by design. A new
+message that alerts (Settings > Sound > Alerts) shows a banner at the top for 6 s with the
+sender and the start of the text. Tap the envelope on the clock to read; swipe left for the
+next, right to go back. Messages count as read once the phone app downloads them, or when
+viewed on the device. **Do not disturb** (Night mode) keeps them silent and dark.
+</details>
+
+<details>
+<summary><b>Mesh SOS</b></summary>
+
+Triple-press button A, or swipe down > Send SOS. After a 5 s countdown with beeps (Cancel,
+or press A), it sends "SOS! I need help. Location: lat,lon. Battery N%." to the channel in
+Settings > SOS to (default: the first channel, usually Public), and repeats every 5 min, 6
+times in all, until you tap Stop. The location is the node's as set in the app.
+</details>
+
+<details>
+<summary><b>Auto advert</b></summary>
+
+Send adverts on a schedule, as repeaters do, so other nodes keep a fresh path: **Nearby**
+(zero hop) every 1, 3, 6 or 12 h and **Mesh** (flood) every 12, 24 or 48 h. The Advert,
+Heard and Radio page menus have **Send nearby** and **Send to mesh**; the Advert page's
+menu > **Long press** picks what its long press sends.
+</details>
+
+<details>
+<summary><b>USB app (PC tools and observer)</b></summary>
+
+Settings > USB app (off by default): the MeshCore app protocol over the USB serial port as
+well as Bluetooth, both at once. Use it with PC apps (meshcore-cli, the Python library) or
+as an **observer**: every packet heard is pushed raw with its SNR / RSSI
+(`PUSH_CODE_LOG_RX_DATA`), for logging or an MQTT bridge on the PC. 115200 baud on the
+CH343 port; flashing still works. Nothing is written until an app sends a frame.
+</details>
+
+<details>
+<summary><b>Mesh time</b></summary>
+
+While the clock isn't known (battery ran flat, battery switch, fresh flash), the times in
+received adverts set it once 3 different nodes agree within 5 minutes. The clock shows
+"(mesh)" after the date until the phone syncs. Only nodes already in your contacts count;
+outliers are ignored. **Reset clock** (Settings > Clock, tap twice) sets the clock back to
+"unknown", the way out of a wrong time ahead (MeshCore only moves the clock forward).
+</details>
+
+<details>
+<summary><b>Share QR, flashlight, rotation</b></summary>
+
+- **Share QR** (Clock or Status page menu): this node as a QR code for the MeshCore app to
+  scan (`meshcore://contact/add?...`).
+- **Flashlight** (power menu): the whole panel at full brightness, white or red (tap
+  switches; red keeps night vision), 5 min unless touched.
+- **Rotation** (Settings > Display): Normal, Right, Upside down, Left, or **Auto** (the way
+  it's held, from the accelerometer; lying flat keeps the last). Touches turn with it.
+</details>
+
+<details>
+<summary><b>Display, sound and motion options</b></summary>
+
+- **Themes**: MeshCore blue, cyan, teal, green, purple, pink, red, orange, mono, and
+  Rainbow (every page in its own hue).
+- **Always-on**: instead of going dark, the time, date and an unread envelope on black at
+  6 % brightness, moved each minute (burn-in care).
+- **Night mode**: a lower brightness between two hours and/or do not disturb. There's no
+  light sensor for auto brightness.
+- **Timeout**: 15 s, 30 s, 1 min, 5 min, or never while on USB (then it dims after a minute).
+- **Sound**: chime volume off / low / medium / high; tap sounds click / pop / tick plus a
+  whoosh on swipes. No vibration motor on this board.
+- **Lift to wake**: lying still, then tilted, turns the screen on (walking or a pocket
+  doesn't). **Flip to quiet**: face down turns the screen off and silences alerts.
+</details>
+
+<details>
+<summary><b>Bot (optional)</b></summary>
+
+Off by default; tap the Bot page to turn it on. It auto-replies to messages sent with
+**1-byte path hashes**, asking the sender to switch to 2-byte. Swipe up for options:
+**Auto-reply**, **To DMs**, and **Channels** (off / DM back / post in the channel). Each
+sender gets it at most once a day, at most one reply a minute, never to auto-replies.
+</details>
 
 ## Repeater and room server
 
-Configure them with https://config.meshcore.io (Chrome/Edge, USB, CH343P port). The board
-speaks MeshCore's stock serial CLI at 115200 baud. Over LoRa, use Remote Management in
-the MeshCore app.
+Configure them with [config.meshcore.io](https://config.meshcore.io) (Chrome/Edge, USB, the
+CH343P port): the board speaks MeshCore's stock serial CLI at 115200 baud. Over LoRa, use
+Remote Management in the MeshCore app.
 
-Defaults (src/platform/variant.h): USA/Canada preset (910.525 MHz, BW 62.5, SF7, CR 4/5),
-22 dBm. Repeater "SF32 Repeater"; room server "SF32 Room", room password "hello". Admin
-password **"password"**: change it.
+| Default | Value |
+|---|---|
+| Radio | USA/Canada preset: 910.525 MHz, BW 62.5, SF7, CR 4/5, 22 dBm |
+| Names | Repeater "SF32 Repeater", room server "SF32 Room" (room password "hello") |
+| Admin password | **"password"**: change it |
 
-Screen: MeshCore's repeater/room screen (see "Display" below). It turns off after 20 s. Button **A** turns it on; holding A for 1 s powers the board off. To power
-on, press **D** (the charger's button on the bottom edge, below the antenna) or plug in USB.
+The screen shows MeshCore's repeater/room screen and turns off after 20 s. Button **A**
+turns it on; holding A for 1 s powers off. To power on, press **D** (the charger's button
+on the bottom edge, below the antenna) or plug in USB.
 
-Board-specific CLI commands:
-- `clock reset` (USB only): RTC back to MeshCore's default start date. MeshCore never
-  moves the clock backwards, so this is the only fix for a clock set in the future.
-- `battery`: battery voltage, spread over 20 samples, USB, charger state and faults.
-- `charger`: raw SGM41562B registers 00-0B, plus the HIZ / CEB / FET_DIS bits.
-- `charger test` (USB only): pauses charging for 3 s and reads VBAT (0 V = no battery).
-- `buttons`: levels and change counts for buttons C (PA33), A (PA34), B (PA35).
-- `display on` / `display off`.
-- `noise` / `noise test` / `noise scan FROM TO STEP` (kHz; USB only): radio background
-  level; test = regulator, RX gain, CPU load, screen states, a 902-928 MHz sweep and a
-  fine sweep around the channel; scan = average per frequency with the screen off.
-- `wdt test` (USB only): stalls the main loop; the watchdog reboots in about a minute.
+<details>
+<summary><b>Board-specific CLI commands</b></summary>
 
-## Companion (MeshCore phone app)
+| Command | Does |
+|---|---|
+| `battery` | Battery voltage over 20 samples, USB, charger state and faults |
+| `charger` | Raw SGM41562B registers 00-0B, plus HIZ / CEB / FET_DIS |
+| `charger test` | (USB only) Pauses charging for 3 s and reads VBAT (0 V = no battery) |
+| `clock reset` | (USB only) RTC back to MeshCore's default start date |
+| `buttons` | Levels and change counts for buttons C, A, B |
+| `display on` / `display off` | Screen |
+| `noise` / `noise test` / `noise scan FROM TO STEP` | Radio background level, tests and sweeps (kHz; USB only) |
+| `i2c scan` | Devices on the I2C buses |
+| `wdt test` | (USB only) Stalls the main loop; the watchdog reboots in about a minute |
+</details>
 
-Bluetooth: advertises as `MeshCore-<name>` with the Nordic UART service. On first
-connect, the phone asks for a PIN: it's the 6-digit **Pin:** shown on the screen, new
-each boot until a phone is paired. It uses LE Secure Connections passkey pairing with
-bonding, so later connections need no PIN. A phone counts as connected only once it's
-paired, so the PIN stays on screen until then. The negotiated MTU is 517 (frames up to 176 bytes).
-No companion protocol over USB: MeshCore treats a USB link as always connected, which
-would hide the PIN (stock Bluetooth companion builds leave it out too).
+## Battery and power
 
-Screen and input: MeshCore's companion UI (ui-new), from our copy in `src/companion_ui/`
-with two extra pages:
-- **Clock** (first page, and where the screen goes back to when it turns off): time and
-  date in your time zone, an envelope with the number of messages not yet viewed on the
-  device, battery % and voltage (bolt = on USB power), and the BLE PIN until a phone is
-  paired (then the node name). Long press: show the unread messages. The time comes from
-  the phone app when it connects; until then it shows "--:--".
-- **Time zone** (Settings > Clock > Time zone, or the clock page's menu): **-** / **+**,
-  **Done** (button A: click = +1 h, double click = -1 h, long press = done).
-  The phone can't set it: MeshCore's companion protocol only sends UTC. With **Daylight
-  saving** set to US or EU (Settings), the zone is your standard time (e.g. UTC-5 for US
-  Eastern) and summer time is added automatically.
-- **Radio editor** (Radio page, swipe up, "Edit radio"): one card per setting
-  (Preset, Frequency, BW, SF, CR, TX power). Tap one to open its own screen: saved vs new
-  value, **-** / **+** (frequency also has a step size: 0.025/0.1/1/0.001 MHz, limited to
-  902-928 MHz), **Done**. Changed settings are tinted amber and the button reads "Apply N
-  changes"; Apply lists the changes (old -> new) to confirm. Nothing reaches the radio
-  until then. Left/right swipes do nothing here; swiping up/down with unsaved changes asks
-  Keep / Discard / Apply, and the screen wakes back into the editor however long it was
-  off. Presets: MeshCore's USA/Canada, Australia and New Zealand (narrow). The other
-  nodes must use the same settings. Whole hours, so change it by hand for daylight saving. It's MeshCore's own
-  `tz_offset` setting (also `set tz.offset N` via the app's CLI).
+- **Battery life** (companion, screen mostly off): about **28-30 hours** on the 480 mAh
+  battery. Work on reducing the screen-off draw is ongoing.
+- **Low power** (on by default): the chip light-sleeps whenever the screen is off; the
+  radio keeps listening and Bluetooth stays up. It stays awake on USB (charging), which
+  keeps flashing working.
+- **Charge shown**: from the battery voltage. While charging (which lifts the voltage) it
+  carries on from the reading before USB at the charger's pace, and shows 100 % only when
+  the charger reports done.
+- **Warnings**: a popup at 20 %; at 10 % it also wakes the screen.
+- **Protection**: on battery below 3.55 V for 30 s the board powers off (same threshold as
+  LilyGo's factory firmware).
+- **Clock**: kept across reboots and the menu's power off; lost on a battery-empty
+  shutdown, with the battery switch off, and on flashing.
 
-Every screen uses a "MeshCore" theme (MeshCore's slate #1F2937, a blue accent, black
-background): page title with an accent bar, compact battery, content on rounded cards,
-page dots. Pages: Clock, Status, Battery, Heard, Radio, Bluetooth, Advert, Bot, Discover,
-Signal, Activity, Nodes, Power.
+## Status and to-do
 
-Controls:
-- Button **A** / **tap**: next page. Double tap: previous page. Long press: select.
-- **Swipe** left/right: next/previous page. Any touch wakes a dark screen.
-- Pages slide left/right when changing; menus slide down (power) or up (page menu).
-- **Swipe right** (finger left to right) in Settings and the screens under it: back one
-  level.
-- **Swipe down**: power menu (Flashlight, Screen off, Reboot, Power off, Send SOS).
-  **Flashlight**: the whole panel lit at full brightness, white or red (tap switches; red
-  keeps night vision), 5 min unless touched; swipe or button A turns it off.
-- **Swipe up**: menu for the current page (e.g. Bluetooth: turn off, forget paired
-  phones; Advert: send; Message: mark all read), plus **Settings**.
-- In menus, tap a row. With button A: click = next row, long press = choose. Swipe
-  up/down or tap below the rows to close.
-- **Clock faces**: Digital, Analog, Big (stacked hours/minutes), Info (time + unread,
-  battery, phone, last heard cards) and Color (a rainbow ring of minute dots filling up
-  through the hour, a colour per digit, on true black) and Sun (the day as an arc from
-  sunrise to sunset with the sun on it, a pale moon below at night, the times and how long
-  until the next). Sunrise / sunset come from the node's location as set in the app
-  (ui_sun.inc, the sunrise equation; no network); the Info face shows the next one too.
-  **Hold** the clock (a ring fills around the finger; at 0.6 s the next face comes up, while
-  still holding, with a pop; let go before that and nothing happens), or its swipe-up
-  menu > Face, or Settings > Display > Clock face.
-- **Rotation** (Settings > Display): Normal, Right, Upside down, Left, or **Auto** (the way
-  it's held, from the accelerometer: one way up for 0.8 s; lying flat keeps the last). The
-  panel turns the picture itself (CO5300 MADCTL row/column swap and mirrors: free, partial
-  updates included; the SF32LB52's LCD controller can only mirror top to bottom), touches
-  turn with it, and it's set again after the panel powers up (waking re-initialises it).
-  Axes calibrated on the board (`ROT_AXIS`, `ROT_SIGN`, `ROT_SIDE_POS` in SF32Motion.cpp).
-- **Settings** is in this order: what you see, what you hear, sensors, radio, system.
-  **Display** (theme, clock face, brightness, timeout, always-on), **Pages** (show/hide
-  each home page; the clock always shows; swipes and page dots skip hidden ones),
-  **Clock** (time zone, DST, format, mesh time, reset), **Sound** (volume, alerts, tap
-  sound), **Night mode** (from, until, **Dim** and how far, **DND**, do not disturb:
-  messages make no chime and don't light the screen, they still count as unread; "DND"
-  shows on the clock while active), **Motion** (lift to wake, flip to quiet), then
-  Bluetooth, SOS to, Low power, Logs, Power. Back rows or a swipe right go up one level.
-  Details: brightness
-  (25/50/80/100%), **Always-on** (instead of going dark: the time, date and an unread
-  envelope on black at 6 % brightness, redrawn once a minute and moved to a new spot each
-  minute; touch, button A or picking it up wakes the full UI; face down still turns it
-  off), **Night dim** (a lower brightness, 5/10/25/50 %, between two hours,
-  e.g. 10 PM to 7 AM; needs the clock set; there's no light sensor for real auto
-  brightness), timeout (15 s, 30 s, 1 min, 5 min, or never while on USB power),
-  **Lift to wake**, **Flip to quiet** (motion, see below), **Sound** submenu: **Volume**, **Tap sound**, **Alerts** (new-message alerts for all messages / direct only / off: a chime and the
-  screen lights up for 6 s, also while the phone is connected), **Sound** (volume for chimes, tap and
-  swipe sounds: off / low -24 dB / medium -6 dB / high 0 dB; changing it plays a test chime), **Theme** (9 colour schemes: MeshCore blue, cyan, teal,
-  green, purple, pink, red, orange, mono, and Rainbow: every home page in its own hue; tap a swatch to apply it), **Clock** (format
-  12/24 hour, time zone, DST = daylight saving off/US/EU), Bluetooth (remembered across reboots and power-offs). Saved in `/sf32_ui` on the board.
-- Long lists (Settings, About) follow your finger when dragged and glide on after a flick
-  (drawn once into an off-screen layer, then copied per frame). Swipe down with the list
-  at the top to close it; Close/Back rows too. Menus go back the way they came: the power
-  menu (down from the top, with a handle at the bottom) closes with a swipe up (once it's
-  scrolled to its end: it has 5 rows); menus that came up from the bottom close with a
-  swipe down.
-  Labels too long for their row scroll sideways inside it.
-- **Bot** page (off by default; tap anywhere to turn it on/off): auto-replies to messages
-  sent with **1-byte path hashes**, asking the sender to switch to 2-byte. The hash size
-  comes from the received flood packet's path length byte (bits 6-7, set by the sender's
-  path hash mode); direct-routed packets are skipped. Swipe up for options: **Auto-reply**
-  (on/off), **To DMs** (yes/no) and **Channels** (off / **DM back** to the sender if they're
-  in your contacts / **Post** the reply in the channel as `@[name] ...`). Each sender gets it at most once a
-  day, at most one reply a minute, 3 s after the message, never to auto-replies. The page
-  shows the reply count and who got the last one; each reply is also listed in Logs.
-- **Battery** page: charge (from the voltage; while charging, which lifts the voltage, it
-  carries on from the reading before USB at the charger's pace, 100 % only when the charger
-  reports done), voltage, the chip's temperature (the SoC's own sensor, in °F: a few
-  degrees above the room, more while charging), charging / estimated time left until the
-  low-battery power-off (a straight line fitted through the charge, worked out from each
-  sample's voltage, over up to the last 12 unplugged hours; the first half hour off the
-  charger is left out, the voltage sags faster than the battery empties; "estimating..."
-  until there's an hour of it) and a 48 h graph (a sample every 15 min; plugged-in
-  stretches in green, time powered off as gaps). Kept in `/sf32_batt` (each sample also stores the raw
-  battery voltage and chip temperature, for power tests), saved hourly and before powering off.
-- **Activity** page: packets heard in the last hour and 24 h, how busy the channel is
-  (share of the time the radio spent receiving or sending, this hour) and a bar graph of
-  packets per hour. From the radio's own counters, no extra traffic; RAM only (starts over
-  at boot).
-- **Auto advert** (Settings): send adverts on a schedule, as repeaters do, so other nodes
-  keep a fresh path: **Nearby** (zero hop) off / every 1, 3, 6, 12 h and **Mesh** (flood)
-  off / every 12, 24, 48 h, both off by default. Advert / Heard / Radio page menus: **Send
-  nearby** or **Send to mesh** now; the Advert page's menu > **Long press** picks what its
-  long press sends (Nearby / Mesh).
-- **Nodes** page (My Nodes): the contacts starred as favourites in the app (up to 4):
-  when each was last heard, direct / hops / flood, and its battery when you tap its row:
-  one telemetry request to that node (at most one every 20 s, nothing on a schedule, so
-  the mesh isn't loaded with polling). The reply comes back through MeshCore's
-  `onUnhandledResponse` and isn't pushed to the phone. A node answers only if its own
-  telemetry setting shares with us; repeaters want a login for it ("no reply").
-- **USB app** (Settings, off by default): the MeshCore app protocol over the USB serial
-  port as well as Bluetooth (both at once), for PC apps (meshcore-cli, the Python
-  library) and as an **observer**: every packet heard is pushed raw with its SNR / RSSI
-  (`PUSH_CODE_LOG_RX_DATA`), for logging or an MQTT bridge on the PC. 115200 baud, the
-  CH343 port (the console / flashing one; flashing still works). Nothing is written until
-  an app sends a frame; from then the console logs are paused (so they can't land inside
-  the app's frames) until the cable comes out or USB app is turned off
-  (`src/platform/SF32UsbInterface.cpp`).
-- **Signal** page (signal tester): tap to start/stop. Every 10/15/30/60 s (swipe up:
-  Every) it pings the repeaters in direct range (zero-hop discovery request) and shows how
-  well the best one hears us and we hear it (SNR), its name, replies/pings and a bar graph
-  of the last 40 pings (no reply: red tick). A beep per ping, higher for a better link, two
-  low beeps for no reply (follows the Sound setting). Swipe up > Target locks onto the
-  repeater just heard. The screen stays on while testing; it stops by itself after 30 min.
-  **Finder** (Signal menu): locked onto one repeater (the target, or the first to answer),
-  a ping every 5 s, its signal strength big (RSSI, which keeps rising as you get close,
-  where SNR tops out) and **warmer / colder / about the same** against the few pings
-  before (3 dB either way), the best so far, and a beep whose pitch follows the strength.
-  No compass on the board, so no direction: walk, and follow the trend. Tap to stop.
-- **Mesh SOS**: triple-press button A, or swipe down > Send SOS. A 5 s countdown with
-  beeps (Cancel button, or press A), then it sends "SOS! I need help. Location: lat,lon.
-  Battery N%." to the channel in Settings > SOS to (default: the first channel,
-  usually Public), and again every 5 min, 6 times in all, until you tap Stop. The location
-  is the node's as set in the app (or "unknown"). Logged in Logs. Scripted test builds
-  never transmit it.
-- **Mesh time** (Settings > Clock, on by default): while the clock isn't known (battery
-  ran flat, battery switch, fresh flash), the times in received adverts set it once 3
-  different nodes agree within 5 minutes (their middle value, 2 min behind so the phone,
-  which MeshCore only lets move the clock forward, can still correct it). The clock page
-  shows "(mesh)" after the date until the phone syncs. Only nodes already in your
-  contacts count (new identities cost nothing to make); unsynced nodes (before 2025) and
-  outliers are ignored. **Reset clock** (Settings > Clock, tap twice) sets the clock back
-  to "unknown", the way out of any wrong time ahead (MeshCore only moves it forward).
-- **Share QR**: swipe up on the Clock or Status page > Share QR shows this node
-  as a QR code (`meshcore://contact/add?name=...&public_key=...&type=1`, MeshCore's
-  docs/qr_codes.md) for the MeshCore app to scan. Full brightness while shown, a minute
-  before the screen times out; tap, swipe or press A to close. QR encoder: Nayuki's
-  qrcodegen (MIT, src/qrcodegen, from the SiFli SDK's LVGL).
-- **Band scan** (Radio page > swipe up): the noise level across 902-928 MHz in 250 kHz
-  steps, swept continuously (bars coloured by level, faint max-hold marks, our channel
-  marked, the strongest frequency and our channel's level below; tap to reset). A few
-  frequencies per frame, then back to our channel, so MeshCore keeps receiving. Narrow
-  spikes: a device's carrier or a clock harmonic (this board's own: 912.00 MHz = 19 x 48
-  MHz); a broad hump: noisy electronics.
-- **Power saving / sleep** (companion, stage 1; Settings > Low power, on by default):
-  RT-Thread's power manager (`CONFIG_BSP_USING_PM`) light-sleeps the chip whenever it's
-  idle with the screen off (always-on clock counts as on), the audio off and the first
-  minute after boot over. The policy is light sleep only (SF32Board.cpp overrides the SDK's
-  weak `pm_policy[]`: the 52x default is deep sleep). The 25 ms screen-off main loop, the
-  radio, touch, button and Bluetooth all wake it; measured ~88% of the time asleep, the
-  radio sending and receiving throughout. LilyGo's board support powers the LoRa radio off
-  in sleep (`BSP_PowerDownCustom`): overridden, a mesh node must keep listening. The CPU
-  clock scaling below is bypassed while the power manager is on. Low power Off holds the
-  chip awake (the way back if something misbehaves). It also stays awake while on USB power
-  (charging), which keeps flashing and screenshots working: the debug channel answers its
-  hello while the chip sleeps, but halts and memory access only land while it's awake.
-  (SF32_PM_LOG test builds sleep on USB too, after 8 minutes; to flash one, tap the screen
-  on first.) A debug session left open by an interrupted sftool makes the chip answer the
-  hello but drop every memory access; `enter()` in `tools/sf32_debug_uart.py` sends EXIT
-  first to clear it.
-- **CPU clock scaling** (without the power manager): with the screen off (and no audio) for 5 s, the CPU drops from 240 MHz
-  to 96 MHz at the lower core voltage (SiFli DVFS S0; the RT-Thread tick is reconfigured)
-  and the main loop wakes every 25 ms instead of 4. Full speed returns before the screen
-  turns on or audio starts. Verified: timekeeping, radio and I2C unaffected; the radio's
-  noise is the same at either speed.
-- **Tap sound** (Settings): a sound from the speaker on taps (Click: a soft wooden tock,
-  Pop: a water-drop bloop, Tick: a crisp tick; tapping the row cycles them and plays each)
-  and a whoosh (airy filtered noise that swells and fades) on swipes, or Off. A short startup
-  chime (E B E rising) plays at boot when Sound or Tap sound is on (switching the audio on pops; the pop then
-  starts the chime). At the Sound volume (Low if Sound
-  is off); the board has no vibration motor. The audio path takes 100+ ms to come up, too
-  slow for a tap sound, and powering it up pops: so while Volume or Tap sound is on it
-  stays open (silent) while the screen is in use and for 2 min after it goes off (or to the
-  always-on clock), then powers down (a few mA). The first wake or chime after that powers
-  it up again (one pop); at boot that's under the startup chime.
-- **Discover**: tap anywhere to scan. **Power** page: tap anywhere for the power menu
-  (powering off takes a second tap). Use a swipe or button A to leave these pages.
-- Unread messages: they count as read once the phone app downloads them (the app has no
-  read receipts; downloading is the only signal), or when viewed on the board.
-- A new message that alerts (Settings > Sound > Alerts) shows a small banner at the top for
-  6 s, over whatever is on screen: the sender and the start of the text. The full text is in
-  the message view (the clock's envelope / "Read messages"). The device doesn't send
-  messages: no typing or replies on it, by design; that's the phone's job. Tap the
-  envelope on the clock to open the messages; swipe left for the next, swipe right to go
-  back (they stay unread for the app).
-- Woken within 10 s of turning off, the screen comes back where it was (menus and
-  editors included); after that, on the clock. Settings ends with **Power** (screen off,
-  reboot, power off).
+Working: all three firmwares, Bluetooth pairing, touch UI, sleep, sound, motion, USB app.
 
-If a phone was paired with older test firmware, remove the device from the phone's
-Bluetooth settings first. The firmware cleared its own old bonds once.
+- **Power**: find what draws ~16 mA with the screen off (counters in `sf32_pm_stats`,
+  read with `tools/pmstats.sh`); then fewer wake-ups and deeper sleep.
+- **WiFi**: needs the T-SF32-Keyboard expansion's ESP32-C6 (per LilyGo).
+- Noise floor reads about -106 dBm vs -115 on a T1000-E nearby (broadband; a spur at
+  912 MHz from the board's own clock).
 
-## Display
+## Development
 
-MeshCore's UIs are laid out for a 128x64 OLED. `SF32Display` keeps that layout but
-draws it at 3.5 panel pixels per OLED pixel (448x224, centred on the 480x480 panel)
-straight into the frame buffer:
-- text in anti-aliased Noto Sans Medium (SIL OFL), pre-rendered per text size by
-  `tools/gen_font.py` into `src/platform/SF32Font.h`. It's proportional, and
-  `getTextWidth()` reports the real width, so MeshCore's centring/ellipsizing still fits.
-- icons are scaled smoothly (interpolated contour), small square dots become round, and
-  big panels (title bar, popups) get rounded corners; full-width bars extend into the
-  margin so text isn't on their edge.
-- `printWordWrap` wraps at word boundaries (message view).
-- "press Enter" hints read "long press", the actual gesture on this board.
-- dark palette in SF32Display.cpp (`UIColor`).
+Internals, build details, SDK patches, debugging over the debug UART, screenshots and test
+builds are in **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)**.
 
-To change the font or scale: edit `SCALE`/`FONT` in tools/gen_font.py (needs Pillow, run
-with the system python) and `SF32Display::SCALE`, then rebuild.
+```
+project*/         one SiFli/SCons project per firmware
+src/main.cpp      runs MeshCore's setup()/loop() as the RT-Thread main thread
+src/platform/     board support: battery, radio, display, touch, BLE, USB, RTC, motion, sound
+src/arduino/      a minimal Arduino layer for MeshCore
+src/companion_ui/ the companion's screen UI (MeshCore's ui-new plus ui_*.inc)
+lib/              vendored libraries; MeshCore is fetched by setup.sh, unmodified
+tools/            flashing helper, screenshots, remote touch, font generator
+sdk-patches/      fixes the LilyGo SDK needs (applied by setup.sh)
+```
 
-The driver double-buffers (frames alternate between two PSRAM buffers; a frame is sent to
-the panel in the background while the next is drawn, ~40 ms per frame) and animates
-transitions (`setTransition`) by composing 6 in-between frames in a third (~250 ms).
+## License and credits
 
-Screenshots: `tools/shot.sh out.png` (or `tools/sf32_debug_uart.py PORT shot
-@<address of sf32_shown_fb> out.png`) reads the frame on the panel
-(PSRAM, `s_fb` in main.map); it halts the CPU for ~5 s and reads at 1 Mbaud. `SF32_UI_DEMO=t_t_U_240,300 ./build.sh
-companion` builds a test firmware that plays touch input, one step every 8 s from 10 s
-after boot: `t` tap, `L` long press, `U`/`D` swipe up/down, `l`/`r` swipe left/right, `X,Y` tap at
-panel coordinates, `.` wait. `SF32_UI_DEMO_TIME=<epoch>` also sets the RTC at boot. Reflash the normal
-build afterwards.
-Live remote touch (debug builds only): `SF32_REMOTE_TOUCH=1 ./build.sh companion`, then
-`tools/touch.sh press . up . tap 240 300 . right . hold 240 300 800` (taps at panel pixels, swipes, holds, button
-presses; "." waits) writes a command word over the debug channel. Normal builds don't
-have the hook. Screenshots can't be limited the same way: they read memory through the
-chip's hardware debug port, the same one flashing uses, so anyone with the USB cable and
-the board in hand can read (or reflash) it whatever firmware it runs.
-
-## Sound, sensors, diagnostics
-
-- Motion (`SF32Motion`, companion): LilyGo's BHI260AP driver uploads Bosch's firmware at
-  boot (background thread) and the accelerometer runs at 10 Hz. **Lift to wake**: lying
-  still for 1.5 s, then tilted by more than ~20 degrees turns the screen on (walking or a
-  pocket doesn't, it's never still). **Flip to quiet**: face down for 1 s turns the screen
-  off and silences message alerts until it's turned over. Both in Settings.
-  `SF32_MOTION_LOG=1 ./build.sh companion` prints the accelerometer every second.
-- Chimes: `SF32Sound` generates short tones and plays them AUDPRC -> AUDCODEC DAC ->
-  NS4150B amplifier (PA20 high only while playing), in its own thread.
-- I2C (`i2c scan` on the repeater/room server CLI; `SF32_I2C_SCAN=1 ./build.sh ...` logs
-  it at boot): i2c1 has 0x03 SGM41562B charger, 0x28 BHI260AP IMU (Bosch sensor hub:
-  accelerometer + gyroscope; needs its firmware uploaded at boot, LilyGo's SDK has a
-  driver), 0x5a CST9220 touch. i2c2 and i2c4 are empty. No vibration motor on this board
-  (that's on the T-SF32-Keyboard).
-- `/sf32_boot` records why the board last stopped: a deliberate power-off writes its
-  reason (menu, battery empty, command), a reboot "reboot"; "running" left over at the
-  next start means power was lost or the chip reset. Events (starts with the previous
-  stop, power-offs, reboots, battery warnings) go to `/sf32_log` (last 20), shown in
-  **Settings > Logs**. Flashing looks like "power lost or crash" (the flasher resets the chip).
-  Each entry also stores a snapshot of the board when it was written (after a 0x1F byte:
-  uptime, battery mV, USB/charge state, chip temperature, free heap and its low point, CPU
-  MHz; starts add the power-on mode and PMU wake status). Tap an entry in Logs to see it;
-  tap or swipe to go back. 20 entries is about 3 KB; a future SD card could keep more.
-
-## Power saving, battery warnings, burn-in
-
-- The CPU sleeps between tasks (idle hook, WFE: the SDK's own idle instruction; WFI
-  missed the BLE controller's wake-up events and broke Bluetooth). MeshCore's loop runs
-  every 4 ms instead of 1 ms.
-- Bluetooth advertises every 30 ms for 30 s after boot / a disconnect, then every 500 ms.
-- The board asks a newly connected phone to pair only if it doesn't start pairing itself
-  within 1.5 s (an earlier request collided with the phone's own and dropped the link).
-- Battery warnings (companion): a popup at 20 %, at 10 % it also wakes the screen; a
-  "Battery empty" screen before the automatic power-off (below). Re-armed when charging.
-- Burn-in: the whole layout moves by up to 3 pixels every 3 minutes. With Timeout
-  "never (USB)" the screen dims to 10 % and shows the clock after a minute without input;
-  the first touch only brightens it.
-
-## Battery protection
-
-On battery (no USB) below 3550 mV for 30 s, the board powers off (SGM41562B shipping mode,
-same threshold as LilyGo's factory firmware). `poweroff` / `shutdown` do the same. The
-voltage is a rolling average of one ADC reading every 2 s. If the charger cycles, as it
-does with no battery, the board reports 0 V instead of a meaningless value.
-
-## Layout
-
-    project*/     SiFli/SCons projects, one per firmware (proj.conf = Kconfig options;
-                  project_companion adds Bluetooth)
-    src/main.cpp  runs MeshCore's setup()/loop() as the RT-Thread main thread
-    src/platform/ T-Display-SF32 specifics: SF32Board (battery, charger, watchdog,
-                  power-off, CLI extras), SF32SX1262Radio (mesh::Radio), SF32Display
-                  (AMOLED), SF32TouchInput, SF32SerialBLEInterface (+_events.c),
-                  SF32RTCClock, SF32HardwareRNG, target.h/.cpp, variant.h (defaults),
-                  compat/ (companion-only header shims)
-    src/arduino/  minimal Arduino layer: Arduino.h (+Serial, GPIO), Stream.h,
-                  FS.h (littlefs + directories), RTClib.h, LittleFS.h, sf32_platform.h
-    src/companion_ui/ the companion's screen UI: UITask.cpp is MeshCore's ui-new (changes
-                  marked "SF32"); the board's screens, menus, settings and power
-                  features are in ui_*.inc, #included by it (see its header)
-    src/selftest/ bring-up self-tests
-    lib/          vendored Crypto, CayenneLPP, base64, and MeshCore (lib/MeshCore,
-                  fetched by setup.sh, unmodified). See lib/README.md.
-    tools/        sf32_debug_uart.py: flashing helper and crash debugging (see below);
-                  shot.sh: screenshots; gen_font.py: the UI font
-    sdk-patches/  the SDK fixes below (setup.sh applies them)
-    setup.sh      one-time setup: MeshCore, SDK fixes, SDK link
-    env.sh        activates the SDK through ~/sifli-lilygo-sdk (a symlink; the SDK's
-                  linker flags break on paths with spaces). SF32_SDK_DIR picks the SDK.
-    licenses/, THIRD_PARTY.md   licenses of the bundled code and font
-
-## Fixes this port needs in the LilyGo SDK (sdk-patches/, applied by setup.sh)
-
-- `rtos/env/packages/` copied from the upstream OpenSiFli SDK (missing from the LilyGo
-  download).
-- Added placeholder Kconfig files at `t_sf32_display_hw_device/sensor/bme280/` and
-  `t_sf32_display_hw_device/uart_mux/gps/lwgps2rtt/`. LilyGo's Kconfig points to them
-  but their repo doesn't contain them.
-- `rtos/rtthread/bsp/sifli/drivers/drv_adc.c`: the two unconditional `rt_kprintf`s in the
-  ADC read paths (`ch[7]voltage=...`) now need `DRV_ADC_DEBUG_PRINT`. They printed on every
-  battery read and polluted the CLI/companion console.
-
-## How the build fits together
-
-- MeshCore sources are compiled with `-include sf32_platform.h` (Arduino.h, FS.h,
-  `FILESYSTEM`) and the app's files also with `-include variant.h` (like a variant's
-  build_flags). The companion also gets `-include sf32_companion.h`, which undefines the
-  SDK's `BLUETOOTH` macro because it clashes with a UI enum.
-- MeshCore's example `main.cpp`/`MyMesh.cpp`/`DataStore.cpp` pick a filesystem by platform
-  and `#error` otherwise. They're compiled with RP2040_PLATFORM defined, *for those files
-  only*, so they take the LittleFS branch, which `src/arduino/LittleFS.h` maps onto our
-  littlefs volume. The companion's `<helpers/rp2040/SerialBLEInterface.h>` resolves to
-  `src/platform/compat/`, which provides the SF32 BLE interface.
-- SCons can't see force-included headers. `build.sh` hashes all headers under `src/` and
-  drops the app/MeshCore objects when one changes. Without this, a stale object compiled
-  against an older class layout overran its neighbour and crashed the companion at boot.
-- The SDK's BLE registration macros don't compile as C++, so they live in
-  `SF32SerialBLEInterface_events.c`.
-
-## Flashing and debugging
-
-sftool always connects at 1 Mbaud through the SF32's hardware debug-over-UART channel,
-which listens at whatever baud UART1 runs at (115200 in this firmware). `flash.sh` first
-runs `tools/sf32_debug_uart.py download`. That enters debug mode at the current baud,
-halts the CPU (MeshCore's CLI would echo sftool's frames back), stops the hardware
-watchdogs, and switches UART1 to 1 Mbaud for sftool.
-
-The same channel works on a running or crashed board:
-- `tools/sf32_debug_uart.py PORT where`: halt, print PC/LR/SP/MSP/PSP, resume.
-- `tools/sf32_debug_uart.py PORT mem ADDR N`: read memory, e.g. the fault registers
-  at E000ED28.
-- `tools/sf32_debug_uart.py PORT shot ADDR out.png`: screenshot (see Display).
-- Never do block reads of XIP flash (0x1xxxxxxx) over this channel: the chip hangs
-  until the watchdog reboots it.
-
-Use `arm-none-eabi-addr2line -e <build>/main.elf` on the addresses. A PC stuck in
-`rt_hw_hard_fault_exception` means a HardFault. The frame is on the PSP after the
-handler's saved registers.
-
-## Notes
-
-- Console: uart1 at 115200 via the CH343P, msh disabled, logs filtered (warnings for
-  repeater/room server, none for the companion, whose console carries binary frames).
-  LilyGo's LCD driver still prints `CO5300_ReadID 0x0` when the panel powers on.
-- The host can't reset the board: DTR/RTS do nothing. It boots right after flashing.
-- LilyGo C RadioLib quirks worked around in SF32SX1262Radio.cpp:
-  - Its SPI layer waits for BUSY low *before* asserting NSS, so it can't wake a sleeping
-    SX1262. `wakeFromSleep()` pulses NSS.
-  - `SX126x_scanChannel()` issues SetCAD from RX; the chip only accepts it in standby.
-  - `SX126x_startReceive()` doesn't latch PREAMBLE_DETECTED/HEADER_VALID, which MeshCore
-    needs, so the wrapper has its own receive start.
-  - SNR is kept in whole dB; the wrapper reads packet status for 0.25 dB.
-- Bluetooth notes (SF32SerialBLEInterface.cpp):
-  - The device sends a security request on connect (phones then ask for the PIN).
-  - Security level 3 forbids unauthenticated pairing.
-  - The stack reports bonded re-encryption as auth 0x09 (no MITM bit), so "connected"
-    means encrypted with Secure Connections.
-- The WFI idle hook (CPU sleeps when idle) is on for repeater/room server but **off in the
-  companion**: it broke HCPU <-> LCPU (BLE controller) traffic, and connections failed.
-- Watchdog: fed from MeshCore's loop. It reboots about 1 min after a stall (two stages).
-- RNG: identities mix the SF32 hardware TRNG with SX1262 wideband noise.
-- Clock: on-chip RTC (32.768 kHz crystal), kept across reboots and the menu's power off
-  (PMU shutdown; button A turns the board back on). Lost on a battery-empty shutdown
-  (shipping mode), with the battery switch off, and on flashing; the clock page then
-  shows "--:--" until the phone sets the time (MeshCore's guess from contact timestamps
-  isn't shown). The companion's `bootstrapRTCfromContacts()` sets the clock to the
-  newest contact's timestamp at every boot, which threw a synced clock back to May 2024,
-  so SF32RTCClock never moves a synced (2025+) clock backwards, like MeshCore's own time
-  commands. `clock reset` still does.
-- Storage: littlefs on the 4 MB `FS_REGION` partition (0x128A0000), formatted on first boot.
-- Main thread stack is 16 KB (the SDK's 2 KB default overflows in Ed25519).
-- Crypto (192 MHz): Ed25519 sign 4 ms, verify 47 ms, ECDH 7 ms.
-- The SDK compiles with `-funsigned-char -fshort-enums`.
-
-## Measurements and open issues
-
-- Noise floor: about -106 dBm with the battery on (-103 with it off) vs -115 on a
-  T1000-E nearby. It's broadband and unaffected by the SX1262 regulator mode. The bright
-  display adds ~2 dB. There's a spur at 912 MHz (19 x 48 MHz system clock), 1.5 MHz from
-  the US preset.
-- Battery ADC clips at about 4.3 V (VBAT/2 into the ADC's range), so a full cell reads ~4.28 V.
-- To do / ideas:
-  - Power: stage 2 (an event-driven main loop instead of waking every 25 ms), then deep
-    sleep with the motion hub's wake gestures.
-  - WiFi (needs the T-SF32-Keyboard expansion's ESP32-C6, per LilyGo).
+MIT, see [LICENSE](LICENSE). Bundled code and the font keep their own licenses: see
+[THIRD_PARTY.md](THIRD_PARTY.md) and `licenses/`. Built on [MeshCore](https://github.com/meshcore-dev/MeshCore),
+the LilyGo SiFli SDK, Noto Sans (SIL OFL) and Nayuki's QR code generator (MIT).
