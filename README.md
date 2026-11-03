@@ -90,7 +90,9 @@ No SDK or compiler needed: Python 3 and a USB cable.
 
 1. Install pyserial: `python3 -m pip install pyserial` (Windows: `py -m pip install pyserial`).
 2. Download [`flasher/sf32-flash.py`](flasher/sf32-flash.py) and a firmware zip
-   (`companion.zip`, `repeater.zip` or `room_server.zip`).
+   (`companion.zip`, `repeater.zip` or `room_server.zip`) from the
+   [Releases](../../releases) page. (No releases yet: they'll come once battery life is
+   sorted out. Until then, build it yourself, below.)
 3. Plug in the board and run:
    ```sh
    python3 sf32-flash.py companion.zip
@@ -99,14 +101,16 @@ No SDK or compiler needed: Python 3 and a USB cable.
 It finds the board, downloads SiFli's flashing tool (`sftool`, checked against a pinned
 checksum) on the first run, and flashes. Your settings, contacts and node identity are
 kept. Run it with no arguments to pick a firmware from a menu (downloaded from this repo's
-latest release). Works on Linux, macOS and Windows (Windows may need the CH343 USB driver).
+latest release). Tested on Linux; it's written for macOS and Windows too, but untested there
+(Windows may need the CH343 USB driver).
 
 ## Getting started
 
 You need Linux or macOS with bash or zsh, git, and the board on USB.
 
 1. Get the [LilyGo SiFli SDK](https://github.com/Xinyuan-LilyGO/SlFli-SDK-Lilygo) v2.5.1
-   (folder `sifli-sdk-v2.5.1`) and install its toolchain as LilyGo describes. Also clone the
+   (folder `sifli-sdk-v2.5.1`) and install its toolchain: run `./install.sh` in that folder
+   (it needs [uv](https://docs.astral.sh/uv/)). Also clone the
    upstream [SiFli SDK](https://github.com/OpenSiFli/SiFli-SDK): LilyGo's download lacks
    `rtos/env/packages`.
 2. Run setup. It fetches MeshCore into `lib/MeshCore` (pick a version with
@@ -430,7 +434,9 @@ src/platform/     board support: battery, radio, display, touch, BLE, USB, RTC, 
 src/arduino/      a minimal Arduino layer for MeshCore
 src/companion_ui/ the companion's screen UI (MeshCore's ui-new plus ui_*.inc)
 lib/              vendored libraries; MeshCore is fetched by setup.sh, unmodified
-tools/            flashing helper, screenshots, remote touch, font generator
+tools/            flashing helper, screenshots, remote touch, sleep counters, font generator
+flasher/          stand-alone flasher for users (no SDK needed)
+ci/               build-all.sh: the clean build GitHub Actions runs on every push
 sdk-patches/      fixes the LilyGo SDK needs (applied by setup.sh)
 ```
 
