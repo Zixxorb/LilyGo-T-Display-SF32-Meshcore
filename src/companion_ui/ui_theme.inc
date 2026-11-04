@@ -40,13 +40,14 @@ static float sf32BatteryPercentF(uint16_t mv) {
 static int sf32BatteryPercent(uint16_t mv) { return (int)sf32BatteryPercentF(mv); }
 
 // The charge shown for this board's own battery (header, Battery page, warnings, log).
-// On battery it's the voltage. While charging the charger lifts the voltage 0.1-0.2 V, so
-// the voltage alone would jump from 50 % to 80+ % on plugging in: instead it carries on
+// On battery it's the voltage. While charging the charger lifts the reading ~0.33 V (measured:
+// 3.87 V on battery read 4.21 V minutes after plugging in), so the voltage alone would jump
+// from 60 % to 85+ % on plugging in: instead it carries on
 // from the last reading before USB and climbs at a realistic pace (charger ~200 mA into
 // 480 mAh, slower near full), pulled up only by the voltage minus that lift; 100 % only
 // when the charger says it's done. Just after unplugging the voltage still reads high:
 // for half an hour it's never shown above what it was.
-#define CHG_LIFT_MV        150
+#define CHG_LIFT_MV        330
 #define CHG_RATE_PCT_H     35.0f   // below 80 %
 #define CHG_RATE_TOP_PCT_H 15.0f   // 80 % and up (the charger tapers)
 #define CHG_SETTLE_MS      (30UL * 60 * 1000)
