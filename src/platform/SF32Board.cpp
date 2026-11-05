@@ -125,6 +125,33 @@ static void pm_notify(uint8_t event, uint8_t mode, void*) {
 
 // board.loop(): start counting at the unplug (afresh), freeze at the replug
 #define PM_STATS_MIN_MS (5UL * 60 * 1000)
+
+#ifdef SF32_RADIO_AB
+// Battery test build: from the unplug, the radio listens for 2 h, then sleeps for 2 h, and so
+// on (SF32SX1262Radio asks sf32_radio_ab_off()). The battery voltage every 15 min, to the
+// millivolt, goes to sf32_ab_log for tools/abstats.sh: how much of the drain is the radio.
+#define AB_PHASE_MS  (2UL * 3600 * 1000)
+#define AB_SAMPLE_MS (15UL * 60 * 1000)
+extern "C" {
+struct SF32AbLog { uint32_t magic; uint32_t n; uint16_t mv[64]; };  // mv[i]: i * 15 min after the unplug
+volatile SF32AbLog sf32_ab_log;
+bool sf32_radio_ab_off(void) {
+  return s_pm_counting && sf32_pm_stats.batt_ms >= AB_PHASE_MS && (sf32_pm_stats.batt_ms / AB_PHASE_MS) % 2 == 1;
+}
+}
+static void ab_log_loop(uint16_t mv) {
+  if (!s_pm_counting) return;
+  if (sf32_ab_log.magic != 0x53464142 || sf32_pm_stats.batt_ms < 1000) {  // a new run
+    if (sf32_pm_stats.batt_ms >= AB_SAMPLE_MS) return;
+    sf32_ab_log.magic = 0x53464142; sf32_ab_log.n = 0;
+  }
+  uint32_t n = sf32_ab_log.n;
+  if (n < 64 && sf32_pm_stats.batt_ms >= n * AB_SAMPLE_MS) {
+    sf32_ab_log.mv[n] = mv;
+    sf32_ab_log.n = n + 1;
+  }
+}
+#endif
 static void pm_stats_loop(bool external) {
   static unsigned long last = 0;
   unsigned long now = millis();
@@ -257,6 +284,9 @@ void SF32Board::loop() {
   }
 #ifdef RT_USING_PM
   pm_stats_loop(isExternalPowered());
+#ifdef SF32_RADIO_AB
+  ab_log_loop(getBattMilliVolts());
+#endif
 #endif
   if ((long)(now - _next_wdt_feed) >= 0) {
     _next_wdt_feed = now + WDT_FEED_MS;

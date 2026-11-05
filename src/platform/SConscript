@@ -23,6 +23,8 @@ if os.getenv('SF32_I2C_SCAN'):  # SF32_I2C_SCAN=1: log an I2C bus scan 5 s after
     defs.append('SF32_I2C_SCAN_AT_BOOT')
 if os.getenv('SF32_PM_LOG'):  # SF32_PM_LOG=1: count time asleep (power manager)
     defs.append('SF32_PM_LOG')
+if os.getenv('SF32_RADIO_AB'):  # SF32_RADIO_AB=1: battery test: radio on 2 h / asleep 2 h, alternating (sf32_ab_log)
+    defs.append('SF32_RADIO_AB')
 if os.getenv('SF32_SENSOR_PROBE'):  # SF32_SENSOR_PROBE=1: list the motion hub's sensors at boot
     defs.append('SF32_SENSOR_PROBE')
 if os.getenv('SF32_SOUND_LOG'):  # SF32_SOUND_LOG=1: print each sound played

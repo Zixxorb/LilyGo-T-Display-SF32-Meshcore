@@ -196,6 +196,11 @@ clock moves each minute.
   awake and main loop passes (`sf32_pm_stats` in SF32Board.cpp). Plug back in and run
   `tools/pmstats.sh`. A 30-minute run measured 80 % asleep (89 % of the time nothing held
   it awake), 44 wakes/s: 33/s the main loop timer, 11/s a pin.
+- **Radio on/off test** (`SF32_RADIO_AB=1 ./build.sh companion`): on battery, the radio
+  listens for 2 h, then sleeps (warm, settings kept) for 2 h, and so on; the battery voltage
+  every 15 min goes to `sf32_ab_log`. Plug back in and run `tools/abstats.sh`: it compares
+  each radio-off stretch with the radio-on stretches either side, which gives the radio's
+  share of the drain. The mesh isn't heard during the off stretches: a test build only.
 - **CPU clock scaling** (without the power manager): with the screen off for 5 s, the CPU
   drops from 240 to 96 MHz at the lower core voltage (SiFli DVFS S0) and the main loop
   wakes every 25 ms instead of 4.
