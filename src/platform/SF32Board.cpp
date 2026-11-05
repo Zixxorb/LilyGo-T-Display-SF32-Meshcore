@@ -124,12 +124,26 @@ static void pm_notify(uint8_t event, uint8_t mode, void*) {
 }
 
 // board.loop(): start counting at the unplug (afresh), freeze at the replug
+#define PM_STATS_MIN_MS (5UL * 60 * 1000)
 static void pm_stats_loop(bool external) {
   static unsigned long last = 0;
   unsigned long now = millis();
-  if (external) { s_pm_counting = false; return; }
+  // A blip of a few seconds off USB (seen while charging) would wipe a whole run's counts:
+  // a battery stretch shorter than PM_STATS_MIN_MS gives the previous counts back.
+  static SF32PmStats prev;
+  if (external) {
+    if (s_pm_counting && sf32_pm_stats.batt_ms < PM_STATS_MIN_MS && prev.magic) {
+      rt_base_t level = rt_hw_interrupt_disable();
+      s_pm_counting = false;
+      memcpy((void*)&sf32_pm_stats, &prev, sizeof(prev));
+      rt_hw_interrupt_enable(level);
+    }
+    s_pm_counting = false;
+    return;
+  }
   if (!s_pm_counting) {
     rt_base_t level = rt_hw_interrupt_disable();
+    memcpy(&prev, (const void*)&sf32_pm_stats, sizeof(prev));
     memset((void*)&sf32_pm_stats, 0, sizeof(sf32_pm_stats));
     sf32_pm_stats.magic = 0x5346504D;
     s_pm_counting = true;
