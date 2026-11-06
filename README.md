@@ -483,3 +483,5 @@ sdk-patches/      fixes the LilyGo SDK needs (applied by setup.sh)
 MIT, see [LICENSE](LICENSE). Bundled code and the font keep their own licenses: see
 [THIRD_PARTY.md](THIRD_PARTY.md) and `licenses/`. Built on [MeshCore](https://github.com/meshcore-dev/MeshCore),
 the LilyGo SiFli SDK, Noto Sans (SIL OFL) and Nayuki's QR code generator (MIT).
+
+Developed with help from Claude (Anthropic).
