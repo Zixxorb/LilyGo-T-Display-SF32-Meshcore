@@ -15,16 +15,14 @@ Companion (phone app over Bluetooth, with its own touch UI) · Repeater · Room 
 
 </div>
 
-MeshCore firmware for the LilyGo T-Display-SF32 (SiFli SF32LB52 + SX1262 LoRa + 480x480
-AMOLED). It's built on the LilyGo SiFli SDK and LilyGo's C RadioLib port; MeshCore itself
-is used unmodified.
+Built on LilyGo's SiFli SDK and C radio library, with MeshCore itself unmodified.
 
 The companion is a **handheld node**, not a messenger: the phone does the messaging, the
 device shows what's happening on the mesh, tests links, finds repeaters and keeps time.
 
----
-
 ## Contents
+
+<div align="center">
 
 | Start here | More detail |
 |---|---|
@@ -34,6 +32,8 @@ device shows what's happening on the mesh, tests links, finds repeaters and keep
 | [Flashing without building](#flashing-without-building) | [Status and to-do](#status-and-to-do) |
 | [Building from source](#building-from-source) | [Development](#development) |
 | [Using the companion](#using-the-companion) | [License and credits](#license-and-credits) |
+
+</div>
 
 ## Highlights
 
@@ -169,6 +169,9 @@ on the clock. Long lists follow your finger and glide after a flick.
 
 ### Pages
 
+<details>
+<summary><b>All 13 pages</b></summary>
+
 | Page | Shows |
 |---|---|
 | **Clock** | Time, date, unread envelope (tap to read), battery. Six faces |
@@ -187,7 +190,12 @@ on the clock. Long lists follow your finger and glide after a flick.
 
 Pages can be hidden in **Settings > Pages** (the clock always shows).
 
+</details>
+
 ### Settings
+
+<details>
+<summary><b>All 13 menus</b></summary>
 
 | Menu | Contains |
 |---|---|
@@ -206,6 +214,8 @@ Pages can be hidden in **Settings > Pages** (the clock always shows).
 | **Power** | Screen off, reboot, power off |
 
 Saved in `/sf32_ui` on the board.
+
+</details>
 
 ## Features in detail
 
