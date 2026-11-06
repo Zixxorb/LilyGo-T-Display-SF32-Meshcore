@@ -462,7 +462,7 @@ src/platform/     board support: battery, radio, display, touch, BLE, USB, RTC, 
 src/arduino/      a minimal Arduino layer for MeshCore
 src/companion_ui/ the companion's screen UI (MeshCore's ui-new plus ui_*.inc)
 lib/              vendored libraries; MeshCore is fetched by setup.sh, unmodified
-tools/            flashing helper, screenshots, remote touch, sleep counters, battery tests, font generator
+tools/            flashing helper, screenshots, remote touch, battery tests, font generator
 flasher/          stand-alone flasher for users (no SDK needed)
 ci/               build-all.sh: the clean build GitHub Actions runs on code pushes
 sdk-patches/      fixes the LilyGo SDK needs (applied by setup.sh)
