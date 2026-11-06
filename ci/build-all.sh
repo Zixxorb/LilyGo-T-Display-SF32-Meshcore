@@ -62,6 +62,10 @@ for fw in companion repeater room_server; do
   mkdir -p "$stage"
   cp "$out/bootloader/bootloader.bin" "$out/main.bin" "$out/ftab/ftab.bin" "$out/main.elf" "$stage/"
   cp -r LICENSE THIRD_PARTY.md licenses "$stage/"
+  # newlib, libstdc++ and libgcc are linked in: their notices come with the toolchain
+  for t in "$HOME"/.sifli/tools/arm-none-eabi-gcc/*/license.txt; do
+    if [ -f "$t" ]; then cp "$t" "$stage/licenses/toolchain-license.txt"; else echo "warning: no toolchain license.txt"; fi
+  done
   (cd dist && python3 -m zipfile -c "$fw.zip" "$fw" && rm -rf "$fw")
   echo "dist/$fw.zip"
 done

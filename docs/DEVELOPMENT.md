@@ -65,7 +65,8 @@ SF32_LOG_LEVEL=LOG_LVL_INFO ./build.sh companion   # keep log output (debugging)
   notices) next to a copy of the flasher. GitHub Actions (`.github/workflows/build.yml`)
   runs it on every push except docs-only ones and keeps those files as the run's artifacts.
   To move to a newer SDK or MeshCore, change the pins in `ci/pins.sh` (`setup.sh` uses the
-  MeshCore pin too).
+  MeshCore pin too). Publish only these zips: a build on your own machine embeds its SDK
+  path in the binary, which includes your home folder name.
 
 - MeshCore sources are compiled with `-include sf32_platform.h` (Arduino.h, FS.h,
   `FILESYSTEM`) and the app's files also with `-include variant.h` (like a variant's
