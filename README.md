@@ -108,8 +108,8 @@ No SDK or compiler needed: Python 3 and a USB cable.
 It finds the board, downloads SiFli's flashing tool (`sftool`, checked against a pinned
 checksum) on the first run, and flashes. Your settings, contacts and node identity are
 kept. Run it with no arguments to pick a firmware from a menu (downloaded from this repo's
-latest release). Tested on Linux; it's written for macOS and Windows too, but untested there
-(Windows may need the CH343 USB driver).
+latest release). Flashing a real board is tested on Linux only. On Windows and macOS, automated
+checks cover everything except the flash itself (Windows may need the CH343 USB driver).
 
 ## Building from source
 
