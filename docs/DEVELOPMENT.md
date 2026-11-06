@@ -68,6 +68,11 @@ SF32_LOG_LEVEL=LOG_LVL_INFO ./build.sh companion   # keep log output (debugging)
   MeshCore pin too). Publish only these zips: a build on your own machine embeds its SDK
   path in the binary, which includes your home folder name.
 
+- **Flasher checks**: `ci/test-flasher.py` tests `flasher/sf32-flash.py` without a board:
+  sftool's download and checksum, firmware zips, port finding, error messages. GitHub
+  Actions (`.github/workflows/flasher.yml`) runs it on Windows, macOS (Apple silicon and
+  Intel) and Linux when the flasher changes, or by hand. It can't test a real flash.
+
 - MeshCore sources are compiled with `-include sf32_platform.h` (Arduino.h, FS.h,
   `FILESYSTEM`) and the app's files also with `-include variant.h` (like a variant's
   build_flags). The companion also gets `-include sf32_companion.h`, which undefines the

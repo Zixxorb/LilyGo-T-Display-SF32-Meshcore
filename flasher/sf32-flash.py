@@ -97,8 +97,11 @@ def load_firmware(spec, workdir):
     if os.path.isdir(spec):
         folder = spec
     elif os.path.isfile(spec):
-        with zipfile.ZipFile(spec) as z:
-            z.extractall(workdir)
+        try:
+            with zipfile.ZipFile(spec) as z:
+                z.extractall(workdir)
+        except zipfile.BadZipFile:
+            fail(f"{spec} isn't a valid zip file. Try downloading it again.")
         folder = workdir
     else:  # a firmware name: the latest release on GitHub
         url = f"https://github.com/{REPO}/releases/latest/download/{spec}.zip"
@@ -146,7 +149,11 @@ def find_sftool(given):
              f"(https://github.com/OpenSiFli/sftool) and pass --sftool PATH.")
     name, sha = SFTOOL_ASSETS[key]
     print(f"Downloading sftool {SFTOOL_VERSION} (SiFli's flashing tool, first run only)")
-    data = download(SFTOOL_URL.format(v=SFTOOL_VERSION, name=name))
+    try:
+        data = download(SFTOOL_URL.format(v=SFTOOL_VERSION, name=name))
+    except Exception as e:
+        fail(f"couldn't download sftool ({e}). Check your connection, or install sftool "
+             f"(https://github.com/OpenSiFli/sftool) and pass --sftool PATH.")
     if hashlib.sha256(data).hexdigest() != sha:
         fail("the sftool download doesn't match its expected checksum; not using it")
     os.makedirs(os.path.dirname(target), exist_ok=True)
@@ -306,7 +313,12 @@ def main():
         print("Your settings, contacts and node identity are kept.\n")
 
         # a board running this firmware: 115200; something else (factory firmware, a crash): 1M
-        if not (prepare(port, 115200) or prepare(port, SFTOOL_BAUD)):
+        try:
+            ready = prepare(port, 115200) or prepare(port, SFTOOL_BAUD)
+        except (serial.SerialException, OSError) as e:
+            fail(f"couldn't open {port} ({e}). Check the port name, and close anything else "
+                 f"using it (a serial monitor, a MeshCore app connected over USB).")
+        if not ready:
             print("(The board's debug channel didn't answer; trying sftool directly.)")
         cmd = [sftool, "-p", port, "-c", "SF32LB52", "-m", "nor", "write_flash"]
         cmd += [f"{os.path.join(folder, name)}@0x{addr:08X}" for name, addr in IMAGES]
