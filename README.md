@@ -26,18 +26,14 @@ device shows what's happening on the mesh, tests links, finds repeaters and keep
 
 ## Contents
 
-- [Highlights](#highlights)
-- [Screenshots](#screenshots)
-- [Firmwares](#firmwares)
-- [Flashing without building](#flashing-without-building)
-- [Building from source](#building-from-source)
-- [Using the companion](#using-the-companion)
-- [Features in detail](#features-in-detail)
-- [Battery and power](#battery-and-power)
-- [Repeater and room server](#repeater-and-room-server)
-- [Status and to-do](#status-and-to-do)
-- [Development](#development)
-- [License and credits](#license-and-credits)
+| Start here | More detail |
+|---|---|
+| [Highlights](#highlights) | [Features in detail](#features-in-detail) |
+| [Screenshots](#screenshots) | [Battery and power](#battery-and-power) |
+| [Firmwares](#firmwares) | [Repeater and room server](#repeater-and-room-server) |
+| [Flashing without building](#flashing-without-building) | [Status and to-do](#status-and-to-do) |
+| [Building from source](#building-from-source) | [Development](#development) |
+| [Using the companion](#using-the-companion) | [License and credits](#license-and-credits) |
 
 ## Highlights
 
