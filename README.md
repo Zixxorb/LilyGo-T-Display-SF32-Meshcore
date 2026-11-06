@@ -37,7 +37,7 @@ device shows what's happening on the mesh, tests links, finds repeaters and keep
 
 ## Highlights
 
-| | |
+| Feature | What it does |
 |---|---|
 | **6 clock faces** | Color, Sun (sunrise/sunset arc), Digital, Analog, Big, Info. Hold the clock to switch |
 | **Signal tools** | Signal tester, repeater **finder** (warmer/colder), 902-928 MHz **band scan** |
