@@ -140,10 +140,14 @@ bool sf32_radio_ab_off(void) {
 }
 }
 static void ab_log_loop(uint16_t mv) {
-  if (!s_pm_counting) return;
-  if (sf32_ab_log.magic != 0x53464142 || sf32_pm_stats.batt_ms < 1000) {  // a new run
-    if (sf32_pm_stats.batt_ms >= AB_SAMPLE_MS) return;
-    sf32_ab_log.magic = 0x53464142; sf32_ab_log.n = 0;
+  static bool started = false;
+  if (!s_pm_counting) { started = false; return; }
+  // from 5 min on battery: a few seconds off USB (seen on plugging in) mustn't start a new log
+  if (sf32_pm_stats.batt_ms < PM_STATS_MIN_MS) return;
+  if (!started) {
+    started = true;
+    sf32_ab_log.magic = 0x53464142;
+    sf32_ab_log.n = 0;
   }
   uint32_t n = sf32_ab_log.n;
   if (n < 64 && sf32_pm_stats.batt_ms >= n * AB_SAMPLE_MS) {
