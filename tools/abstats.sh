@@ -1,18 +1,21 @@
 #!/bin/bash
-# Radio on/off battery test (SF32_RADIO_AB=1 builds): after a night on battery, plug USB back
-# in and run this. From the unplug the radio listened for 2 h, slept 2 h, and so on; this
-# reads the battery voltage logged every 15 min (sf32_ab_log, SF32Board.cpp) and compares
-# the drain in the two kinds of stretch. The ELF must be the flashed build.
+# Battery on/off tests (SF32_RADIO_AB=1: radio asleep; SF32_SLEEP_AB=1: deep sleep instead of
+# light): after a night on battery, plug USB back in and run this. From the unplug: 2 h the
+# normal way, 2 h of the test, and so on; this reads the battery voltage logged every 15 min
+# (sf32_ab_log, SF32Board.cpp) and compares the drain in the two kinds of stretch. The ELF
+# must be the flashed build.
 cd "$(dirname "$0")/.."
 source ./env.sh >/dev/null 2>&1
-addr=$(arm-none-eabi-nm project_companion/build_t-display-sf32_hcpu/main.elf | awk '/ sf32_ab_log$/{print $1}')
-[ -n "$addr" ] || { echo "no sf32_ab_log in this build (build with SF32_RADIO_AB=1)"; exit 1; }
+elf=project_companion/build_t-display-sf32_hcpu/main.elf
+addr=$(arm-none-eabi-nm "$elf" | awk '/ sf32_ab_log$/{print $1}')
+[ -n "$addr" ] || { echo "no sf32_ab_log in this build (build with SF32_RADIO_AB=1 or SF32_SLEEP_AB=1)"; exit 1; }
+if arm-none-eabi-nm "$elf" | grep -q sf32_radio_ab_off; then export AB_A="radio on" AB_B="radio OFF"; else export AB_A="light sleep" AB_B="DEEP sleep"; fi
 port=$(readlink -f $(ls /dev/serial/by-id/*1a86* 2>/dev/null | head -1) 2>/dev/null)
 [ -n "$port" ] || { echo "board not found"; exit 1; }
-python3 tools/sf32_debug_uart.py "$port" mem "$addr" 34 | python3 -I -c '
-import sys, struct
+python3 tools/sf32_debug_uart.py "$port" mem "$addr" 38 | python3 -I -c '
+import sys, os
 w = [int(l.split()[1], 16) for l in sys.stdin if ":" in l]
-if len(w) < 34 or w[0] != 0x53464142: sys.exit("no test log yet (has it run on battery?)")
+if len(w) < 38 or w[0] != 0x53464142: sys.exit("no test log yet (has it run on battery?)")
 n = min(w[1], 64)
 mv = [x for v in w[2:34] for x in (v & 0xFFFF, v >> 16)][:n]
 # the companion'"'"'s voltage -> charge table (ui_theme.inc), for % per hour
@@ -23,7 +26,10 @@ def pct(v):
     for (v1, p1), (v0, p0) in zip(curve, curve[1:]):
         if v >= v0: return p0 + (v - v0) * (p1 - p0) / (v1 - v0)
     return 0.0
+A, B = os.environ["AB_A"], os.environ["AB_B"]
 print(f"{n} samples ({(n - 1) * 15} min on battery)")
+if w[35] or w[37]:
+    print(f"light sleep {w[34] / 60000:.0f} min in {w[35]} sleeps, deep sleep {w[36] / 60000:.0f} min in {w[37]} sleeps")
 print("  ".join(f"{i * 15 // 60}:{i * 15 % 60:02d} {v}" for i, v in enumerate(mv)))
 ph = []  # (stretch, mV/h, %/h)
 for k in range(0, (n - 1) // 8 + 1):
@@ -32,9 +38,9 @@ for k in range(0, (n - 1) // 8 + 1):
     if b - a < 4: continue  # under an hour
     h = (b - a) / 4
     ph.append((k, (mv[a] - mv[b]) / h, (pct(mv[a]) - pct(mv[b])) / h))
-    kind = "radio OFF" if k % 2 else "radio on "
+    kind = f"{B if k % 2 else A:11s}"
     print(f"{a * 15 / 60:4.1f}-{b * 15 / 60:4.1f} h  {kind}  {mv[a]}->{mv[b]} mV  {ph[-1][1]:5.1f} mV/h")
-# each radio-off stretch against the radio-on stretches either side (the mV per % changes
+# each test stretch against the normal stretches either side (the mV per % changes
 # slowly with the charge, so neighbours compare fairly)
 by = {k: r for k, r, _ in ph}
 ratios = []
@@ -42,7 +48,7 @@ for k in by:
     if k % 2 and (k - 1 in by or k + 1 in by):
         near = [by[j] for j in (k - 1, k + 1) if j in by]
         ratios.append(by[k] / (sum(near) / len(near)))
-if not ratios: sys.exit("not enough of the test ran yet (needs a radio-off stretch)")
+if not ratios: sys.exit("not enough of the test ran yet (needs a test stretch)")
 r = sum(ratios) / len(ratios)
 # the total, from the charge table where it is not flat at 100 % (below 4.18 V)
 lo = [i for i in range(2, n) if mv[i] < 4170]
@@ -51,6 +57,6 @@ if len(lo) >= 9:
     hrs = (lo[-1] - lo[0]) / 4
     total = (pct(mv[lo[0]]) - pct(mv[lo[-1]])) / hrs * 4.8  # mA, 480 mAh
 on_ma = total * 2 / (1 + r) if total else None  # total: the average of on and off stretches
-print(f"radio off drains {100 * r:.0f} % as fast as radio on: the radio is ~{100 * (1 - r):.0f} % of the drain"
+print(f"{B} drains {100 * r:.0f} % as fast as {A}: that is ~{100 * (1 - r):.0f} % of the drain"
       + (f", ~{(1 - r) * on_ma:.1f} mA of ~{on_ma:.1f} mA (if the battery is 480 mAh)" if on_ma else ""))
 '

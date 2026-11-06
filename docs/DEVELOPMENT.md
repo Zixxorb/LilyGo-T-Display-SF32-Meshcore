@@ -201,6 +201,15 @@ clock moves each minute.
   every 15 min goes to `sf32_ab_log`. Plug back in and run `tools/abstats.sh`: it compares
   each radio-off stretch with the radio-on stretches either side, which gives the radio's
   share of the drain. The mesh isn't heard during the off stretches: a test build only.
+  Measured 2026-11-05: radio asleep drains about 60-70 % as fast (the radio is 6-8 mA).
+- **Light/deep sleep test** (`SF32_SLEEP_AB=1 ./build.sh companion`): the same 2 h stretches,
+  light sleep then deep sleep (`rt_pm_override_mode_select`, same 10 ms threshold);
+  `tools/abstats.sh` reads it too and shows the time in each kind. `SF32_AB_DESK=1` is a bench
+  version: on USB, sleeps for the first 8 min with 1 min stretches (the screen must turn off,
+  so a screen timeout that stays on while plugged in blocks it). On the bench, always deep:
+  the button and touch woke it normally, and it received packets (woken by the radio's pin).
+- **LilyGo's power report** (`T-Display-SF32-master/lowpowertest/`): 0.87 uA shut down, 164 uA
+  hibernating, so regulators and the charger aren't where the sleep draw goes.
 - **CPU clock scaling** (without the power manager): with the screen off for 5 s, the CPU
   drops from 240 to 96 MHz at the lower core voltage (SiFli DVFS S0) and the main loop
   wakes every 25 ms instead of 4.

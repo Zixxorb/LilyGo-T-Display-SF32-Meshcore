@@ -69,12 +69,25 @@ extern "C" void BSP_PowerUpCustom(bool is_deep_sleep) { (void)is_deep_sleep; }
 
 static uint8_t s_awake_mask = 0;  // AwakeReason bits; non-zero: one IDLE request held
 
+#ifdef SF32_SLEEP_AB
+// Battery test build: the second stretch of each pair uses deep sleep instead of light.
+// Same 10 ms threshold as pm_policy[], so only the kind of sleep differs.
+static bool ab_second_stretch();
+static uint8_t ab_pm_select(rt_tick_t tick) {
+  if (tick < rt_tick_from_millisecond(10)) return PM_SLEEP_MODE_IDLE;
+  return ab_second_stretch() ? PM_SLEEP_MODE_DEEP : PM_SLEEP_MODE_LIGHT;
+}
+#endif
+
 // Held from early boot (right after the power manager starts): no sleep until the UI is up
 // and the first minute is over (also the window to flash a board that won't answer while
 // asleep).
 static int sf32_pm_boot_hold(void) {
   s_awake_mask = SF32Board::AWAKE_BOOT;
   rt_pm_request(PM_SLEEP_MODE_IDLE);
+#ifdef SF32_SLEEP_AB
+  rt_pm_override_mode_select(ab_pm_select);
+#endif
   return 0;
 }
 INIT_ENV_EXPORT(sf32_pm_boot_hold);
@@ -98,6 +111,16 @@ struct SF32PmStats {
 volatile SF32PmStats sf32_pm_stats;
 }
 static volatile bool s_pm_counting = false;
+#if defined(SF32_RADIO_AB) || defined(SF32_SLEEP_AB)
+extern "C" {
+struct SF32AbLog {
+  uint32_t magic, n;
+  uint16_t mv[64];                // mv[i]: i * 15 min after the unplug
+  uint32_t light_ms, light_n, deep_ms, deep_n;  // time in, and number of, each kind of sleep
+};
+volatile SF32AbLog sf32_ab_log;
+}
+#endif
 static volatile uint32_t s_pm_sleep_start = 0;
 extern "C" uint32_t pm_get_wakeup_src(void);
 
@@ -115,6 +138,10 @@ static void pm_notify(uint8_t event, uint8_t mode, void*) {
   s_sleeps++;
 #endif
   if (!s_pm_counting) return;
+#if defined(SF32_RADIO_AB) || defined(SF32_SLEEP_AB)
+  if (mode == PM_SLEEP_MODE_DEEP) { sf32_ab_log.deep_ms += ms; sf32_ab_log.deep_n++; }
+  else { sf32_ab_log.light_ms += ms; sf32_ab_log.light_n++; }
+#endif
   sf32_pm_stats.slept_ms += ms;
   sf32_pm_stats.sleeps++;
   uint32_t w = pm_get_wakeup_src();
@@ -126,19 +153,24 @@ static void pm_notify(uint8_t event, uint8_t mode, void*) {
 // board.loop(): start counting at the unplug (afresh), freeze at the replug
 #define PM_STATS_MIN_MS (5UL * 60 * 1000)
 
-#ifdef SF32_RADIO_AB
-// Battery test build: from the unplug, the radio listens for 2 h, then sleeps for 2 h, and so
-// on (SF32SX1262Radio asks sf32_radio_ab_off()). The battery voltage every 15 min, to the
-// millivolt, goes to sf32_ab_log for tools/abstats.sh: how much of the drain is the radio.
+#if defined(SF32_RADIO_AB) || defined(SF32_SLEEP_AB)
+// Battery test builds: from the unplug, 2 h of the normal way, 2 h of the thing under test
+// (SF32_RADIO_AB: the radio asleep, SF32SX1262Radio asks sf32_radio_ab_off(); SF32_SLEEP_AB:
+// deep sleep instead of light), and so on. The battery voltage every 15 min, to the
+// millivolt, goes to sf32_ab_log for tools/abstats.sh, which compares the two.
+#ifdef SF32_AB_DESK
+#define AB_PHASE_MS  (60UL * 1000)  // bench version: on USB
+#define AB_DESK_MS   (8UL * 60 * 1000)
+#else
 #define AB_PHASE_MS  (2UL * 3600 * 1000)
+#endif
 #define AB_SAMPLE_MS (15UL * 60 * 1000)
-extern "C" {
-struct SF32AbLog { uint32_t magic; uint32_t n; uint16_t mv[64]; };  // mv[i]: i * 15 min after the unplug
-volatile SF32AbLog sf32_ab_log;
-bool sf32_radio_ab_off(void) {
+static bool ab_second_stretch() {
   return s_pm_counting && sf32_pm_stats.batt_ms >= AB_PHASE_MS && (sf32_pm_stats.batt_ms / AB_PHASE_MS) % 2 == 1;
 }
-}
+#ifdef SF32_RADIO_AB
+extern "C" bool sf32_radio_ab_off(void) { return ab_second_stretch(); }
+#endif
 static void ab_log_loop(uint16_t mv) {
   static bool started = false;
   if (!s_pm_counting) { started = false; return; }
@@ -148,6 +180,7 @@ static void ab_log_loop(uint16_t mv) {
     started = true;
     sf32_ab_log.magic = 0x53464142;
     sf32_ab_log.n = 0;
+    sf32_ab_log.light_ms = sf32_ab_log.light_n = sf32_ab_log.deep_ms = sf32_ab_log.deep_n = 0;
   }
   uint32_t n = sf32_ab_log.n;
   if (n < 64 && sf32_pm_stats.batt_ms >= n * AB_SAMPLE_MS) {
@@ -155,7 +188,7 @@ static void ab_log_loop(uint16_t mv) {
     sf32_ab_log.n = n + 1;
   }
 }
-#endif
+#endif  // test builds
 static void pm_stats_loop(bool external) {
   static unsigned long last = 0;
   unsigned long now = millis();
@@ -191,6 +224,9 @@ static void pm_stats_loop(bool external) {
 #endif  // RT_USING_PM
 
 void SF32Board::holdAwake(uint8_t reason, bool hold) {
+#ifdef SF32_AB_DESK
+  if (reason == AWAKE_USB && millis() < AB_DESK_MS) hold = false;
+#endif
 #ifdef RT_USING_PM
   rt_base_t level = rt_hw_interrupt_disable();
   uint8_t before = s_awake_mask;
@@ -287,8 +323,12 @@ void SF32Board::loop() {
     }
   }
 #ifdef RT_USING_PM
+#ifdef SF32_AB_DESK
+  pm_stats_loop(millis() < 60000 || millis() > AB_DESK_MS);  // counts, and sleeps, on USB
+#else
   pm_stats_loop(isExternalPowered());
-#ifdef SF32_RADIO_AB
+#endif
+#if defined(SF32_RADIO_AB) || defined(SF32_SLEEP_AB)
   ab_log_loop(getBattMilliVolts());
 #endif
 #endif

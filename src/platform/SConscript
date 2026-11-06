@@ -25,6 +25,10 @@ if os.getenv('SF32_PM_LOG'):  # SF32_PM_LOG=1: count time asleep (power manager)
     defs.append('SF32_PM_LOG')
 if os.getenv('SF32_RADIO_AB'):  # SF32_RADIO_AB=1: battery test: radio on 2 h / asleep 2 h, alternating (sf32_ab_log)
     defs.append('SF32_RADIO_AB')
+if os.getenv('SF32_SLEEP_AB'):  # SF32_SLEEP_AB=1: battery test: light sleep 2 h / deep sleep 2 h, alternating (sf32_ab_log)
+    defs.append('SF32_SLEEP_AB')
+if os.getenv('SF32_AB_DESK'):  # with SF32_SLEEP_AB: bench version: on USB, sleeps for the first 8 min, 1 min per stretch
+    defs.append('SF32_AB_DESK')
 if os.getenv('SF32_SENSOR_PROBE'):  # SF32_SENSOR_PROBE=1: list the motion hub's sensors at boot
     defs.append('SF32_SENSOR_PROBE')
 if os.getenv('SF32_SOUND_LOG'):  # SF32_SOUND_LOG=1: print each sound played
