@@ -2,7 +2,8 @@
 # Build all three firmwares on a clean machine: GitHub Actions runs this (see
 # .github/workflows/build.yml), and it works the same locally.
 #
-#   ci/build-all.sh            -> dist/<firmware>.zip (bootloader.bin, main.bin, ftab.bin, main.elf)
+#   ci/build-all.sh            -> dist/<firmware>.zip (bootloader.bin, main.bin, ftab.bin, main.elf,
+#                                 license notices) and dist/sf32-flash.py
 #
 # It fetches pinned versions of what the port builds on into $SF32_CI_DIR (default .ci/):
 # LilyGo's SiFli SDK (only its sifli-sdk-v2.5.1 folder), the upstream SiFli SDK (only
@@ -60,6 +61,7 @@ for fw in companion repeater room_server; do
   stage="dist/$fw"
   mkdir -p "$stage"
   cp "$out/bootloader/bootloader.bin" "$out/main.bin" "$out/ftab/ftab.bin" "$out/main.elf" "$stage/"
+  cp -r LICENSE THIRD_PARTY.md licenses "$stage/"
   (cd dist && python3 -m zipfile -c "$fw.zip" "$fw" && rm -rf "$fw")
   echo "dist/$fw.zip"
 done

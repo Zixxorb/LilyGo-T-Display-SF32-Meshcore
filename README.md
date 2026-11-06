@@ -43,14 +43,14 @@ device shows what's happening on the mesh, tests links, finds repeaters and keep
 
 | | |
 |---|---|
-| 🕐 **6 clock faces** | Color, Sun (sunrise/sunset arc), Digital, Analog, Big, Info. Hold the clock to switch |
-| 📡 **Signal tools** | Signal tester, repeater **finder** (warmer/colder), 902-928 MHz **band scan** |
-| 📊 **Mesh at a glance** | Activity graph, heard nodes, **My Nodes** with on-demand battery |
-| 🔋 **Battery** | 48 h history graph, time left, low-battery protection |
-| 🆘 **Mesh SOS** | Triple-press A: location + battery to a channel, repeated |
-| 🔦 **Extras** | Flashlight (white/red), share contact QR, auto adverts, mesh time, rotation |
-| 💻 **USB app** | MeshCore app protocol over USB too: PC tools and a raw-packet **observer** |
-| 🎨 **Themes** | 9 colour themes plus Rainbow, night mode, always-on display, tap sounds |
+| **6 clock faces** | Color, Sun (sunrise/sunset arc), Digital, Analog, Big, Info. Hold the clock to switch |
+| **Signal tools** | Signal tester, repeater **finder** (warmer/colder), 902-928 MHz **band scan** |
+| **Mesh at a glance** | Activity graph, heard nodes, **My Nodes** with on-demand battery |
+| **Battery** | 48 h history graph, time left, low-battery protection |
+| **Mesh SOS** | Triple-press A: location + battery to a channel, repeated |
+| **Extras** | Flashlight (white/red), share contact QR, auto adverts, mesh time, rotation |
+| **USB app** | MeshCore app protocol over USB too: PC tools and a raw-packet **observer** |
+| **Themes** | 9 colour themes plus Rainbow, night mode, always-on display, tap sounds |
 
 ## Screenshots
 
@@ -120,8 +120,8 @@ You need Linux or macOS with bash or zsh, git, and the board on USB.
    (it needs [uv](https://docs.astral.sh/uv/)).
 2. Clone the upstream [SiFli SDK](https://github.com/OpenSiFli/SiFli-SDK) too: LilyGo's
    download lacks `rtos/env/packages`.
-3. Run setup. It fetches MeshCore into `lib/MeshCore` (pick a version with
-   `MESHCORE_REF=<tag>`; developed against v1.18.0), applies the SDK fixes in
+3. Run setup. It fetches MeshCore into `lib/MeshCore` (the tested version,
+   `companion-v1.18.0`; pick another with `MESHCORE_REF=<tag>`), applies the SDK fixes in
    `sdk-patches/`, and links the SDK at `~/sifli-lilygo-sdk` (its build breaks on paths
    with spaces):
    ```sh
@@ -394,8 +394,9 @@ sender gets it at most once a day, at most one reply a minute, never to auto-rep
 
 ## Battery and power
 
-- **Battery life** (companion, screen mostly off): about **28-30 hours** on the 480 mAh
-  battery. Work on reducing the screen-off draw is ongoing.
+- **Battery life** (companion, screen mostly off): an estimated **22-25 hours** on the
+  480 mAh battery, from about 4 % per hour overnight. Work on reducing the screen-off draw
+  is ongoing.
 - **Low power** (on by default): the chip light-sleeps whenever the screen is off; the
   radio keeps listening and Bluetooth stays up. It stays awake on USB (charging), which
   keeps flashing working.
@@ -444,10 +445,13 @@ on the bottom edge, below the antenna) or plug in USB.
 
 Working: all three firmwares, Bluetooth pairing, touch UI, sleep, sound, motion, USB app.
 
-- **Power**: find what draws ~16 mA with the screen off (counters in `sf32_pm_stats`,
-  read with `tools/pmstats.sh`); then fewer wake-ups and deeper sleep.
+- **Power**: the screen-off draw averages about 19 mA (assuming the rated 480 mAh). The
+  radio is 6-8 mA of that; turning off the motion sensor or Bluetooth (no phone connected)
+  made no measurable difference. The remaining 11-13 mA is still being tracked down, with
+  light vs deep sleep under test. See
+  [the measurements](docs/DEVELOPMENT.md#measurements).
 - **WiFi**: needs the T-SF32-Keyboard expansion's ESP32-C6 (per LilyGo).
-- Noise floor reads about -106 dBm vs -115 on a T1000-E nearby (broadband; a spur at
+- Noise floor reads about -103 to -106 dBm vs -115 on a T1000-E nearby (broadband; a spur at
   912 MHz from the board's own clock).
 
 ## Development
@@ -462,9 +466,9 @@ src/platform/     board support: battery, radio, display, touch, BLE, USB, RTC, 
 src/arduino/      a minimal Arduino layer for MeshCore
 src/companion_ui/ the companion's screen UI (MeshCore's ui-new plus ui_*.inc)
 lib/              vendored libraries; MeshCore is fetched by setup.sh, unmodified
-tools/            flashing helper, screenshots, remote touch, sleep counters, font generator
+tools/            flashing helper, screenshots, remote touch, sleep counters, battery tests, font generator
 flasher/          stand-alone flasher for users (no SDK needed)
-ci/               build-all.sh: the clean build GitHub Actions runs on every push
+ci/               build-all.sh: the clean build GitHub Actions runs on code pushes
 sdk-patches/      fixes the LilyGo SDK needs (applied by setup.sh)
 ```
 

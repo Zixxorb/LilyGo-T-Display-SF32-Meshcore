@@ -38,7 +38,7 @@ lib/              vendored Crypto, CayenneLPP, base64, and MeshCore (lib/MeshCor
 flasher/          sf32-flash.py: the stand-alone flasher for users (no SDK; downloads sftool)
 tools/            sf32_debug_uart.py (flashing helper, crash debugging), shot.sh
                   (screenshots), touch.sh (remote touch, debug builds), pmstats.sh (sleep
-                  counters), gen_font.py (the UI font)
+                  counters), abstats.sh (battery tests), gen_font.py (the UI font)
 sdk-patches/      the SDK fixes below (setup.sh applies them)
 setup.sh          one-time setup: MeshCore, SDK fixes, SDK link
 env.sh            activates the SDK through ~/sifli-lilygo-sdk (a symlink; the SDK's
@@ -61,9 +61,11 @@ SF32_LOG_LEVEL=LOG_LVL_INFO ./build.sh companion   # keep log output (debugging)
   it fetches pinned versions of LilyGo's SDK, the upstream SDK's `rtos/env/packages` and
   MeshCore (`MESHCORE_REF`, default `companion-v1.18.0`) into `.ci/`, installs the SDK's
   toolchain (needs `uv`), runs `setup.sh` and `build.sh`, and leaves
-  `dist/<firmware>.zip` (bootloader.bin, main.bin, ftab.bin, main.elf). GitHub Actions
-  (`.github/workflows/build.yml`) runs it on every push and keeps the zips as the run's
-  artifacts. To move to a newer SDK or MeshCore, change the pins in the script.
+  `dist/<firmware>.zip` (bootloader.bin, main.bin, ftab.bin, main.elf and the license
+  notices) next to a copy of the flasher. GitHub Actions (`.github/workflows/build.yml`)
+  runs it on every push except docs-only ones and keeps those files as the run's artifacts.
+  To move to a newer SDK or MeshCore, change the pins in `ci/pins.sh` (`setup.sh` uses the
+  MeshCore pin too).
 
 - MeshCore sources are compiled with `-include sf32_platform.h` (Arduino.h, FS.h,
   `FILESYSTEM`) and the app's files also with `-include variant.h` (like a variant's
@@ -143,7 +145,13 @@ The same channel works on a running or crashed board:
 - Other flags: `SF32_SUN_TEST=1` (New York as the location for sun times),
   `SF32_PM_LOG=1` (sleep statistics on the console), `SF32_FRAME_LOG=1` (frame timing),
   `SF32_MOTION_LOG=1` (accelerometer every second), `SF32_SOUND_LOG=1`,
-  `SF32_I2C_SCAN=1` (I2C scan at boot).
+  `SF32_I2C_SCAN=1` (I2C scan at boot), `SF32_SENSOR_PROBE=1` (the motion sensor's virtual
+  sensors at boot), `SF32_RAINBOW_TEST=1` (Rainbow theme, not saved).
+- Bench tests that take the board over: `SF32_NOISE_TEST=1` (RSSI with the screen and audio
+  on and off, in 40 s phases), `SF32_CPU_TEST=1` (a line of CPU, clock and RSSI readings
+  every 2.5 s), `SF32_CPU_TOGGLE_TEST=1` (screen off, CPU alternating 96 / 240 MHz every
+  15 s), `SF32_SOUND_STRESS=1` (a tap sound every second and a volume change every 4 s; it
+  changes the saved Sound setting, so check that afterwards).
 
 Reflash the normal build after using a test build.
 
@@ -194,8 +202,9 @@ clock moves each minute.
 - **Sleep counters**: every companion build counts, from unplugging until USB comes back,
   the time asleep, wakes and their sources (the wake source register's bits), time held
   awake and main loop passes (`sf32_pm_stats` in SF32Board.cpp). Plug back in and run
-  `tools/pmstats.sh`. A 30-minute run measured 80 % asleep (89 % of the time nothing held
-  it awake), 44 wakes/s: 33/s the main loop timer, 11/s a pin.
+  `tools/pmstats.sh`. An overnight run with the motion sensor off measured 96 % asleep and
+  38 wakes/s from the main loop timer (LPTIM1), with almost none from pins; the sensor had
+  been causing 11 pin wakes/s.
 - **Radio on/off test** (`SF32_RADIO_AB=1 ./build.sh companion`): on battery, the radio
   listens for 2 h, then sleeps (warm, settings kept) for 2 h, and so on; the battery voltage
   every 15 min goes to `sf32_ab_log`. Plug back in and run `tools/abstats.sh`: it compares
@@ -208,8 +217,10 @@ clock moves each minute.
   version: on USB, sleeps for the first 8 min with 1 min stretches (the screen must turn off,
   so a screen timeout that stays on while plugged in blocks it). On the bench, always deep:
   the button and touch woke it normally, and it received packets (woken by the radio's pin).
-- **LilyGo's power report** (`T-Display-SF32-master/lowpowertest/`): 0.87 uA shut down, 164 uA
-  hibernating, so regulators and the charger aren't where the sleep draw goes.
+- **LilyGo's power report**
+  ([`lowpowertest/`](https://github.com/Xinyuan-LilyGO/T-Display-SF32/tree/master/lowpowertest)):
+  0.87 uA shut down, 164 uA hibernating, so regulators and the charger aren't where the
+  sleep draw goes.
 - **CPU clock scaling** (without the power manager): with the screen off for 5 s, the CPU
   drops from 240 to 96 MHz at the lower core voltage (SiFli DVFS S0) and the main loop
   wakes every 25 ms instead of 4.
@@ -295,6 +306,12 @@ TCXO 3.0 V, DC-DC regulator, DIO2 RF switch, PA26 enable (as LilyGo's examples).
   nearby. It's broadband and unaffected by the SX1262 regulator mode or CPU load; a bright
   screen adds a few dB. There's a spur at 912 MHz (19 x 48 MHz system clock), 1.5 MHz from
   the US preset.
-- Battery: ~3.4 %/h with the screen mostly off (about 16-17 mA average on 480 mAh), with
-  light sleep. Light sleep saved only about 1 mA, so most of the draw continues while the
-  chip sleeps; under investigation.
+- Battery, screen mostly off, on light sleep: 3.4 %/h on a 15 h run; about 4 %/h (34 mV/h)
+  on the overnight tests since, or about 19 mA if the battery really is 480 mAh. Light sleep
+  saved only about 1 mA, so most of the draw continues while the chip sleeps.
+- What the overnight tests changed (one thing per night, 2026-11):
+  - Motion sensor off: no measurable change.
+  - Bluetooth off (it had been advertising, no phone connected): no measurable change.
+  - Radio asleep: drains 60-70 % as fast, so the radio is 6-8 mA. About 11-13 mA is left with
+    all three off.
+  - Light vs deep sleep: under test (`SF32_SLEEP_AB`).

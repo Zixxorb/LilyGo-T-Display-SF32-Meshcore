@@ -1,6 +1,6 @@
 # Third-party libraries and MeshCore itself.
 #
-# MeshCore/ is a symlink to ../../MeshCore-main, so MeshCore is used unmodified
+# MeshCore/ is fetched by setup.sh (or a symlink to a copy), so MeshCore is used unmodified
 # and can be updated in place. Source paths stay relative so objects land in the
 # build directory (the SDK requires this).
 import os

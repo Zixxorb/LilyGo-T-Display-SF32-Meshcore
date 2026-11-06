@@ -2,7 +2,8 @@
 # One-time setup after cloning:
 #   ./setup.sh /path/to/sifli-sdk-v2.5.1 [/path/to/upstream/SiFli-SDK]
 #
-# 1. MeshCore -> lib/MeshCore (git clone; MESHCORE_REF=<tag/branch> to pick a version)
+# 1. MeshCore -> lib/MeshCore (git clone of the version in ci/pins.sh; MESHCORE_REF=<tag/branch>
+#    to pick another)
 # 2. the LilyGo SiFli SDK fixes this port needs (see sdk-patches/README.md):
 #    quiet ADC driver patch, two missing Kconfig stubs, and rtos/env/packages (missing
 #    from LilyGo's download; copied from the upstream OpenSiFli SDK if you pass its path)
@@ -15,9 +16,11 @@ sdk="$(cd "$sdk" && pwd -P)"
 [ -f "$sdk/export.sh" ] || { echo "$sdk doesn't look like a SiFli SDK (no export.sh)"; exit 1; }
 
 # 1. MeshCore
+source ci/pins.sh
+meshcore_ref="${MESHCORE_REF:-$MESHCORE_PIN}"
 if [ ! -e lib/MeshCore ]; then
-  echo "Fetching MeshCore (${MESHCORE_REF:-default branch})"
-  git clone --depth 1 ${MESHCORE_REF:+--branch "$MESHCORE_REF"} https://github.com/meshcore-dev/MeshCore lib/MeshCore
+  echo "Fetching MeshCore ($meshcore_ref)"
+  git clone --depth 1 --branch "$meshcore_ref" https://github.com/meshcore-dev/MeshCore lib/MeshCore
 else
   echo "lib/MeshCore already present"
 fi
