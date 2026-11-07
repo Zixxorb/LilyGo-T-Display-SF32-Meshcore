@@ -366,7 +366,7 @@ public:
       static const uint8_t envelope[] = {0xFF, 0xFF, 0x7F, 0xFE, 0xBF, 0xFD, 0xDF, 0xFB, 0xEF, 0xF7, 0xF7, 0xEF,
                                          0xFB, 0xDF, 0xFD, 0xBF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
       display.setColor(UIColor::warning_txt);
-      display.drawXbm(4, 5, envelope, 16, 12);
+      themeEnvelope(display, 4, 5, envelope);
       display.setTextSize(2);
       sprintf(tmp, "%d", unread);
       display.setCursor(23, 3);
@@ -402,7 +402,7 @@ public:
     display.print(tmp);
     if (board.isExternalPowered()) {
       display.setColor(UIColor::warning_txt);
-      display.drawXbm(bx - 3 - tw - 11, 6, charging_icon, 8, 8);
+      themeBolt(display, bx - 3 - tw - 11, 6);
     }
     if (mv > 0) {  // voltage under the battery, small
       display.setTextSize(1);
@@ -832,8 +832,7 @@ public:
     } else if (_page == HomePage::BLUETOOTH) {
       themeHeader(display, "Bluetooth", mv);
       bool on = _task->isBluetoothEnabled();
-      display.setColor(on ? THEME_ACCENT : THEME_DIM);
-      ((SF32Display&)display).drawXbmScaled(40, 30, on ? bluetooth_on : bluetooth_off, 32, 32, 1.5f);
+      themeBigIcon(display, on ? ICON_BLUETOOTH : ICON_BLUETOOTH_OFF, on ? bluetooth_on : bluetooth_off, on ? THEME_ACCENT : THEME_DIM);
       display.setTextSize(2);
       if (_task->hasConnection()) {
         display.setColor(THEME_ACCENT);
@@ -847,8 +846,7 @@ public:
       display.drawTextCentered(W / 2, 104, on ? "long press: turn off" : "long press: turn on");
     } else if (_page == HomePage::ADVERT) {
       themeHeader(display, "Advert", mv);
-      display.setColor(THEME_ACCENT);
-      ((SF32Display&)display).drawXbmScaled(40, 30, advert_icon, 32, 32, 1.5f);
+      themeBigIcon(display, ICON_ADVERT, advert_icon, THEME_ACCENT);
       display.setTextSize(2);
       display.setColor(UIColor::primary_txt);
       display.drawTextCentered(W / 2, 83, "Send advert");
@@ -1040,8 +1038,7 @@ public:
       themeHeader(display, "Signal", mv);
       SignalTester& st = signal_tester;
       if (!st.running && st.pings == 0 && st.hist_n == 0) {
-        display.setColor(THEME_ACCENT);
-        ((SF32Display&)display).drawXbmScaled(40, 30, advert_icon, 32, 32, 1.5f);
+        themeBigIcon(display, ICON_ADVERT, advert_icon, THEME_ACCENT);
         display.setTextSize(2);
         display.setColor(UIColor::primary_txt);
         display.drawTextCentered(W / 2, 83, "Signal test");
@@ -1092,8 +1089,7 @@ public:
     } else if (_page == HomePage::BOT) {
       themeHeader(display, "Bot", mv);
       bool on = _task->uiPrefs().bot_on;
-      display.setColor(on ? THEME_ACCENT : THEME_DIM);
-      ((SF32Display&)display).drawXbmScaled(40, 30, bot_icon, 32, 32, 1.5f);
+      themeBigIcon(display, ICON_BOT, bot_icon, on ? THEME_ACCENT : THEME_DIM);
       display.setTextSize(2);
       display.setColor(on ? UIColor::primary_txt : UIColor::secondary_txt);
       display.drawTextCentered(W / 2, 83, on ? "On" : "Off");
@@ -1146,8 +1142,7 @@ public:
           display.drawTextRightAlign(119, y, snr_s);
         }
       } else {
-        display.setColor(scanning ? UIColor::warning_txt : THEME_ACCENT);
-        ((SF32Display&)display).drawXbmScaled(40, 30, advert_icon, 32, 32, 1.5f);
+        themeBigIcon(display, ICON_ADVERT, advert_icon, scanning ? UIColor::warning_txt : THEME_ACCENT);
         display.setTextSize(2);
         display.setColor(scanning ? UIColor::warning_txt : UIColor::primary_txt);
         display.drawTextCentered(W / 2, 83, scanning ? "Scanning..." : "Repeaters");
@@ -1165,8 +1160,7 @@ public:
         display.setColor(UIColor::warning_txt);
         display.drawTextCentered(W / 2, 60, "Powering off...");
       } else {
-        display.setColor(UIColor::secondary_txt);
-        ((SF32Display&)display).drawXbmScaled(40, 30, power_icon, 32, 32, 1.5f);
+        themeBigIcon(display, ICON_POWER, power_icon, UIColor::secondary_txt);
         display.setTextSize(2);
         display.setColor(UIColor::primary_txt);
         display.drawTextCentered(W / 2, 83, "Power off");

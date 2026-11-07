@@ -1,6 +1,10 @@
 #ifndef RTCONFIG_PROJECT_H__
 #define RTCONFIG_PROJECT_H__
 
+// The panel's QSPI clock: 240 MHz / 4. The SDK's default (50 MHz requested) divides to 48 MHz,
+// 19 ms a frame; this sends one in 15.4 ms, inside the panel's ~60 Hz refresh, for 60 fps slides.
+#define LCD_MAX_CLK_FREQ 60000000
+
 #if defined(_MSC_VER)
     #define RT_HEAP_SIZE   (680000)
     #define NORESOURCE  //RT_VESRION in winuser.h

@@ -42,6 +42,11 @@ public:
   // Only rows y..y+h (logical) changed in this frame (a scrolling list): send just that
   // band to the panel (faster). For the next endFrame() only; ignored with a transition.
   void setFlushBand(int y, int h);
+  // A scrolling list: the next frame only changes the list, so don't redraw the rest of it (the
+  // list is built in composeLayer and only its band is sent). For the next startFrame() only.
+  void nextFrameIsList() { _list_next = true; }
+  void cancelListFrame() { _list_next = false; }
+  bool listFrame() const { return _list_frame; }
 
   void setBrightness(uint8_t percent);
   void waitFlush();  // until the frame being sent to the panel (in the background) is done
@@ -76,6 +81,7 @@ public:
   bool glassOn() const;
   void setGlassPaused(bool paused);  // plain black meanwhile (the always-on clock)
   void setPopupFade(float fade);     // 0..1: how far a Glass popup has faded in
+  void glassBadge(int x, int y, int d);  // a round pane behind a big icon
   bool transitionPending() const { return _transition != TRANSITION_NONE; }
 
   bool isOn() override { return _on; }
@@ -101,6 +107,7 @@ private:
   void fillPhys(int x0, int y0, int x1, int y1, int radius);
   void fillSpan(int x0, int x1, int py);
   void flush(const uint16_t* buf, int py0 = 0, int py1 = -1);  // rows [py0, py1]
+  void sendPart(const uint16_t* buf, int sx, int sy, int dx, int dy, int w, int h, bool sync);  // a slide: buf's rect, straight to the panel
   void animate(Transition dir);
   void glassFill(int x0, int y0, int x1, int y1, int radius);
   void glassPopup(int x0, int y0, int x1, int y1, int radius);
@@ -112,6 +119,7 @@ private:
   uint8_t _brightness = 80;
   Transition _transition = TRANSITION_NONE;
   bool _wake_pending = false;
+  bool _list_next = false, _list_frame = false;
   int _band_y0 = -1, _band_y1 = -1;  // setFlushBand, panel rows
   bool _clip_on = false;
   int _clip_x0 = 0, _clip_y0 = 0, _clip_x1 = 0, _clip_y1 = 0;  // physical

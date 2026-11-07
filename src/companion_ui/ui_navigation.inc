@@ -5,6 +5,7 @@
 
 void UITask::openMenu(MenuKind kind) {
   MenuScreen* m = (MenuScreen*)menu;
+  ((SF32Display*)_display)->cancelListFrame();  // the next frame is a whole new one
   bool same = curr == menu && kind == _menu_kind;
   int keep_sel = same ? m->selected() : 0;
   if (!same) m->resetScroll();

@@ -215,6 +215,10 @@ public:
       display.setColor(THEME_ACCENT);
       display.fillRect(125, ty, 2, thumb);
     }
+    // still moving: the next frame only changes the list. The frame that was told so must go out
+    // as just its band, moving or not: nothing else in it was drawn.
+    if (sd.listFrame()) sd.setFlushBand(LIST_Y, LIST_H);
+    if (!_entering && (moving || _ds.active)) sd.nextFrameIsList();
     if (_entering || moving || (_drawn & all) != all) return 16;  // rows gliding in / follow the finger / glide / finish the rows
     if (_marquee_rows) {                              // a long label: when it next moves
       long wait = (long)(_marquee_at - millis());

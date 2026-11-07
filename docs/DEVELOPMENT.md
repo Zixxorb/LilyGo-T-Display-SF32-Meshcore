@@ -111,6 +111,13 @@ halts the CPU (MeshCore's CLI would echo sftool's frames back), stops the hardwa
 watchdogs, and switches UART1 to 1 Mbaud for sftool. The host can't reset the board
 (DTR/RTS do nothing); it boots right after flashing.
 
+**Frame rate** (companion, measured on the board in the Glass style): the panel's QSPI clock is
+set to 60 MHz (`LCD_MAX_CLK_FREQ` in `project_companion/rtconfig_project.h`), above the 50 MHz
+the SDK's driver notes give for RGB565; a full frame takes about 15.4 ms. PSRAM is the
+bottleneck: copying a frame takes about as long as sending one. So slides copy nothing: the panel
+is sent the two frames' visible parts directly (about 57 fps), and their length is set in ms. A
+scrolling list only rebuilds its own band (about 30 fps in Glass).
+
 Before flashing, `flash.sh` saves what the board holds in RAM (`tools/savelogs.sh`, into
 `board-logs/`, not in git): raw dumps of the sleep counters, test log, battery history and UI
 state, the decoded versions, and the symbol table. It reads with the ELF kept in `.flashed/` by

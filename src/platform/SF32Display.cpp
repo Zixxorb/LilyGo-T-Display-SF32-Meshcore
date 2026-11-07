@@ -53,12 +53,11 @@ static inline int px_y(int y) { return OFFSET_Y + (int)lroundf(y * SF32Display::
 
 // Full-panel frame buffers in PSRAM (460 KB each, of 8 MB), as in LilyGo's lcd example:
 // two that alternate between "being drawn" and "last shown" (transitions slide from
-// one to the other), and one to compose the in-between animation frames.
+// one to the other).
 #define FB_PIXELS (PANEL_W * PANEL_H)
 L2_NON_RET_BSS_SECT_BEGIN(mc_fb)
 L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint16_t s_fb_a[FB_PIXELS]);
 L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint16_t s_fb_b[FB_PIXELS]);
-L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint16_t s_fb_anim[FB_PIXELS]);
 // Off-screen layer for scrolling lists: drawn once, then slices are copied into frames.
 #define LAYER_ROWS 2600  // panel px (~742 logical px of list: the 20 log entries are 680)
 L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint16_t s_layer[PANEL_W * LAYER_ROWS]);
@@ -77,9 +76,12 @@ extern "C" { uint16_t* volatile sf32_shown_fb = s_fb_b; }
 
 #define FADE_STEPS   8   // screen wake and sleep
 #define FADE_STEP_MS 20
-#define ANIM_STEPS 7  // frames per transition, ~41 ms each (a full-panel flush at the panel's 50 MHz)
+#define SLIDE_H_MS   240  // how long a page slides
+#define SLIDE_V_MS   190  // how long a menu or screen slides up or down
+#define SLIDE_LEAD_MS 30  // where in the curve the first frame lands: it's on screen a frame later
 #ifdef SF32_REMOTE_TOUCH
-extern "C" { volatile uint32_t sf32_anim_ms = 0; }  // debug builds: how long the last transition took
+extern "C" { volatile uint32_t sf32_anim_ms = 0, sf32_anim_frames = 0; }  // debug builds: the last slide
+static rt_tick_t s_last_end = 0;  // debug builds: how long the last transition took
 #endif
 
 static struct rt_semaphore s_flush_done;
@@ -457,18 +459,40 @@ void SF32Display::composeLayer(int x, int y, int w, int h, int src_px) {
   int x0 = px_x(x), x1 = px_x(x + w), y0 = px_y(y), y1 = px_y(y + h);
   if (x0 < 0) x0 = 0;
   if (x1 > PANEL_W) x1 = PANEL_W;
-  if (glassActive()) {  // the wallpaper stays fixed behind the list, panes frost what's under them
+  const bool glass = glassActive();
+  if (_list_frame) {  // nothing was drawn behind it: what's around the list, band margin included
+    for (int py = y0 - 6; py < y1 + 6; py++) {
+      if (py < 0 || py >= PANEL_H) continue;
+      uint16_t* dst = s_fb + py * PANEL_W;
+      const uint16_t* wall = s_wall + py * PANEL_W;
+      if (py < y0 || py >= y1) {
+        if (glass) memcpy(dst, wall, PANEL_W * 2); else fill16(dst, UIColor::window_bkg, PANEL_W);
+        continue;
+      }
+      for (int side = 0; side < 2; side++) {
+        int a = side ? x1 : 0, b = side ? PANEL_W : x0;
+        for (int i = a; i < b; i++) dst[i] = glass ? wall[i] : UIColor::window_bkg;
+      }
+    }
+  }
+  if (glass) {  // the wallpaper stays fixed behind the list, panes frost what's under them
+    const bool bare = _list_frame;  // also fill in the wallpaper
     for (int py = y0; py < y1; py++) {
       if (py < 0 || py >= PANEL_H) continue;
       int src = src_px + (py - y0);
-      if (src < 0 || src >= s_layer_h) continue;
-      const uint16_t* from = s_layer + src * PANEL_W;
       uint16_t* dst = s_fb + py * PANEL_W;
+      const uint16_t* wall = s_wall + py * PANEL_W;
+      if (src < 0 || src >= s_layer_h) {
+        if (bare) memcpy(dst + x0, wall + x0, (x1 - x0) * 2);
+        continue;
+      }
+      const uint16_t* from = s_layer + src * PANEL_W;
       const uint16_t* frost = s_frost + py * PANEL_W;
       for (int i = x0; i < x1; i++) {
         uint16_t p = from[i];
-        if (p == 0) continue;
-        dst[i] = p == GLASS_KEY ? frost[i] : add565(frost[i], p);
+        if (p == GLASS_KEY) dst[i] = frost[i];  // the commonest by far
+        else if (p == 0) { if (bare) dst[i] = wall[i]; }
+        else dst[i] = add565(frost[i], p);
       }
     }
     return;
@@ -490,7 +514,10 @@ void SF32Display::setSquareLayout(bool square) {
 void SF32Display::startFrame(ColorVal bkg) {
   setSquareLayout(false);
   _clip_on = false;
-  if (glassActive() && bkg == UIColor::window_bkg) memcpy(s_fb, s_wall, sizeof(s_wall));
+  _list_frame = _list_next && _transition == TRANSITION_NONE && !_wake_pending;
+  _list_next = false;
+  if (_list_frame) {}  // composeLayer builds the list; the rest isn't sent this frame
+  else if (glassActive() && bkg == UIColor::window_bkg) memcpy(s_fb, s_wall, sizeof(s_wall));
   else fill16(s_fb, bkg, PANEL_W * PANEL_H);
   _color = UIColor::primary_txt;
   _text_size = 1;
@@ -817,6 +844,13 @@ void SF32Display::glassPopup(int x0, int y0, int x1, int y1, int radius) {
   if (radius) glassRim(x0, y0, x1, y1, radius, true);
 }
 
+// A round pane behind a big icon (logical x, y, diameter).
+void SF32Display::glassBadge(int x, int y, int d) {
+  int x0 = px_x(x), y0 = px_y(y), x1 = px_x(x + d), y1 = px_y(y + d), r = (x1 - x0) / 2;
+  glassFill(x0, y0, x1, y1, r);
+  glassRim(x0, y0, x1, y1, r, false);
+}
+
 // The pane's edge: light catching it, brightest along the top, from the left.
 void SF32Display::glassRim(int x0, int y0, int x1, int y1, int radius, bool popup) {
   int w = x1 - x0, h = y1 - y0;
@@ -1088,68 +1122,63 @@ void SF32Display::endFrame() {
 
 // Slides from the shown frame to the new one (s_fb): the new frame pushes the old one
 // out in the given direction, ease-out. The last step is the new frame itself (endFrame).
-// One row of a sliding frame in the Glass style: the wallpaper holds still and only what's on
-// it moves, and panes frost whatever they're passing over.
-static inline void glass_slide_span(uint16_t* out, const uint16_t* src, const uint16_t* wall_s, const uint16_t* frost_s,
-                                    const uint16_t* wall_d, const uint16_t* frost_d, int n) {
-  for (int i = 0; i < n; i++) {
-    uint16_t p = src[i];
-    out[i] = p == wall_s[i] ? wall_d[i] : (p == frost_s[i] ? frost_d[i] : p);
-  }
+static bool s_flushing = false;  // a send to the panel is under way (waitFlush)
+
+// A slide copies nothing: the panel is sent the part of the old frame still in view and the
+// part of the new one coming in, straight from their buffers (copying them together took as long
+// as sending them, PSRAM being the bottleneck). The time is on the clock, not a frame count, so
+// a slide lasts the same however fast the frames go. Each frame's first part waits for the panel's
+// sync; a frame fits inside its refresh, so that gives 60 fps with no tearing.
+void SF32Display::sendPart(const uint16_t* buf, int sx, int sy, int dx, int dy, int w, int h, bool sync) {
+  if (w <= 0 || h <= 0) return;
+  waitFlush();
+  rt_graphix_ops(_lcd)->set_window(dx, dy, dx + w - 1, dy + h - 1);
+  rt_device_set_tx_complete(_lcd, on_flush_done);
+  LCDC_HandleTypeDef* lcdc = get_drv_lcd_handler();
+  lcdc->Layer[HAL_LCDC_LAYER_DEFAULT].total_width = PANEL_W;  // rows of the frame, however little is sent
+  if (!sync) HAL_LCDC_Next_Frame_TE(lcdc, 0);
+  s_flushing = true;
+  rt_graphix_ops(_lcd)->draw_rect_async((const char*)(buf + sy * PANEL_W + sx), dx, dy, dx + w - 1, dy + h - 1);
 }
 
 void SF32Display::animate(Transition dir) {
   const int W = PANEL_W, Hh = PANEL_H;
-  const bool glass = glassActive();
-  for (int i = 1; i < ANIM_STEPS; i++) {
-    float t = (float)i / ANIM_STEPS;
+  const uint32_t DURATION = (dir == TRANSITION_UP || dir == TRANSITION_DOWN) ? SLIDE_V_MS : SLIDE_H_MS;
+  mpu_dcache_clean((void*)s_fb, FB_PIXELS * 2);  // the new frame, read directly (the shown one already is)
+  const rt_tick_t t0 = rt_tick_get();
+#ifdef SF32_REMOTE_TOUCH
+  uint32_t frames = 0;
+#endif
+  const bool SYNC = true;
+  for (;;) {
+    waitFlush();
+    uint32_t el = (rt_tick_get() - t0) * 1000 / RT_TICK_PER_SECOND + SLIDE_LEAD_MS;
+    if (el >= DURATION) break;
+    float t = (float)el / DURATION;
     // soft start, long settle: half ease-in-out, half ease-out
     float e = 0.5f * t * t * (3 - 2 * t) + 0.5f * (1 - (1 - t) * (1 - t) * (1 - t));
-    uint16_t* out = s_fb_anim;
-    waitFlush();  // the previous step is still being sent from s_fb_anim (composing during
-                  // a send also slows the send: they share the PSRAM)
+#ifdef SF32_REMOTE_TOUCH
+    sf32_anim_frames = ++frames;
+#endif
     if (dir == TRANSITION_LEFT || dir == TRANSITION_RIGHT) {
-      int off = (int)(e * W + 0.5f);
-      for (int y = 0; y < Hh; y++) {
-        uint16_t* o = out + y * W;
-        const uint16_t* oldr = s_shown + y * W;
-        const uint16_t* newr = s_fb + y * W;
-        if (glass) {
-          const uint16_t* wr = s_wall + y * W, *fr = s_frost + y * W;
-          if (dir == TRANSITION_LEFT) {
-            glass_slide_span(o, oldr + off, wr + off, fr + off, wr, fr, W - off);
-            glass_slide_span(o + W - off, newr, wr, fr, wr + W - off, fr + W - off, off);
-          } else {
-            glass_slide_span(o, newr + W - off, wr + W - off, fr + W - off, wr, fr, off);
-            glass_slide_span(o + off, oldr, wr, fr, wr + off, fr + off, W - off);
-          }
-        } else if (dir == TRANSITION_LEFT) {  // new page comes in from the right
-          memcpy(o, oldr + off, (W - off) * 2);
-          memcpy(o + W - off, newr, off * 2);
-        } else {                       // new page comes in from the left
-          memcpy(o, newr + W - off, off * 2);
-          memcpy(o + off, oldr, (W - off) * 2);
-        }
+      int off = (int)(e * W + 0.5f) & ~1;  // the panel's windows start on even pixels
+      if (dir == TRANSITION_LEFT) {  // new page comes in from the right
+        sendPart(s_shown, off, 0, 0, 0, W - off, Hh, SYNC);
+        sendPart(s_fb, 0, 0, W - off, 0, off, Hh, off >= W);
+      } else {                       // new page comes in from the left
+        sendPart(s_fb, W - off, 0, 0, 0, off, Hh, SYNC);
+        sendPart(s_shown, 0, 0, off, 0, W - off, Hh, off == 0);
       }
     } else {
-      int off = (int)(e * Hh + 0.5f);
-      if (glass) {
-        for (int y = 0; y < Hh; y++) {
-          // which frame this row comes from, and which of its rows
-          int sy; const uint16_t* f;
-          if (dir == TRANSITION_UP) { f = y < Hh - off ? s_shown : s_fb; sy = y < Hh - off ? y + off : y - (Hh - off); }
-          else { f = y < off ? s_fb : s_shown; sy = y < off ? y + Hh - off : y - off; }
-          glass_slide_span(out + y * W, f + sy * W, s_wall + sy * W, s_frost + sy * W, s_wall + y * W, s_frost + y * W, W);
-        }
-      } else if (dir == TRANSITION_UP) {  // new screen comes up from the bottom
-        memcpy(out, s_shown + off * W, (Hh - off) * W * 2);
-        memcpy(out + (Hh - off) * W, s_fb, off * W * 2);
-      } else {                     // new screen comes down from the top
-        memcpy(out, s_fb + (Hh - off) * W, off * W * 2);
-        memcpy(out + off * W, s_shown, (Hh - off) * W * 2);
+      int off = (int)(e * Hh + 0.5f) & ~1;
+      if (dir == TRANSITION_UP) {    // new screen comes up from the bottom
+        sendPart(s_shown, 0, off, 0, 0, W, Hh - off, SYNC);
+        sendPart(s_fb, 0, 0, 0, Hh - off, W, off, off >= Hh);
+      } else {                       // new screen comes down from the top
+        sendPart(s_fb, 0, Hh - off, 0, 0, W, off, SYNC);
+        sendPart(s_shown, 0, 0, 0, off, W, Hh - off, off == 0);
       }
     }
-    flush(out);
   }
 }
 
@@ -1157,8 +1186,6 @@ void SF32Display::animate(Transition dir) {
 // anything else that needs the panel or the buffer being sent) waits for it first. The
 // UI meanwhile draws the next frame into the other buffer (double buffering), so drawing
 // and sending overlap.
-static bool s_flushing = false;
-
 void SF32Display::waitFlush() {
   if (!s_flushing) return;
   if (rt_sem_take(&s_flush_done, rt_tick_from_millisecond(500)) != RT_EOK) LOG_W("flush timeout");

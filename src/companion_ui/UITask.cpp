@@ -877,6 +877,7 @@ void UITask::loop() {
       rt_tick_t f0 = rt_tick_get();
 #endif
       ((SF32Display *) _display)->setGlassPaused(_aod);  // the always-on clock stays on black
+      if (curr != menu) ((SF32Display *) _display)->cancelListFrame();  // left the list meanwhile
       _display->startFrame();
       ((SF32Display *) _display)->setSquareLayout(true);  // SF32: all screens are full-panel
       int delay_millis = curr->render(*_display);

@@ -86,6 +86,85 @@ static int sf32ShownPercent(uint16_t mv) {
   return (int)est;
 }
 
+// ---- icons in the Glass style: drawn as smooth strokes, the big ones on a round pane ----
+enum ThemeIcon { ICON_ADVERT, ICON_POWER, ICON_BLUETOOTH, ICON_BLUETOOTH_OFF, ICON_BOT };
+
+static void iconArc(SF32Display& d, float cx, float cy, float r, float from_deg, float to_deg, float width) {
+  const int N = 18;
+  float px = 0, py = 0;
+  for (int i = 0; i <= N; i++) {
+    float a = (from_deg + (to_deg - from_deg) * i / N) * 0.0174533f;
+    float x = cx + sinf(a) * r, y = cy - cosf(a) * r;
+    if (i) d.drawLineAA(px, py, x, y, width);
+    px = x; py = y;
+  }
+}
+
+// The icons used big on a page: a pane and strokes in Glass, the bitmap otherwise. In the
+// colour given; greys would be lost on glass, so they go a step lighter.
+static void themeBigIcon(DisplayDriver& display, ThemeIcon icon, const uint8_t* bits, ColorVal color) {
+  SF32Display& d = (SF32Display&)display;
+  if (!d.glassOn()) {
+    display.setColor(color);
+    d.drawXbmScaled(40, 30, bits, 32, 32, 1.5f);
+    return;
+  }
+  const float cx = 64, cy = 54;
+  d.glassBadge(38, 28, 52);
+  display.setColor(color == UIColor::secondary_txt ? UIColor::primary_txt : (color == THEME_DIM ? UIColor::secondary_txt : color));
+  switch (icon) {
+    case ICON_ADVERT:
+      d.drawLineAA(cx, cy, cx, cy, 6.5f);
+      iconArc(d, cx, cy, 10, 52, 128, 2.6f);
+      iconArc(d, cx, cy, 10, -52, -128, 2.6f);
+      iconArc(d, cx, cy, 17, 56, 124, 2.6f);
+      iconArc(d, cx, cy, 17, -56, -124, 2.6f);
+      break;
+    case ICON_POWER:
+      iconArc(d, cx, cy + 1, 13, 38, 322, 3);
+      d.drawLineAA(cx, cy - 15, cx, cy - 2, 3);
+      break;
+    case ICON_BLUETOOTH_OFF:
+      d.drawLineAA(cx - 13, cy - 13, cx + 13, cy + 13, 2.6f);
+      // fall through: the same symbol, struck out
+    case ICON_BLUETOOTH:
+      d.drawLineAA(cx - 8, cy - 8, cx + 8, cy + 8, 2.8f);
+      d.drawLineAA(cx + 8, cy + 8, cx, cy + 16, 2.8f);
+      d.drawLineAA(cx, cy + 16, cx, cy - 16, 2.8f);
+      d.drawLineAA(cx, cy - 16, cx + 8, cy - 8, 2.8f);
+      d.drawLineAA(cx + 8, cy - 8, cx - 8, cy + 8, 2.8f);
+      break;
+    case ICON_BOT:
+      d.drawLineAA(cx - 12, cy - 6, cx + 12, cy - 6, 2.6f);
+      d.drawLineAA(cx + 12, cy - 6, cx + 12, cy + 12, 2.6f);
+      d.drawLineAA(cx + 12, cy + 12, cx - 12, cy + 12, 2.6f);
+      d.drawLineAA(cx - 12, cy + 12, cx - 12, cy - 6, 2.6f);
+      d.drawLineAA(cx, cy - 6, cx, cy - 13, 2.6f);
+      d.drawLineAA(cx, cy - 15, cx, cy - 15, 4.5f);
+      d.drawLineAA(cx - 5, cy + 1, cx - 5, cy + 1, 4.5f);
+      d.drawLineAA(cx + 5, cy + 1, cx + 5, cy + 1, 4.5f);
+      d.drawLineAA(cx - 4, cy + 7, cx + 4, cy + 7, 2);
+      break;
+  }
+}
+
+// The small charging bolt (8 x 8 at x, y) and the unread envelope (16 x 12): smooth in Glass.
+static void themeBolt(DisplayDriver& display, int x, int y) {
+  SF32Display& d = (SF32Display&)display;
+  if (!d.glassOn()) { display.drawXbm(x, y, charging_icon, 8, 8); return; }
+  d.drawLineAA(x + 5.2f, y + 0.3f, x + 1.6f, y + 4.4f, 1.5f);
+  d.drawLineAA(x + 1.6f, y + 4.4f, x + 6.2f, y + 3.6f, 1.5f);
+  d.drawLineAA(x + 6.2f, y + 3.6f, x + 2.6f, y + 7.7f, 1.5f);
+}
+static void themeEnvelope(DisplayDriver& display, int x, int y, const uint8_t* envelope) {
+  SF32Display& d = (SF32Display&)display;
+  if (!d.glassOn()) { display.drawXbm(x, y, envelope, 16, 12); return; }
+  float x0 = x + 1, x1 = x + 15, y0 = y + 1, y1 = y + 11;
+  d.drawLineAA(x0, y0, x1, y0, 1.3f); d.drawLineAA(x1, y0, x1, y1, 1.3f);
+  d.drawLineAA(x1, y1, x0, y1, 1.3f); d.drawLineAA(x0, y1, x0, y0, 1.3f);
+  d.drawLineAA(x0, y0, x + 8, y + 7, 1.3f); d.drawLineAA(x + 8, y + 7, x1, y0, 1.3f);
+}
+
 static void themeCard(DisplayDriver& d, int x, int y, int w, int h) {
   d.setColor(THEME_CARD);
   d.fillRect(x, y, w, h);
@@ -139,7 +218,7 @@ static void themeHeader(DisplayDriver& d, const char* title, uint16_t mv) {
   }
   if (usb) {
     d.setColor(UIColor::warning_txt);
-    d.drawXbm(x, by, charging_icon, 8, 8);
+    themeBolt(d, x, by);
   }
 }
 
