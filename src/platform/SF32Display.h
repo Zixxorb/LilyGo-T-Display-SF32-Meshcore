@@ -38,6 +38,10 @@ public:
   uint32_t layerGen() const;  // changes whenever beginLayer() starts a new layer: still ours?
   void endLayer();
   void composeLayer(int x, int y, int w, int h, int src_px);
+  // The same for a menu's rows (x = 4..124), by the graphics hardware: faster. layerRowsDone after
+  // drawing rows into the layer (logical). composeList returns false if it couldn't: use composeLayer.
+  void layerRowsDone(int y, int h);
+  bool composeList(int y, int h, int src_px);
 
   // Only rows y..y+h (logical) changed in this frame (a scrolling list): send just that
   // band to the panel (faster). For the next endFrame() only; ignored with a transition.

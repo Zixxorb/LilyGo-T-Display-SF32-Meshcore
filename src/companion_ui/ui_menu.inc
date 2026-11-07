@@ -111,7 +111,7 @@ public:
 #ifdef SF32_FRAME_LOG
     rt_tick_t m0 = rt_tick_get();
 #endif
-    themeHeader(display, _title, _task->getBattMilliVolts());
+    if (!((SF32Display&)display).listFrame()) themeHeader(display, _title, _task->getBattMilliVolts());  // (a list frame only sends the list)
 #ifdef SF32_FRAME_LOG
     rt_tick_t m1 = rt_tick_get();
     uint32_t mrows = _marquee_rows;
@@ -189,13 +189,15 @@ public:
         int y = rowY(i) + (int)((1 - t) * (1 - t) * (1 - t) * 24 + 0.5f), h = ROW_H, src = i * (ROW_H + ROW_GAP);
         if (y < LIST_Y) { h -= LIST_Y - y; src += LIST_Y - y; y = LIST_Y; }
         if (y + h > LIST_Y + LIST_H) h = LIST_Y + LIST_H - y;
-        if (h > 0) sd.composeLayer(4, y, 120, h, (int)lroundf(src * SF32Display::SCALE));
+        if (h > 0 && !sd.composeList(y, h, (int)lroundf(src * SF32Display::SCALE)))
+          sd.composeLayer(4, y, 120, h, (int)lroundf(src * SF32Display::SCALE));
       }
       if (!_enter_first) sd.setFlushBand(LIST_Y, LIST_H);  // the first frame has the new header to send
       _enter_first = false;
       if (!busy) _entering = false;
     } else {
-      sd.composeLayer(4, LIST_Y, 120, LIST_H, (int)lroundf(_ds.pos * SF32Display::SCALE));
+      int src = (int)lroundf(_ds.pos * SF32Display::SCALE);
+      if (!sd.composeList(LIST_Y, LIST_H, src)) sd.composeLayer(4, LIST_Y, 120, LIST_H, src);
     }
 #ifdef SF32_FRAME_LOG
     rt_kprintf("menu: header %d, rows %d (dirty %d, marquee %lx), compose %d ms\n", (int)(m1 - m0), (int)(m2 - m1),
@@ -247,6 +249,10 @@ private:
   }
 
   void drawRow(DisplayDriver& display, int i) {
+    drawRowBody(display, i);
+    ((SF32Display&)display).layerRowsDone(i * (ROW_H + ROW_GAP), ROW_H + ROW_GAP);
+  }
+  void drawRowBody(DisplayDriver& display, int i) {
     _drawn |= 1UL << i;
     _marquee_rows &= ~(1UL << i);  // set again below if its label still scrolls
     int y = i * (ROW_H + ROW_GAP);

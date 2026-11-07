@@ -5,6 +5,17 @@
 #include "mem_section.h"
 #include "bf0_hal.h"  // system_bf0_ap.h: mpu_dcache_clean
 #include "SF32Font.h"
+// The chip's graphics hardware: much faster on PSRAM than the CPU going through its cache
+// (measured, one 480x480 frame: copy 15.5 ms by CPU, 5.2 by DMA; a blend 38 by CPU, 8 by EPIC).
+// On the SF32LB52 the panel controller has one layer only, and EPIC 2 layers plus a mask at a time.
+#if defined(BSP_USING_EPIC) && defined(BSP_USING_EXT_DMA)
+#define SF32_GFX_HW 1
+extern "C" {
+#include "drv_epic.h"
+#include "drv_ext_dma.h"
+#include "drv_psram.h"
+}
+#endif
 
 extern "C" void sf32_cpu_full_speed();  // SF32Board.cpp
 #define LOG_TAG "display"
@@ -68,6 +79,14 @@ L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint16_t s_frost[FB_PIXELS]);
 L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint8_t s_glass_grid[GLASS_GRID * GLASS_GRID * 3]);
 L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint8_t s_glass_tmp[GLASS_GRID * GLASS_GRID * 3]);
 L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static float s_glass_curve[4][PANEL_W]);
+#ifdef SF32_GFX_HW
+// A menu's rows in the Glass style, for the graphics engine (layerRowsDone): what's on the panes
+// with its alpha, and where the panes are.
+#define OVER_W    420   // x = 4..124 logical: the menu rows' width, panel px
+#define OVER_ROWS 1680  // 20 rows
+L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint8_t s_over[OVER_W * OVER_ROWS * 3]);  // ARGB8565
+L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint8_t s_mask[OVER_W * OVER_ROWS]);      // A8
+#endif
 L2_NON_RET_BSS_SECT_END
 static uint16_t* s_fb = s_fb_a;     // frame being drawn
 static uint16_t* s_shown = s_fb_b;  // frame on the panel
@@ -381,6 +400,8 @@ static void glass_build() {
     }
   }
   s_glass_sum = glass_sum();
+  mpu_dcache_clean((void*)s_wall, FB_PIXELS * 2);  // the hardware reads these directly
+  mpu_dcache_clean((void*)s_frost, FB_PIXELS * 2);
 }
 
 // Screen back on: if a sleep cost us the pictures (they live in PSRAM), make them again.
@@ -518,13 +539,152 @@ void SF32Display::setSquareLayout(bool square) {
   s_offset_y = (PANEL_H - s_area_h) / 2;
 }
 
+// ---- the frame's background, by DMA ----
+static void frame_from(const uint16_t* src) {
+#ifdef SF32_GFX_HW
+  mpu_dcache_clean((void*)s_fb, FB_PIXELS * 2);  // anything the CPU left there mustn't land on top later
+  if (EXT_DMA_Config(1, 1) == RT_EOK && EXT_DMA_TRANS_SYNC((uint32_t)src, (uint32_t)s_fb, FB_PIXELS / 2, 200) == RT_EOK) {
+    mpu_dcache_invalidate((void*)s_fb, FB_PIXELS * 2);
+    return;
+  }
+#endif
+  memcpy(s_fb, src, FB_PIXELS * 2);
+}
+static void frame_black() {
+#ifdef SF32_GFX_HW
+  static const uint32_t zero = 0;
+  mpu_dcache_clean((void*)s_fb, FB_PIXELS * 2);
+  if (EXT_DMA_Config(0, 1) == RT_EOK && EXT_DMA_TRANS_SYNC((uint32_t)&zero, (uint32_t)s_fb, FB_PIXELS / 2, 200) == RT_EOK) {
+    mpu_dcache_invalidate((void*)s_fb, FB_PIXELS * 2);
+    return;
+  }
+#endif
+  memset(s_fb, 0, FB_PIXELS * 2);
+}
+
+#ifdef SF32_GFX_HW
+// ---- a menu's list, by the graphics engine ----
+static void epic_input(EPIC_LayerConfigTypeDef* l, const void* data, uint32_t mode, int x, int y, int w, int h, int total) {
+  HAL_EPIC_LayerConfigInit(l);
+  l->data = (uint8_t*)data;
+  l->color_mode = mode;
+  l->x_offset = x; l->y_offset = y;
+  l->width = w; l->height = h;
+  l->total_width = total;
+  l->alpha = 255;
+  l->ax_mode = ALPHA_BLEND_RGBCOLOR;
+}
+
+// Fill bytes by DMA (the whole words of it; the ends by CPU), leaving the cache out of it.
+static void dma_fill(uint8_t* dst, uint8_t value, int len) {
+  static uint32_t word;
+  word = value * 0x01010101UL;
+  uint8_t* first = (uint8_t*)(((uintptr_t)dst + 3) & ~(uintptr_t)3);
+  int head = first - dst, words = (len - head) / 4;
+  mpu_dcache_clean(dst, len);
+  mpu_dcache_clean(&word, 4);
+  if (words <= 0 || EXT_DMA_Config(0, 1) != RT_EOK || EXT_DMA_TRANS_SYNC((uint32_t)&word, (uint32_t)first, words, 100) != RT_EOK) {
+    memset(dst, value, len);
+    return;
+  }
+  mpu_dcache_invalidate(dst, len);
+  memset(dst, value, head);
+  memset(first + words * 4, value, len - head - words * 4);
+}
+
+// Rows of the layer were just drawn: get them ready for composeList. What's light added to a pane
+// (text, rims, sheen) becomes a colour with an alpha; anything drawn at all marks a pane.
+void SF32Display::layerRowsDone(int y, int h) {
+  int y0 = (int)lroundf(y * SCALE), y1 = (int)lroundf((y + h) * SCALE);
+  if (y0 < 0) y0 = 0;
+  if (y1 > s_layer_h) y1 = s_layer_h;
+  const int x0 = px_x(4);
+  if (glassActive()) {
+    if (y1 > OVER_ROWS) y1 = OVER_ROWS;
+    if (y1 <= y0) return;
+    // Most of it is bare pane: fill it all by DMA, then the CPU only touches what differs.
+    dma_fill(s_over + y0 * OVER_W * 3, 0, (y1 - y0) * OVER_W * 3);
+    dma_fill(s_mask + y0 * OVER_W, 0xFF, (y1 - y0) * OVER_W);
+    for (int py = y0; py < y1; py++) {
+      const uint16_t* from = s_layer + py * PANEL_W + x0;
+      uint8_t* o = s_over + py * OVER_W * 3;
+      uint8_t* m = s_mask + py * OVER_W;
+      for (int i = 0; i < OVER_W; i++) {
+        uint16_t p = from[i];
+        if (p == GLASS_KEY) continue;
+        if (p == 0) { m[i] = 0; continue; }
+        int r = (p >> 11) << 3, g = ((p >> 5) & 0x3F) << 2, b = (p & 0x1F) << 3;
+        int a = r > g ? r : g;
+        if (b > a) a = b;
+        r = r * 255 / a; g = g * 255 / a; b = b * 255 / a;
+        uint16_t c = (uint16_t)(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3));
+        o[i * 3] = c & 0xFF; o[i * 3 + 1] = c >> 8; o[i * 3 + 2] = a;
+      }
+    }
+    mpu_dcache_clean(s_over + y0 * OVER_W * 3, (y1 - y0) * OVER_W * 3);
+    mpu_dcache_clean(s_mask + y0 * OVER_W, (y1 - y0) * OVER_W);
+  } else if (y1 > y0) {
+    mpu_dcache_clean(s_layer + y0 * PANEL_W, (y1 - y0) * PANEL_W * 2);
+  }
+}
+
+// A slice of a menu's rows into the frame: panes frosting what's behind, then what's on them. On
+// a list frame (nothing drawn behind it) the wallpaper goes in first, band margins included.
+bool SF32Display::composeList(int y, int h, int src_px) {
+  const int x0 = px_x(4), x1 = x0 + OVER_W;
+  int y0 = px_y(y), y1 = px_y(y + h);
+  if (y0 < 0) y0 = 0;
+  if (y1 > PANEL_H) y1 = PANEL_H;
+  if (src_px < 0 || y1 <= y0) return true;
+  const int rows = glassActive() ? OVER_ROWS : s_layer_h;
+  if (src_px + (y1 - y0) > rows) y1 = y0 + rows - src_px;
+  if (y1 <= y0) return true;
+  const int by0 = _list_frame ? (y0 - 6 < 0 ? 0 : y0 - 6) : y0;
+  const int by1 = _list_frame ? (y1 + 6 > PANEL_H ? PANEL_H : y1 + 6) : y1;
+  uint16_t* dst = s_fb + by0 * PANEL_W;
+  mpu_dcache_clean(dst, (by1 - by0) * PANEL_W * 2);
+  EPIC_HandleTypeDef* epic = drv_get_epic_handle();
+  if (!epic) return false;
+  EPIC_LayerConfigTypeDef in[3], out;
+  bool ok = true;
+  drv_epic_take(RT_WAITING_FOREVER);
+  if (glassActive()) {
+    const int bx0 = _list_frame ? 0 : x0, bw = _list_frame ? PANEL_W : OVER_W;
+    epic_input(&in[0], s_wall + by0 * PANEL_W + bx0, EPIC_COLOR_RGB565, bx0, by0, bw, by1 - by0, PANEL_W);
+    epic_input(&in[1], s_frost + y0 * PANEL_W + x0, EPIC_COLOR_RGB565, x0, y0, OVER_W, y1 - y0, PANEL_W);
+    epic_input(&in[2], s_mask + src_px * OVER_W, EPIC_COLOR_A8, x0, y0, OVER_W, y1 - y0, OVER_W);
+    in[2].ax_mode = ALPHA_BLEND_MASK;
+    epic_input(&out, dst + bx0, EPIC_COLOR_RGB565, bx0, by0, bw, by1 - by0, PANEL_W);
+    ok = HAL_EPIC_BlendStartEx(epic, in, 3, &out) == HAL_OK;
+    if (ok) {
+      epic_input(&in[0], s_fb + y0 * PANEL_W + x0, EPIC_COLOR_RGB565, x0, y0, OVER_W, y1 - y0, PANEL_W);
+      epic_input(&in[1], s_over + src_px * OVER_W * 3, EPIC_COLOR_ARGB8565, x0, y0, OVER_W, y1 - y0, OVER_W);
+      epic_input(&out, s_fb + y0 * PANEL_W + x0, EPIC_COLOR_RGB565, x0, y0, OVER_W, y1 - y0, PANEL_W);
+      ok = HAL_EPIC_BlendStartEx(epic, in, 2, &out) == HAL_OK;
+    }
+  } else {
+    epic_input(&in[0], s_layer + src_px * PANEL_W + x0, EPIC_COLOR_RGB565, x0, y0, OVER_W, y1 - y0, PANEL_W);
+    epic_input(&out, s_fb + y0 * PANEL_W + x0, EPIC_COLOR_RGB565, x0, y0, OVER_W, y1 - y0, PANEL_W);
+    ok = HAL_EPIC_BlendStartEx(epic, in, 1, &out) == HAL_OK;
+  }
+  drv_epic_release();
+  mpu_dcache_invalidate(dst, (by1 - by0) * PANEL_W * 2);
+  return ok;
+}
+#else
+void SF32Display::layerRowsDone(int, int) {}
+bool SF32Display::composeList(int, int, int) { return false; }
+#endif
+
+
 void SF32Display::startFrame(ColorVal bkg) {
   setSquareLayout(false);
   _clip_on = false;
   _list_frame = _list_next && _transition == TRANSITION_NONE && !_wake_pending;
   _list_next = false;
   if (_list_frame) {}  // composeLayer builds the list; the rest isn't sent this frame
-  else if (glassActive() && bkg == UIColor::window_bkg && s_glass_bg != 3) memcpy(s_fb, s_wall, sizeof(s_wall));
+  else if (glassActive() && bkg == UIColor::window_bkg && s_glass_bg != 3) frame_from(s_wall);
+  else if (bkg == 0) frame_black();
   else fill16(s_fb, bkg, PANEL_W * PANEL_H);
   _color = UIColor::primary_txt;
   _text_size = 1;
@@ -1103,6 +1263,9 @@ void SF32Display::endFrame() {
   }
   bool band = _band_y0 >= 0 && _transition == TRANSITION_NONE && !_wake_pending;
   _transition = TRANSITION_NONE;
+  // a scrolling list: straight away. Its frames take about a refresh to draw, so waiting for the
+  // panel's sync makes some of them wait a whole extra refresh, and that shows as judder.
+  if (band && _list_frame) { waitFlush(); HAL_LCDC_Next_Frame_TE(get_drv_lcd_handler(), 0); }
   if (band) flush(s_fb, _band_y0, _band_y1);
   else flush(s_fb);
   _band_y0 = _band_y1 = -1;

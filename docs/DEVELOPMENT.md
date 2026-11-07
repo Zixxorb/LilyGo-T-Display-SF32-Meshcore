@@ -111,12 +111,15 @@ halts the CPU (MeshCore's CLI would echo sftool's frames back), stops the hardwa
 watchdogs, and switches UART1 to 1 Mbaud for sftool. The host can't reset the board
 (DTR/RTS do nothing); it boots right after flashing.
 
-**Frame rate** (companion, measured on the board in the Glass style): the panel's QSPI clock is
-set to 60 MHz (`LCD_MAX_CLK_FREQ` in `project_companion/rtconfig_project.h`), above the 50 MHz
-the SDK's driver notes give for RGB565; a full frame takes about 15.4 ms. PSRAM is the
-bottleneck: copying a frame takes about as long as sending one. So slides copy nothing: the panel
-is sent the two frames' visible parts directly (about 57 fps), and their length is set in ms. A
-scrolling list only rebuilds its own band (about 30 fps in Glass).
+**Frame rate** (companion, measured on the board): the panel's QSPI clock is set to 60 MHz
+(`LCD_MAX_CLK_FREQ` in `project_companion/rtconfig_project.h`), above the 50 MHz the SDK's driver
+notes give for RGB565; a full frame takes about 15.4 ms. PSRAM (144 MHz) has bandwidth to spare, but
+the CPU reaches it through its cache: one 480x480 frame took 15.5 ms to copy by CPU and 5.2 ms by
+DMA, and a blend 38 ms by CPU and 8 ms by EPIC, the 2D engine. So frame backgrounds are DMA copies,
+menu lists are EPIC blends (`composeList`, about 54-59 fps scrolling in Glass), and slides copy
+nothing: the panel is sent the two frames' visible parts directly (about 57 fps), with their
+length set in ms. On the SF32LB52 the LCD controller has one layer only (the SDK asserts this),
+and EPIC takes 2 layers plus a mask per operation, so a Glass list takes two operations.
 
 **Page drag** (`UITask::pageDrag`): past 12 px sideways, the page sticks to the finger. The page
 coming in is rendered once, off screen (again if the finger crosses back over its start), and each
