@@ -497,15 +497,11 @@ public:
 
   // Touch: pages with on-screen buttons take taps directly (see UITask::handleTouchMenus).
   void dragStep(int dir) { stepPage(dir); }  // a page being dragged in (UITask::pageDrag)
-  // Bluetooth, Advert: holding the icon does the page's action (UITask::handleTouchMenus)
-  bool iconHoldPage() const { return _page == HomePage::BLUETOOTH || _page == HomePage::ADVERT; }
-  bool iconHit(int x, int y) const { return x >= 32 && x < 96 && y >= 24 && y < 86; }
-  void iconAction() { handleInput(KEY_ENTER); }
-  bool wantsTaps() const {
-    return _page == HomePage::BOT || _page == HomePage::SIGNAL
-        || iconHoldPage()  // a touch held anywhere else isn't a long press: only on the icon
-        || (_page == HomePage::CLOCK && _task->getUnreadCount() > 0)  // the envelope opens messages
-        || _page == HomePage::NODES  // a row: ask that node for its battery
+  // Pages with an action: holding the icon does it (UITask::handleTouchMenus). Signal and Discover
+  // show results instead of their icon once they've run: there, hold anywhere. A short tap always
+  // goes to the next page.
+  bool iconHoldPage() const {
+    return _page == HomePage::BLUETOOTH || _page == HomePage::ADVERT || _page == HomePage::BOT || _page == HomePage::SIGNAL
 #if UI_DISCOVER_SCREEN
         || _page == HomePage::DISCOVERY
 #endif
@@ -513,6 +509,24 @@ public:
         || _page == HomePage::SHUTDOWN
 #endif
         ;
+  }
+  bool iconHit(int x, int y) const {
+    if (_page == HomePage::SIGNAL && (signal_tester.running || signal_tester.pings || signal_tester.hist_n || signal_tester.finder)) return true;
+#if UI_DISCOVER_SCREEN
+    if (_page == HomePage::DISCOVERY && disc_nodes_count > 0) return true;
+#endif
+    return x >= 32 && x < 96 && y >= 24 && y < 86;
+  }
+  void iconAction() {
+#ifndef UI_NO_HIBERNATE
+    if (_page == HomePage::SHUTDOWN) { _task->openMenu(UITask::MENU_POWER); return; }  // powering off takes a 2nd tap
+#endif
+    handleInput(KEY_ENTER);
+  }
+  bool wantsTaps() const {
+    return iconHoldPage()  // a touch held elsewhere isn't a long press: only where it says
+        || (_page == HomePage::CLOCK && _task->getUnreadCount() > 0)  // the envelope opens messages
+        || _page == HomePage::NODES;  // a row: ask that node for its battery
   }
   // true if the tap hit something; otherwise it acts as a normal tap (next page)
   bool handleTap(int x, int y) {
@@ -528,26 +542,6 @@ public:
       if (!my_nodes.ask(fav[row])) _task->showAlert(my_nodes.waiting() ? "Still waiting for a reply" : "Wait a few seconds", 1200);
       return true;
     }
-    if (_page == HomePage::BOT) {  // tap anywhere: bot on/off
-      _task->menuAction(ACT_BOT_TOGGLE);
-      return true;
-    }
-    if (_page == HomePage::SIGNAL) {  // tap anywhere: start / stop
-      _task->menuAction(ACT_SIG_TOGGLE);
-      return true;
-    }
-#if UI_DISCOVER_SCREEN
-    if (_page == HomePage::DISCOVERY) {  // tap anywhere: scan
-      if (millis() > discovery_req_time + 5000) sendDiscoverRequest();  // rate limit
-      return true;
-    }
-#endif
-#ifndef UI_NO_HIBERNATE
-    if (_page == HomePage::SHUTDOWN) {  // tap anywhere: power menu (powering off takes a 2nd tap)
-      _task->openMenu(UITask::MENU_POWER);
-      return true;
-    }
-#endif
     return false;
   }
 
@@ -1036,7 +1030,7 @@ public:
         display.setColor(UIColor::secondary_txt);
         display.drawTextCentered(W / 2, 60, st.pings ? "no reply yet" : "pinging...");
       }
-      sprintf(tmp, "every 5 s  -  tap to stop");
+      sprintf(tmp, "every 5 s  -  hold to stop");
       display.setColor(UIColor::secondary_txt);
       display.drawTextCentered(W / 2, 110, tmp);
       next_render = 1000;
@@ -1050,7 +1044,7 @@ public:
         display.drawTextCentered(W / 2, 83, "Signal test");
         display.setTextSize(1);
         display.setColor(UIColor::secondary_txt);
-        display.drawTextCentered(W / 2, 104, "tap to ping nearby repeaters");
+        display.drawTextCentered(W / 2, 104, "hold icon: ping nearby repeaters");
       } else {
         themeCard(display, 4, 27, 58, 28);
         themeLabel(display, 9, 30, "We hear");
@@ -1087,8 +1081,8 @@ public:
         themeCard(display, 4, 70, 120, 34);
         drawSignalGraph(display, 8, 73, 112, 28);
         display.setColor(UIColor::secondary_txt);
-        if (st.running) sprintf(tmp, "next ping in %d s  -  tap to stop", st.secsToNextPing());
-        else strcpy(tmp, "stopped  -  tap to start");
+        if (st.running) sprintf(tmp, "next ping in %d s  -  hold to stop", st.secsToNextPing());
+        else strcpy(tmp, "stopped  -  hold to start");
         display.drawTextCentered(W / 2, 108, tmp);
         if (st.running) next_render = 1000;
       }
@@ -1114,7 +1108,7 @@ public:
         display.setColor(UIColor::primary_txt);
         display.drawTextEllipsized(x + tw, 104, nw, filtered);
       } else {
-        display.drawTextCentered(W / 2, 104, on ? "replies to 1-byte hash msgs" : "tap to turn on");
+        display.drawTextCentered(W / 2, 104, on ? "hold icon: turn off" : "hold icon: turn on");
       }
 #if UI_DISCOVER_SCREEN
     } else if (_page == HomePage::DISCOVERY) {
@@ -1154,7 +1148,7 @@ public:
         display.drawTextCentered(W / 2, 83, scanning ? "Scanning..." : "Repeaters");
         display.setTextSize(1);
         display.setColor(UIColor::secondary_txt);
-        display.drawTextCentered(W / 2, 104, scanning ? "listening for replies" : "tap to scan nearby");
+        display.drawTextCentered(W / 2, 104, scanning ? "listening for replies" : "hold icon: scan nearby");
       }
       if (scanning) next_render = 1000;  // more frequent updates just after the request
 #endif
@@ -1172,7 +1166,7 @@ public:
         display.drawTextCentered(W / 2, 83, "Power off");
         display.setTextSize(1);
         display.setColor(UIColor::secondary_txt);
-        display.drawTextCentered(W / 2, 104, "tap for power options");
+        display.drawTextCentered(W / 2, 104, "hold icon: power options");
       }
 #endif
     }
@@ -1187,14 +1181,6 @@ public:
     }
     if (c == KEY_NEXT || c == KEY_RIGHT) {
       stepPage(1);
-      if (_page == HomePage::RECENT) {
-        _task->showAlert("Recent adverts", 800);
-      }
-#if UI_DISCOVER_SCREEN
-      if (_page == HomePage::DISCOVERY) {
-        _task->showAlert("Repeater disc", 800);
-      }
-#endif
       return true;
     }
     if (c == KEY_ENTER && _page == HomePage::CLOCK) {  // SF32: long press: next clock face

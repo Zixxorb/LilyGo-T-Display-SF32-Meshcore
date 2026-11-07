@@ -573,7 +573,7 @@ void UITask::handleTouchMenus() {
     }
   }
 
-  // Bluetooth, Advert: hold the icon. It acts while still held, so you know it took.
+  // Pages with an action: hold the icon. It acts while still held, so you know it took.
   if (curr == home && !_aod && h->iconHoldPage() && !touch_input.touchConsumed() && touch_input.stillHeldMs() >= 500) {
     int ix, iy;
     SF32Display::panelToLogical(touch_input.fingerX0(), touch_input.fingerY0(), ix, iy);

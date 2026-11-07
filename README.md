@@ -186,7 +186,7 @@ on the clock. Long lists follow your finger and glide after a flick.
 | **Signal** | Signal tester and repeater finder |
 | **Activity** | Packets per hour over 24 h and how busy the channel is |
 | **Nodes** | Your favourite contacts: last heard, hops, battery on tap |
-| **Power** | Tap for the power menu |
+| **Power** | Hold the icon for the power menu |
 
 Pages can be hidden in **Settings > Pages** (the clock always shows).
 
@@ -289,7 +289,7 @@ times in all, until you tap Stop. The location is the node's as set in the app.
 <details>
 <summary><b>Signal tester and repeater finder</b></summary>
 
-**Signal tester** (Signal page, tap to start/stop): every 10/15/30/60 s it pings the
+**Signal tester** (Signal page, hold the icon or the results to start/stop): every 10/15/30/60 s it pings the
 repeaters in direct range (zero-hop discovery) and shows how well the best one hears us and
 we hear it (SNR), its name, replies/pings and a graph of the last 40 pings (no reply: red
 tick). A beep per ping, higher for a better link. Swipe up > Target locks onto the repeater
