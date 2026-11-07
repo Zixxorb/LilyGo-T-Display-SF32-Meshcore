@@ -69,10 +69,10 @@ public:
   // drawXbm, drawn `scale` times larger (smoothed), e.g. 1.5 for big page icons
   void drawXbmScaled(int x, int y, const uint8_t* bits, int w, int h, float scale);
 
-  // The Glass style: a soft wallpaper behind everything, in colours taken from `accent` (multi:
-  // several hues), and cards (fillRect in the card or popup colour) become frosted panes: a
+  // The Glass style: a wallpaper behind everything (background: 0 aurora, 1 dunes, 2 gradient),
+  // in colours taken from `accent` (multi: several hues), and cards (fillRect in the card or popup colour) become frosted panes: a
   // blurred copy of the wallpaper with a bright rim. No other drawing changes.
-  void setGlass(bool on, uint16_t accent, bool multi);
+  void setGlass(bool on, uint16_t accent, bool multi, uint8_t background);
   bool glassOn() const;
   void setGlassPaused(bool paused);  // plain black meanwhile (the always-on clock)
 

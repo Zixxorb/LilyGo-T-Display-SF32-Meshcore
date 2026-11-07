@@ -96,7 +96,7 @@ void UITask::setTheme(int i) {
 void UITask::applyStyle() {
   int i = themeIndex();
   applyTheme(i);
-  if (_display) ((SF32Display*)_display)->setGlass(_ui_prefs.glass, THEMES[i].accent, THEMES[i].rainbow);
+  if (_display) ((SF32Display*)_display)->setGlass(_ui_prefs.glass, THEMES[i].accent, THEMES[i].rainbow, _ui_prefs.glass_bg);
 }
 void UITask::openTheme() {
   _menu_return_theme = _menu_return;

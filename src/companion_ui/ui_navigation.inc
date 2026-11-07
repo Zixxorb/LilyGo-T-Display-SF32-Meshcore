@@ -52,6 +52,10 @@ void UITask::openMenu(MenuKind kind) {
     m->begin("Theme");
     m->add("Style", ACT_THEME_STYLE, _ui_prefs.glass ? "Glass" : "Normal");
     m->add("Color", ACT_THEME, THEMES[themeIndex()].name);  // each style keeps its own
+    if (_ui_prefs.glass) {
+      static const char* const BG_NAMES[] = {"Aurora", "Dunes", "Gradient"};
+      m->add("Backdrop", ACT_THEME_BG, BG_NAMES[_ui_prefs.glass_bg % 3]);
+    }
     m->add("Back", ACT_SETTINGS);
   } else if (kind == MENU_DISPLAY) {
     m->begin("Display");
@@ -270,6 +274,12 @@ void UITask::menuAction(uint8_t action) {
     case ACT_RADIO_EDIT: openRadioEditor(); break;
     case ACT_THEME: openTheme(); break;
     case ACT_THEME_MENU: openMenu(MENU_THEME); break;
+    case ACT_THEME_BG:
+      _ui_prefs.glass_bg = (_ui_prefs.glass_bg + 1) % 3;
+      applyStyle();
+      saveUIPrefs();
+      openMenu(_menu_kind);
+      break;
     case ACT_THEME_STYLE:
       _ui_prefs.glass = !_ui_prefs.glass;
       applyStyle();

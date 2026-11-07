@@ -63,10 +63,12 @@ L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint16_t s_fb_anim[FB_PIXELS]);
 #define LAYER_ROWS 2600  // panel px (~742 logical px of list: the 20 log entries are 680)
 L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint16_t s_layer[PANEL_W * LAYER_ROWS]);
 // The Glass style (setGlass): the wallpaper, and the same picture frosted (what cards show).
-#define GLASS_GRID 61  // the frosted picture is worked out on this grid (8 px cells), then smoothed
+#define GLASS_GRID 121  // the wallpaper is averaged down to this grid (4 px cells), blurred, smoothed back
 L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint16_t s_wall[FB_PIXELS]);
 L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint16_t s_frost[FB_PIXELS]);
 L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint8_t s_glass_grid[GLASS_GRID * GLASS_GRID * 3]);
+L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint8_t s_glass_tmp[GLASS_GRID * GLASS_GRID * 3]);
+L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static float s_glass_curve[4][PANEL_W]);
 L2_NON_RET_BSS_SECT_END
 static uint16_t* s_fb = s_fb_a;     // frame being drawn
 static uint16_t* s_shown = s_fb_b;  // frame on the panel
@@ -182,6 +184,7 @@ void SF32Display::turnOff() {
 #define GLASS_RADIUS  13
 static bool s_glass_on = false, s_glass_paused = false, s_glass_multi = false;
 static uint16_t s_glass_accent = 0;
+static uint8_t s_glass_bg = 0;
 static uint32_t s_glass_sum = 0;
 static inline bool glassActive() { return s_glass_on && !s_glass_paused; }
 
@@ -209,16 +212,6 @@ static inline uint16_t glass_pixel(int x, int y, int r, int g, int b) {
   return (uint16_t)(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3));
 }
 
-struct GlassOrb { float x, y, r, hue, v; };
-static const GlassOrb GLASS_ORBS[] = {
-  {135, 140, 175,   0, 0.48f},
-  {375, 205, 125,  48, 0.40f},
-  {270, 405, 150, -42, 0.36f},
-  { 55, 395,  70,  22, 0.24f},
-};
-#define GLASS_ORB_N 4
-static const float GLASS_MULTI_HUE[GLASS_ORB_N] = {300, 190, 40, 120};  // Rainbow: its own hues
-
 static uint32_t glass_sum() {  // a quick sample of both pictures (setGlass, glass_check)
   uint32_t sum = 0;
   for (int i = 0; i < 64; i++) {
@@ -228,30 +221,27 @@ static uint32_t glass_sum() {  // a quick sample of both pictures (setGlass, gla
   return sum;
 }
 
-// The picture at (x, y): the orbs over a dark base. edge: how soft their edges are, as a part of
-// each one's radius plus `edge_px` (the wallpaper nearly sharp, the frost melted together).
-static void glass_colour(float x, float y, float edge, float edge_px, const float base[3],
-                         const float colors[GLASS_ORB_N][3], float* out) {
-  float fade = 1.0f - y / 480 * 0.55f;
-  out[0] = base[0] * fade; out[1] = base[1] * fade; out[2] = base[2] * fade;
-  for (int i = 0; i < GLASS_ORB_N; i++) {
-    const GlassOrb& o = GLASS_ORBS[i];
-    float e = o.r * edge + edge_px, dx = x - o.x, dy = y - o.y, d2 = dx * dx + dy * dy;
-    if (d2 >= (o.r + e) * (o.r + e)) continue;
-    float d = sqrtf(d2), a = (o.r + e - d) / (2 * e);
-    if (a > 1) a = 1;
-    a = a * a * (3 - 2 * a);
-    // lit from the top left, a little brighter toward its rim
-    float shade = 0.70f + 0.30f * (d / o.r) - (dx + dy) / o.r * 0.12f;
-    if (shade < 0.2f) shade = 0.2f;
-    if (shade > 1.2f) shade = 1.2f;
-    a *= shade;
-    for (int k = 0; k < 3; k++) {  // "screen": overlaps get lighter, never clip
-      float c = colors[i][k] * a;
-      out[k] = out[k] + c - out[k] * c / 255;
-    }
+static inline void glass_screen(float* out, const float* c, float a) {  // lighter where they overlap, never clips
+  for (int k = 0; k < 3; k++) {
+    float v = c[k] * a;
+    out[k] = out[k] + v - out[k] * v / 255;
   }
 }
+
+// The three colours each background is made from: the theme's hue and two neighbours.
+#define GLASS_HUES 3
+static const float GLASS_HUE_OFFSET[GLASS_HUES] = {0, 48, -42};
+static const float GLASS_MULTI_HUE[GLASS_HUES] = {300, 190, 40};  // Rainbow: its own
+
+// Aurora: glowing ribbons, a sharp edge above, fading out below.
+static const float AURORA_Y[3] = {140, 255, 365}, AURORA_AMP[3] = {55, 45, 60}, AURORA_FREQ[3] = {0.011f, 0.015f, 0.009f},
+                   AURORA_PHASE[3] = {0.6f, 2.4f, 4.1f}, AURORA_AMP2[3] = {18, 16, 20}, AURORA_FREQ2[3] = {0.031f, 0.027f, 0.037f},
+                   AURORA_V[3] = {0.58f, 0.50f, 0.44f};
+// Dunes: layers of hills, back to front, each lightest along its crest.
+static const float DUNE_Y[4] = {165, 245, 325, 410}, DUNE_AMP[4] = {42, 36, 30, 24}, DUNE_FREQ[4] = {0.010f, 0.013f, 0.008f, 0.016f},
+                   DUNE_PHASE[4] = {1.1f, 3.6f, 5.2f, 0.4f}, DUNE_AMP2[4] = {12, 14, 10, 9}, DUNE_FREQ2[4] = {0.029f, 0.024f, 0.035f, 0.041f},
+                   DUNE_V[4] = {0.50f, 0.42f, 0.34f, 0.24f};
+static const uint8_t DUNE_COLOR[4] = {1, 0, 2, 0};
 
 static void glass_build() {
   float r0 = ((s_glass_accent >> 11) & 0x1F) / 31.0f, g0 = ((s_glass_accent >> 5) & 0x3F) / 63.0f, b0 = (s_glass_accent & 0x1F) / 31.0f;
@@ -262,49 +252,109 @@ static void glass_build() {
     else hue = 60 * ((r0 - g0) / dl + 4);
   }
   float sat = (mx > 0 && dl / mx < 0.15f) ? 0.0f : 0.78f;  // the Mono theme stays grey
-  float base[3], colors[GLASS_ORB_N][3];
-  glass_hsv(hue, sat * 0.7f, 0.10f, base);
-  for (int i = 0; i < GLASS_ORB_N; i++) {
-    float h = s_glass_multi ? GLASS_MULTI_HUE[i] : hue + GLASS_ORBS[i].hue;
-    glass_hsv(h, sat, GLASS_ORBS[i].v, colors[i]);
-  }
+  float base[3], unit[GLASS_HUES][3];  // base: the darkest part; unit: at full value
+  glass_hsv(hue, sat * 0.7f, 0.08f, base);
+  for (int i = 0; i < GLASS_HUES; i++)
+    glass_hsv(s_glass_multi ? GLASS_MULTI_HUE[i] : hue + GLASS_HUE_OFFSET[i], sat, 1.0f, unit[i]);
 
-  // the frosted picture on a coarse grid: melted edges, dimmed, a veil of light over it
-  float px[3];
-  uint8_t* g = s_glass_grid;
-  for (int gy = 0; gy < GLASS_GRID; gy++) {
-    for (int gx = 0; gx < GLASS_GRID; gx++) {
-      glass_colour(gx * 8.0f, gy * 8.0f, 0.75f, 0, base, colors, px);
-      for (int k = 0; k < 3; k++) {
-        float v = px[k] * 0.66f + 30;
-        *g++ = (uint8_t)(v > 255 ? 255 : v);
+  if (s_glass_bg != 2) {  // the curves, a column at a time (sines are slow)
+    for (int x = 0; x < PANEL_W; x++) {
+      for (int i = 0; i < 4; i++) {
+        if (s_glass_bg == 0 && i == 3) { s_glass_curve[i][x] = 0; continue; }
+        s_glass_curve[i][x] = s_glass_bg == 0
+          ? AURORA_Y[i] + AURORA_AMP[i] * sinf(x * AURORA_FREQ[i] + AURORA_PHASE[i]) + AURORA_AMP2[i] * sinf(x * AURORA_FREQ2[i] + AURORA_PHASE[i] * 2)
+          : DUNE_Y[i] + DUNE_AMP[i] * sinf(x * DUNE_FREQ[i] + DUNE_PHASE[i]) + DUNE_AMP2[i] * sinf(x * DUNE_FREQ2[i] + DUNE_PHASE[i] * 2);
       }
     }
   }
 
   uint16_t* w = s_wall;
+  float px[3];
+  for (int y = 0; y < PANEL_H; y++) {
+    float fade = 1.0f - y / 480.0f * 0.5f;
+    for (int x = 0; x < PANEL_W; x++) {
+      if (s_glass_bg == 2) {  // Gradient: corner to corner, through the three colours, darkening
+        float t = (x + y) / 958.0f;
+        const float* a = t < 0.5f ? unit[0] : unit[1], *b = t < 0.5f ? unit[1] : unit[2];
+        float u = t < 0.5f ? t * 2 : t * 2 - 1, v = 0.52f - 0.40f * t;
+        for (int k = 0; k < 3; k++) px[k] = (a[k] + (b[k] - a[k]) * u) * v + base[k] * 0.5f;
+      } else {
+        for (int k = 0; k < 3; k++) px[k] = base[k] * fade;
+        if (s_glass_bg == 0) {
+          for (int i = 0; i < 3; i++) {
+            float d = y - s_glass_curve[i][x], t = d / (d < 0 ? 24.0f : 115.0f), f = 1 / (1 + t * t);
+            glass_screen(px, unit[i], AURORA_V[i] * f * f);
+          }
+        } else {
+          for (int i = 0; i < 4; i++) {
+            float d = y - s_glass_curve[i][x];
+            if (d <= -0.5f) continue;
+            float cov = d >= 0.5f ? 1 : d + 0.5f, shade = 1 - d / 300;
+            if (shade < 0.35f) shade = 0.35f;
+            float v = DUNE_V[i] * shade;
+            for (int k = 0; k < 3; k++) {
+              float c = unit[DUNE_COLOR[i]][k] * v + base[k] * 0.5f;
+              px[k] += (c - px[k]) * cov;
+            }
+          }
+        }
+      }
+      *w++ = glass_pixel(x, y, (int)px[0], (int)px[1], (int)px[2]);
+    }
+  }
+
+  // Frost: the wallpaper itself, lightly blurred, with a thin veil of light over it. Averaged
+  // down to the grid, blurred twice there (about 8 px), then smoothed back up.
+  uint8_t* g = s_glass_grid;
+  for (int gy = 0; gy < GLASS_GRID; gy++) {
+    for (int gx = 0; gx < GLASS_GRID; gx++) {
+      int x0 = gx * 4 < PANEL_W - 4 ? gx * 4 : PANEL_W - 4, y0 = gy * 4 < PANEL_H - 4 ? gy * 4 : PANEL_H - 4;
+      int sr = 0, sg = 0, sb = 0;
+      for (int j = 0; j < 4; j++) {
+        const uint16_t* row = s_wall + (y0 + j) * PANEL_W + x0;
+        for (int i = 0; i < 4; i++) {
+          uint16_t p = row[i];
+          sr += (p >> 11) << 3; sg += ((p >> 5) & 0x3F) << 2; sb += (p & 0x1F) << 3;
+        }
+      }
+      *g++ = sr / 16; *g++ = sg / 16; *g++ = sb / 16;
+    }
+  }
+  for (int pass = 0; pass < 2; pass++) {
+    memcpy(s_glass_tmp, s_glass_grid, sizeof(s_glass_tmp));
+    for (int gy = 0; gy < GLASS_GRID; gy++) {
+      for (int gx = 0; gx < GLASS_GRID; gx++) {
+        for (int k = 0; k < 3; k++) {
+          int sum = 0;
+          for (int dy = -1; dy <= 1; dy++) {
+            int yy = gy + dy < 0 ? 0 : (gy + dy >= GLASS_GRID ? GLASS_GRID - 1 : gy + dy);
+            for (int dx = -1; dx <= 1; dx++) {
+              int xx = gx + dx < 0 ? 0 : (gx + dx >= GLASS_GRID ? GLASS_GRID - 1 : gx + dx);
+              sum += s_glass_tmp[(yy * GLASS_GRID + xx) * 3 + k];
+            }
+          }
+          s_glass_grid[(gy * GLASS_GRID + gx) * 3 + k] = sum / 9;
+        }
+      }
+    }
+  }
   uint16_t* f = s_frost;
   uint32_t grain = 0x2545F491;
   for (int y = 0; y < PANEL_H; y++) {
-    int gy = y / 8, ty = y & 7;
-    if (gy >= GLASS_GRID - 1) { gy = GLASS_GRID - 2; ty = 8; }
+    int gy = y / 4, ty = y & 3;
     const uint8_t* row0 = s_glass_grid + gy * GLASS_GRID * 3;
     const uint8_t* row1 = row0 + GLASS_GRID * 3;
     for (int x = 0; x < PANEL_W; x++) {
-      glass_colour(x, y, 0, 2.5f, base, colors, px);
-      *w++ = glass_pixel(x, y, (int)px[0], (int)px[1], (int)px[2]);
-
-      int gx = x / 8, tx = x & 7;
-      if (gx >= GLASS_GRID - 1) { gx = GLASS_GRID - 2; tx = 8; }
+      int gx = x / 4, tx = x & 3;
       const uint8_t* a = row0 + gx * 3, *b = row1 + gx * 3;
       int c[3];
       for (int k = 0; k < 3; k++) {
-        int top = a[k] * (8 - tx) + a[k + 3] * tx, bot = b[k] * (8 - tx) + b[k + 3] * tx;
-        c[k] = (top * (8 - ty) + bot * ty) / 64;
+        int top = a[k] * (4 - tx) + a[k + 3] * tx, bot = b[k] * (4 - tx) + b[k + 3] * tx;
+        c[k] = (top * (4 - ty) + bot * ty) / 16;
+        c[k] = c[k] * 13 / 16 + 18;  // the veil
       }
-      // a fine grain over the frost: the same in all channels, like the texture of the glass
       grain ^= grain << 13; grain ^= grain >> 17; grain ^= grain << 5;
-      int n = (int)(grain & 7) - 3;
+      int n = (int)(grain & 3) - 1;  // a very fine grain
       *f++ = glass_pixel(x, y, c[0] + n, c[1] + n, c[2] + n);
     }
   }
@@ -316,10 +366,11 @@ static void glass_check() {
   if (s_glass_on && glass_sum() != s_glass_sum) glass_build();
 }
 
-void SF32Display::setGlass(bool on, uint16_t accent, bool multi) {
-  bool same = s_glass_sum && accent == s_glass_accent && multi == s_glass_multi;
+void SF32Display::setGlass(bool on, uint16_t accent, bool multi, uint8_t background) {
+  bool same = s_glass_sum && accent == s_glass_accent && multi == s_glass_multi && background == s_glass_bg;
   s_glass_accent = accent;
   s_glass_multi = multi;
+  s_glass_bg = background;
   s_glass_on = on;
   if (on && !same) glass_build();
 }

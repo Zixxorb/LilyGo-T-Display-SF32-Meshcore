@@ -199,7 +199,7 @@ Pages can be hidden in **Settings > Pages** (the clock always shows).
 
 | Menu | Contains |
 |---|---|
-| **Theme** | Style (Normal / Glass), Color (each style keeps its own) |
+| **Theme** | Style (Normal / Glass), Color (each style keeps its own), Backdrop for Glass (Aurora / Dunes / Gradient) |
 | **Display** | Clock face, brightness, timeout, always-on, rotation (Normal / Auto / Right / Upside down / Left) |
 | **Pages** | Show or hide each home page |
 | **Clock** | Time zone, daylight saving (off/US/EU), 12/24 h, mesh time, reset clock |
@@ -364,8 +364,8 @@ menu > **Long press** picks what its long press sends.
 <details>
 <summary><b>Display, sound and motion options</b></summary>
 
-- **Glass style** (Settings > Theme): a soft wallpaper in the theme's colours, with cards as
-  frosted panes. It lights more of the screen than Normal, so it uses more power while the
+- **Glass style** (Settings > Theme): a wallpaper in the theme's colours (Aurora, Dunes or
+  Gradient), with cards as lightly frosted panes. It lights more of the screen than Normal, so it uses more power while the
   screen is on. The always-on clock stays on black.
 - **Themes**: MeshCore blue, cyan, teal, green, purple, pink, red, orange, mono, and
   Rainbow (every page in its own hue).
