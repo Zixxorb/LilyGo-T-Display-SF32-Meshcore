@@ -56,8 +56,8 @@ void UITask::openMenu(MenuKind kind) {
     m->add("Style", ACT_THEME_STYLE, _ui_prefs.glass ? "Glass" : "Normal");
     m->add("Color", ACT_THEME, THEMES[themeIndex()].name);  // each style keeps its own
     if (_ui_prefs.glass) {
-      static const char* const BG_NAMES[] = {"Aurora", "Dunes", "Gradient"};
-      m->add("Backdrop", ACT_THEME_BG, BG_NAMES[_ui_prefs.glass_bg % 3]);
+      static const char* const BG_NAMES[] = {"Aurora", "Dunes", "Blend", "None"};
+      m->add("Backdrop", ACT_THEME_BG, BG_NAMES[_ui_prefs.glass_bg % 4]);
     }
     m->add("Back", ACT_SETTINGS);
   } else if (kind == MENU_DISPLAY) {
@@ -278,7 +278,7 @@ void UITask::menuAction(uint8_t action) {
     case ACT_THEME: openTheme(); break;
     case ACT_THEME_MENU: openMenu(MENU_THEME); break;
     case ACT_THEME_BG:
-      _ui_prefs.glass_bg = (_ui_prefs.glass_bg + 1) % 3;
+      _ui_prefs.glass_bg = (_ui_prefs.glass_bg + 1) % 4;
       applyStyle();
       saveUIPrefs();
       openMenu(_menu_kind);
@@ -458,6 +458,60 @@ bool MenuScreen::handleInput(char c) {
   return false;
 }
 
+// Sideways, a page sticks to the finger, with the next one coming in beside it. Let go past a
+// third of the way, or with a flick, and it goes on to that page; otherwise it springs back.
+#define PAGE_DRAG_SLOP   12     // panel px before it counts: taps still wobble a bit
+#define PAGE_DRAG_FLICK  0.35f  // panel px per ms
+void UITask::pageDrag() {
+  HomeScreen* h = (HomeScreen*)home;
+  SF32Display* d = (SF32Display*)_display;
+  if (!_drag_on) {
+    if (!touch_input.fingerDown() || touch_input.touchConsumed() || _hold_frac > 0 || _hold_done) return;
+    int dx = touch_input.fingerX() - touch_input.fingerX0(), dy = touch_input.fingerY() - touch_input.fingerY0();
+    if (abs(dx) < PAGE_DRAG_SLOP || abs(dx) < 2 * abs(dy)) return;
+    touch_input.consumeTouch();  // it's ours now: no tap or swipe when it lifts
+    _drag_on = true;
+    _drag_dir = 0;
+    _drag_off = 0;
+  }
+  _auto_off = millis() + autoOffMillis();
+  if (touch_input.fingerDown()) {
+    int dx = touch_input.fingerX() - touch_input.fingerX0();
+    int off = abs(dx) - PAGE_DRAG_SLOP;  // from where it took hold: no jump
+    if (off < 0) off = 0;
+    if (off > 478) off = 478;
+    int dir = dx < 0 ? 1 : -1;  // finger going left: the next page
+    if (dir != _drag_dir && off > 0) {  // the page on this side, drawn once
+      if (_drag_dir) h->dragStep(-_drag_dir);
+      h->dragStep(dir);
+      _drag_dir = dir;
+      d->cancelListFrame();
+      d->waitFlush();
+      _display->startFrame();
+      d->setSquareLayout(true);
+      curr->render(*_display);
+      d->dragFrameDone();
+    }
+    off &= ~1;
+    if (_drag_dir && off != _drag_off && !d->sendBusy()) {
+      d->dragShow(off, _drag_dir > 0);
+      _drag_off = off;
+    }
+    return;
+  }
+  // let go
+  _drag_on = false;
+  _next_refresh = 0;
+  if (!_drag_dir) return;
+  float v = touch_input.releaseVelocityX();  // < 0: going left
+  bool flick = _drag_dir > 0 ? v < -PAGE_DRAG_FLICK : v > PAGE_DRAG_FLICK;
+  bool back_flick = _drag_dir > 0 ? v > PAGE_DRAG_FLICK : v < -PAGE_DRAG_FLICK;
+  bool commit = !back_flick && (flick || _drag_off > 480 / 3);
+  d->dragSettle(_drag_off, _drag_dir > 0, commit);
+  if (commit) touch_input.click(2);
+  else h->dragStep(-_drag_dir);
+}
+
 // Touch: vertical swipes open/close menus; in a menu, taps choose a row directly.
 void UITask::handleTouchMenus() {
   HomeScreen* h = (HomeScreen*)home;
@@ -466,6 +520,10 @@ void UITask::handleTouchMenus() {
                 curr == tz_screen || curr == hour_screen || curr == sos_screen ||
                 curr == qr_screen || curr == scan_screen;
   touch_input.setDirectTaps(curr == menu || editor || page_taps);
+  if (_drag_on && (curr != home || _display == NULL || !_display->isOn())) {
+    _drag_on = false;  // something else took over mid-drag: the next frame draws what's current
+    _next_refresh = 0;
+  }
   if (_display == NULL || !_display->isOn()) return;
 
   // Hold on the clock to change its face: after a moment a ring fills around the finger,
@@ -496,6 +554,8 @@ void UITask::handleTouchMenus() {
       if (!touch_input.fingerDown()) _hold_done = false;
     }
   }
+
+  if (curr == home && !_aod) pageDrag();
 
   // Long lists (Settings, About): the finger drags them, a flick glides on.
   DragScroll* ds = NULL;

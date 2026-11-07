@@ -118,6 +118,12 @@ bottleneck: copying a frame takes about as long as sending one. So slides copy n
 is sent the two frames' visible parts directly (about 57 fps), and their length is set in ms. A
 scrolling list only rebuilds its own band (about 30 fps in Glass).
 
+**Page drag** (`UITask::pageDrag`): past 12 px sideways, the page sticks to the finger. The page
+coming in is rendered once, off screen (again if the finger crosses back over its start), and each
+move just sends the two frames at the new offset. Let go past a third of the way, or with a flick,
+and it goes on; otherwise it springs back. `tools/touch.sh drag` drives it in debug builds, but
+screenshots read the last whole frame, so mid-drag frames can only be judged on the panel.
+
 Before flashing, `flash.sh` saves what the board holds in RAM (`tools/savelogs.sh`, into
 `board-logs/`, not in git): raw dumps of the sleep counters, test log, battery history and UI
 state, the decoded versions, and the symbol table. It reads with the ELF kept in `.flashed/` by

@@ -5,6 +5,7 @@
 #   tools/touch.sh up|down|left|right   swipe
 #   tools/touch.sh press       button-like press (wakes the screen)
 #   tools/touch.sh hold X Y MS  finger held still at X,Y for MS milliseconds, then lifted
+#   tools/touch.sh drag X0 Y X1 MS  finger dragged sideways from X0 to X1 over MS milliseconds
 # Several steps in one call: tools/touch.sh up . tap 240 300 . down   ("." = wait 1.2 s)
 # Writes SF32TouchInput's sf32_remote_touch over the debug channel (see SF32TouchInput.cpp).
 cd "$(dirname "$0")/.."
@@ -35,6 +36,17 @@ while i < len(args):
             ok = any(d.mem_write32(p, addr, v)[:1] == b"\xd3" or time.sleep(0.05) for _ in range(20))
             time.sleep(wait)
         print("hold sent")
+        continue
+    if a == "drag":  # drag X0 Y X1 MS: finger down, across in steps, lifts
+        x0, y, x1, ms = int(args[i + 1]), int(args[i + 2]), int(args[i + 3]), int(args[i + 4]); i += 5
+        steps = max(abs(x1 - x0) // 20, 1)
+        seq = [((7 << 24) | (x0 << 12) | y, ms / 1000.0 / steps)]
+        seq += [((9 << 24) | ((x0 + (x1 - x0) * k // steps) << 12) | y, ms / 1000.0 / steps) for k in range(1, steps + 1)]
+        seq += [(8 << 24, 0.3)]
+        for v, wait in seq:
+            any(d.mem_write32(p, addr, v)[:1] == b"\xd3" or time.sleep(0.02) for _ in range(20))
+            time.sleep(wait)
+        print("drag sent")
         continue
     if a == "tap":
         x, y = int(args[i + 1]), int(args[i + 2]); i += 3

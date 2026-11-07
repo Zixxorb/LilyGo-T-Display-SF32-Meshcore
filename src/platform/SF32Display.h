@@ -42,6 +42,13 @@ public:
   // Only rows y..y+h (logical) changed in this frame (a scrolling list): send just that
   // band to the panel (faster). For the next endFrame() only; ignored with a transition.
   void setFlushBand(int y, int h);
+  // A page following the finger. Draw the page coming in as a normal frame (startFrame, render),
+  // then dragFrameDone() instead of endFrame(). dragShow: shown `off` panel pixels in, next =
+  // coming from the right. sendBusy: the panel is still taking the last one. dragSettle: let go.
+  void dragFrameDone();
+  bool sendBusy();
+  void dragShow(int off, bool next);
+  void dragSettle(int off, bool next, bool commit);
   // A scrolling list: the next frame only changes the list, so don't redraw the rest of it (the
   // list is built in composeLayer and only its band is sent). For the next startFrame() only.
   void nextFrameIsList() { _list_next = true; }
@@ -74,7 +81,7 @@ public:
   // drawXbm, drawn `scale` times larger (smoothed), e.g. 1.5 for big page icons
   void drawXbmScaled(int x, int y, const uint8_t* bits, int w, int h, float scale);
 
-  // The Glass style: a wallpaper behind everything (background: 0 aurora, 1 dunes, 2 gradient),
+  // The Glass style: a wallpaper behind everything (background: 0 aurora, 1 dunes, 2 gradient, 3 none),
   // in colours taken from `accent` (multi: several hues), and cards (fillRect in the card or popup colour) become frosted panes: a
   // blurred copy of the wallpaper with a bright rim. No other drawing changes.
   void setGlass(bool on, uint16_t accent, bool multi, uint8_t background);
@@ -109,6 +116,7 @@ private:
   void flush(const uint16_t* buf, int py0 = 0, int py1 = -1);  // rows [py0, py1]
   void sendPart(const uint16_t* buf, int sx, int sy, int dx, int dy, int w, int h, bool sync);  // a slide: buf's rect, straight to the panel
   void animate(Transition dir);
+  void slideTo(Transition dir, int off);
   void glassFill(int x0, int y0, int x1, int y1, int radius);
   void glassPopup(int x0, int y0, int x1, int y1, int radius);
   void glassRim(int x0, int y0, int x1, int y1, int radius, bool popup);

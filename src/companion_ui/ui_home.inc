@@ -496,6 +496,7 @@ public:
   int currentPage() const { return _page; }
 
   // Touch: pages with on-screen buttons take taps directly (see UITask::handleTouchMenus).
+  void dragStep(int dir) { stepPage(dir); }  // a page being dragged in (UITask::pageDrag)
   bool wantsTaps() const {
     return _page == HomePage::BOT || _page == HomePage::SIGNAL
         || (_page == HomePage::CLOCK && _task->getUnreadCount() > 0)  // the envelope opens messages

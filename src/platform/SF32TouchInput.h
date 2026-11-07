@@ -42,6 +42,9 @@ public:
   int fingerY0() const { return _y0; }  // where this touch started
   int fingerY() const { return _y; }
   int fingerX0() const { return _x0; }
+  int fingerX() const { return _x; }
+  bool touchConsumed() const { return _consumed; }
+  void click(uint8_t c) { _click = c; }  // touch feedback for what took the touch over
   // a press held in place (hold gestures): how long, 0 if not touching or it moved
   unsigned long stillHeldMs();
   // this touch is used up (a hold did its thing): its lift does nothing (no tap or swipe)
@@ -49,6 +52,7 @@ public:
   void unconsumeTouch() { _consumed = false; }  // changed our mind (the hold became a swipe)
   // Vertical speed (panel px per ms) when the finger last lifted, for flick scrolling.
   float releaseVelocity() const { return _release_vy; }
+  float releaseVelocityX() const { return _release_vx; }  // the same, sideways
 
 private:
   void update();
@@ -58,9 +62,10 @@ private:
   bool _down = false;
   // recent finger positions for the release velocity
   int _hist_y[4] = {0, 0, 0, 0};
+  int _hist_x[4] = {0, 0, 0, 0};
   unsigned long _hist_t[4] = {0, 0, 0, 0};
   int _hist_n = 0;
-  float _release_vy = 0;
+  float _release_vy = 0, _release_vx = 0;
   int _x0 = 0, _y0 = 0, _x = 0, _y = 0;
   unsigned long _down_at = 0;
   // tap replay

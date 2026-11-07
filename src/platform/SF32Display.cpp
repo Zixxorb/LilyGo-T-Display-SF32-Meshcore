@@ -80,7 +80,7 @@ extern "C" { uint16_t* volatile sf32_shown_fb = s_fb_b; }
 #define SLIDE_V_MS   190  // how long a menu or screen slides up or down
 #define SLIDE_LEAD_MS 30  // where in the curve the first frame lands: it's on screen a frame later
 #ifdef SF32_REMOTE_TOUCH
-extern "C" { volatile uint32_t sf32_anim_ms = 0, sf32_anim_frames = 0; }  // debug builds: the last slide
+extern "C" { volatile uint32_t sf32_anim_ms = 0, sf32_anim_frames = 0, sf32_drag_sends = 0; }  // debug builds
 #endif
 
 static struct rt_semaphore s_flush_done;
@@ -271,7 +271,7 @@ static void glass_build() {
   for (int i = 0; i < GLASS_HUES; i++)
     glass_hsv(s_glass_multi ? GLASS_MULTI_HUE[i] : hue + GLASS_HUE_OFFSET[i], sat, 1.0f, unit[i]);
 
-  if (s_glass_bg != 2) {  // the curves, a column at a time (sines are slow)
+  if (s_glass_bg < 2) {  // the curves, a column at a time (sines are slow)
     for (int x = 0; x < PANEL_W; x++) {
       for (int i = 0; i < 4; i++) {
         if (s_glass_bg == 0 && i == 3) { s_glass_curve[i][x] = 0; continue; }
@@ -287,6 +287,10 @@ static void glass_build() {
   for (int y = 0; y < PANEL_H; y++) {
     float fade = 1.0f - y / 480.0f * 0.5f;
     for (int x = 0; x < PANEL_W; x++) {
+      if (s_glass_bg == 3) {  // None: black
+        *w++ = 0;
+        continue;
+      }
       if (s_glass_bg == 2) {  // Gradient: corner to corner, through the three colours, darkening
         float t = (x + y) / 958.0f;
         const float* a = t < 0.5f ? unit[0] : unit[1], *b = t < 0.5f ? unit[1] : unit[2];
@@ -352,6 +356,9 @@ static void glass_build() {
       }
     }
   }
+  // With no backdrop there's nothing to frost: the panes are just the veil, tinted by the theme.
+  int tint[3] = {0, 0, 0};
+  if (s_glass_bg == 3) for (int k = 0; k < 3; k++) tint[k] = (int)(unit[0][k] * 0.07f);
   uint16_t* f = s_frost;
   uint32_t grain = 0x2545F491;
   for (int y = 0; y < PANEL_H; y++) {
@@ -365,7 +372,7 @@ static void glass_build() {
       for (int k = 0; k < 3; k++) {
         int top = a[k] * (4 - tx) + a[k + 3] * tx, bot = b[k] * (4 - tx) + b[k + 3] * tx;
         c[k] = (top * (4 - ty) + bot * ty) / 16;
-        c[k] = c[k] * 12 / 16 + 24;  // the veil
+        c[k] = c[k] * 12 / 16 + 24 + tint[k];  // the veil
       }
       grain ^= grain << 13; grain ^= grain >> 17; grain ^= grain << 5;
       int n = (int)(grain & 7) - 3;  // a fine grain
@@ -516,7 +523,7 @@ void SF32Display::startFrame(ColorVal bkg) {
   _list_frame = _list_next && _transition == TRANSITION_NONE && !_wake_pending;
   _list_next = false;
   if (_list_frame) {}  // composeLayer builds the list; the rest isn't sent this frame
-  else if (glassActive() && bkg == UIColor::window_bkg) memcpy(s_fb, s_wall, sizeof(s_wall));
+  else if (glassActive() && bkg == UIColor::window_bkg && s_glass_bg != 3) memcpy(s_fb, s_wall, sizeof(s_wall));
   else fill16(s_fb, bkg, PANEL_W * PANEL_H);
   _color = UIColor::primary_txt;
   _text_size = 1;
@@ -1148,7 +1155,6 @@ void SF32Display::animate(Transition dir) {
 #ifdef SF32_REMOTE_TOUCH
   uint32_t frames = 0;
 #endif
-  const bool SYNC = true;
   for (;;) {
     waitFlush();
     uint32_t el = (rt_tick_get() - t0) * 1000 / RT_TICK_PER_SECOND + SLIDE_LEAD_MS;
@@ -1159,25 +1165,74 @@ void SF32Display::animate(Transition dir) {
 #ifdef SF32_REMOTE_TOUCH
     sf32_anim_frames = ++frames;
 #endif
-    if (dir == TRANSITION_LEFT || dir == TRANSITION_RIGHT) {
-      int off = (int)(e * W + 0.5f) & ~1;  // the panel's windows start on even pixels
-      if (dir == TRANSITION_LEFT) {  // new page comes in from the right
-        sendPart(s_shown, off, 0, 0, 0, W - off, Hh, SYNC);
-        sendPart(s_fb, 0, 0, W - off, 0, off, Hh, off >= W);
-      } else {                       // new page comes in from the left
-        sendPart(s_fb, W - off, 0, 0, 0, off, Hh, SYNC);
-        sendPart(s_shown, 0, 0, off, 0, W - off, Hh, off == 0);
-      }
-    } else {
-      int off = (int)(e * Hh + 0.5f) & ~1;
-      if (dir == TRANSITION_UP) {    // new screen comes up from the bottom
-        sendPart(s_shown, 0, off, 0, 0, W, Hh - off, SYNC);
-        sendPart(s_fb, 0, 0, 0, Hh - off, W, off, off >= Hh);
-      } else {                       // new screen comes down from the top
-        sendPart(s_fb, 0, Hh - off, 0, 0, W, off, SYNC);
-        sendPart(s_shown, 0, 0, 0, off, W, Hh - off, off == 0);
-      }
-    }
+    slideTo(dir, (int)(e * ((dir == TRANSITION_LEFT || dir == TRANSITION_RIGHT) ? W : Hh) + 0.5f));
+  }
+}
+
+// One frame of a slide: the new frame `off` panel pixels in. The first part waits for the panel's sync.
+void SF32Display::slideTo(Transition dir, int off) {
+  const int W = PANEL_W, Hh = PANEL_H;
+  off &= ~1;  // the panel's windows start on even pixels
+  if (dir == TRANSITION_LEFT) {          // new page comes in from the right
+    sendPart(s_shown, off, 0, 0, 0, W - off, Hh, true);
+    sendPart(s_fb, 0, 0, W - off, 0, off, Hh, off >= W);
+  } else if (dir == TRANSITION_RIGHT) {  // new page comes in from the left
+    sendPart(s_fb, W - off, 0, 0, 0, off, Hh, true);
+    sendPart(s_shown, 0, 0, off, 0, W - off, Hh, off == 0);
+  } else if (dir == TRANSITION_UP) {     // new screen comes up from the bottom
+    sendPart(s_shown, 0, off, 0, 0, W, Hh - off, true);
+    sendPart(s_fb, 0, 0, 0, Hh - off, W, off, off >= Hh);
+  } else {                               // new screen comes down from the top
+    sendPart(s_fb, 0, Hh - off, 0, 0, W, off, true);
+    sendPart(s_shown, 0, 0, 0, off, W, Hh - off, off == 0);
+  }
+}
+
+// ---- a page following the finger: the page coming in is drawn once (dragFrameDone), then each
+// move only sends the two frames at a new offset, as a slide does ----
+void SF32Display::dragFrameDone() {
+  waitFlush();
+  mpu_dcache_clean((void*)s_fb, FB_PIXELS * 2);
+  _band_y0 = _band_y1 = -1;
+  _transition = TRANSITION_NONE;
+}
+
+bool SF32Display::sendBusy() {
+  if (!s_flushing) return false;
+  if (rt_sem_trytake(&s_flush_done) != RT_EOK) return true;
+  s_flushing = false;
+  return false;
+}
+
+void SF32Display::dragShow(int off, bool next) {
+  slideTo(next ? TRANSITION_LEFT : TRANSITION_RIGHT, off);
+#ifdef SF32_REMOTE_TOUCH
+  sf32_drag_sends++;
+#endif
+}
+
+// Let go: on from `off` to all the way (commit) or back to none, easing out. It keeps some of
+// the finger's speed by covering what's left quickly; a short way takes a short time.
+void SF32Display::dragSettle(int off, bool next, bool commit) {
+  const Transition dir = next ? TRANSITION_LEFT : TRANSITION_RIGHT;
+  const int to = commit ? PANEL_W : 0;
+  const uint32_t ms = 50 + 130 * abs(to - off) / PANEL_W;
+  const rt_tick_t t0 = rt_tick_get();
+  for (;;) {
+    waitFlush();
+    uint32_t el = (rt_tick_get() - t0) * 1000 / RT_TICK_PER_SECOND + 8;
+    if (el >= ms) break;
+    float t = (float)el / ms, e = 1 - (1 - t) * (1 - t);
+    slideTo(dir, off + (int)((to - off) * e));
+  }
+  // and exactly there
+  flush(commit ? s_fb : s_shown);
+  waitFlush();
+  if (commit) {
+    uint16_t* swap = s_shown;
+    s_shown = s_fb;
+    s_fb = swap;
+    sf32_shown_fb = s_shown;
   }
 }
 

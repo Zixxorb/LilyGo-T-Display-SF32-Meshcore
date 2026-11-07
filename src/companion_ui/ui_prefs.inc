@@ -136,7 +136,7 @@ void UITask::loadUIPrefs() {
   if (_ui_prefs.theme >= NUM_THEMES) _ui_prefs.theme = 0;
   if (_ui_prefs.glass_theme >= NUM_THEMES) _ui_prefs.glass_theme = 0;
   _ui_prefs.glass = _ui_prefs.glass ? 1 : 0;
-  if (_ui_prefs.glass_bg >= 3) _ui_prefs.glass_bg = 0;
+  if (_ui_prefs.glass_bg >= 4) _ui_prefs.glass_bg = 0;
   applyStyle();
 #ifdef SF32_RAINBOW_TEST
   applyTheme(NUM_THEMES - 1);  // test builds: show Rainbow without saving it

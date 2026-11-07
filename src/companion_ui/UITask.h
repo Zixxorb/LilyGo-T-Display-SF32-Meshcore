@@ -84,7 +84,7 @@ struct SF32UIPrefs {
   uint8_t rotation = 0;        // 0 normal, 1 upside down, 2 auto (by how it's held), 3 turned right, 4 left
   uint8_t glass = 0;           // theme style: 0 normal, 1 glass
   uint8_t glass_theme = 0;     // THEMES[] index used by the glass style (`theme`: the normal style's)
-  uint8_t glass_bg = 0;        // glass background: 0 aurora, 1 dunes, 2 gradient
+  uint8_t glass_bg = 0;        // glass background: 0 aurora, 1 dunes, 2 gradient, 3 none
 };
 
 class UITask : public AbstractUITask {
@@ -102,6 +102,9 @@ class UITask : public AbstractUITask {
   char _banner_from[32], _banner_text[96];  // SF32: new message banner (showNewMessage)
   unsigned long _banner_expiry = 0, _banner_start = 0, _alert_start = 0;  // SF32: popups ease in and out
   bool _banner_first = false, _alert_first = false;
+  bool _drag_on = false;  // SF32: a page following the finger (pageDrag)
+  int _drag_dir = 0, _drag_off = 0;
+  void pageDrag();
   float _hold_frac = 0;     // SF32: hold on the clock to change its face: the ring's progress
   bool _hold_done = false;  //   (the face changed during this hold)
   unsigned long _alert_expiry;

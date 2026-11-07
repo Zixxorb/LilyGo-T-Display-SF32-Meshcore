@@ -868,10 +868,10 @@ void UITask::loop() {
 #endif
 
   if (curr) curr->poll();
-  sf32_ui_animating = _display != NULL && _display->isOn() && (long)(_next_refresh - millis()) <= 20;  // SF32
+  sf32_ui_animating = _display != NULL && _display->isOn() && (_drag_on || (long)(_next_refresh - millis()) <= 20);  // SF32
 
   if (_display != NULL && _display->isOn()) {
-    if (millis() >= _next_refresh && curr) {
+    if (millis() >= _next_refresh && curr && !_drag_on) {
       unsigned long frame_start = millis();  // SF32: pace animation from the frame's start
 #ifdef SF32_FRAME_LOG
       rt_tick_t f0 = rt_tick_get();
