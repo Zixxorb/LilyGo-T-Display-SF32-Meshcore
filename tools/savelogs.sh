@@ -34,6 +34,9 @@ while read -r sym; do
 done <<'EOF'
 sf32_pm_stats
 sf32_ab_log
+sf32_ab_alerts
+sf32_ab_turnons
+sf32_ab_turnon_n
 _ZL12batt_history
 ui_task
 EOF

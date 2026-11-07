@@ -1,6 +1,6 @@
 #!/bin/bash
 # Battery on/off tests (SF32_RADIO_AB=1: radio asleep; SF32_SLEEP_AB=1: deep sleep instead of
-# light): after a night on battery, plug USB back in and run this. From the unplug: 2 h the
+# light; SF32_LOOP_AB=1: screen-off main loop at 250 ms): after a night on battery, plug USB back in and run this. From the unplug: 2 h the
 # normal way, 2 h of the test, and so on; this reads the battery voltage logged every 15 min
 # (sf32_ab_log, SF32Board.cpp) and compares the drain in the two kinds of stretch. The ELF
 # must be the flashed build.
@@ -9,7 +9,9 @@ source ./env.sh >/dev/null 2>&1
 elf="${ELF:-project_companion/build_t-display-sf32_hcpu/main.elf}"
 addr=$(arm-none-eabi-nm "$elf" | awk '/ sf32_ab_log$/{print $1}')
 [ -n "$addr" ] || { echo "no sf32_ab_log in this build (build with SF32_RADIO_AB=1 or SF32_SLEEP_AB=1)"; exit 1; }
-if arm-none-eabi-nm "$elf" | grep -q sf32_radio_ab_off; then export AB_A="radio on" AB_B="radio OFF"; else export AB_A="light sleep" AB_B="DEEP sleep"; fi
+if arm-none-eabi-nm "$elf" | grep -q sf32_radio_ab_off; then export AB_A="radio on" AB_B="radio OFF"
+elif arm-none-eabi-nm "$elf" | grep -q sf32_loop_ab_slow; then export AB_A="25 ms loop" AB_B="250 ms loop"
+else export AB_A="light sleep" AB_B="DEEP sleep"; fi
 port=$(readlink -f $(ls /dev/serial/by-id/*1a86* 2>/dev/null | head -1) 2>/dev/null)
 [ -n "$port" ] || { echo "board not found"; exit 1; }
 python3 tools/sf32_debug_uart.py "$port" mem "$addr" 38 | python3 -I -c '
@@ -17,6 +19,7 @@ import sys, os
 w = [int(l.split()[1], 16) for l in sys.stdin if ":" in l]
 if len(w) < 38 or w[0] != 0x53464142: sys.exit("no test log yet (has it run on battery?)")
 n = min(w[1], 64)
+A, B = os.environ["AB_A"], os.environ["AB_B"]
 mv = [x for v in w[2:34] for x in (v & 0xFFFF, v >> 16)][:n]
 # the companion'"'"'s voltage -> charge table (ui_theme.inc), for % per hour
 curve = [(4180, 100), (4100, 90), (4000, 79), (3900, 66), (3800, 52), (3750, 42), (3700, 31),
@@ -26,10 +29,9 @@ def pct(v):
     for (v1, p1), (v0, p0) in zip(curve, curve[1:]):
         if v >= v0: return p0 + (v - v0) * (p1 - p0) / (v1 - v0)
     return 0.0
-A, B = os.environ["AB_A"], os.environ["AB_B"]
 print(f"{n} samples ({(n - 1) * 15} min on battery)")
 if w[35] or w[37]:
-    print(f"light sleep {w[34] / 60000:.0f} min in {w[35]} sleeps, deep sleep {w[36] / 60000:.0f} min in {w[37]} sleeps")
+    print(f"{A}: {w[34] / 60000:.0f} min asleep in {w[35]} sleeps ({w[34] / max(w[35], 1):.0f} ms each); {B}: {w[36] / 60000:.0f} min in {w[37]} sleeps ({w[36] / max(w[37], 1):.0f} ms each)")
 print("  ".join(f"{i * 15 // 60}:{i * 15 % 60:02d} {v}" for i, v in enumerate(mv)))
 ph = []  # (stretch, mV/h, %/h)
 for k in range(0, (n - 1) // 8 + 1):
