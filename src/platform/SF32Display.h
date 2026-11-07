@@ -75,6 +75,8 @@ public:
   void setGlass(bool on, uint16_t accent, bool multi, uint8_t background);
   bool glassOn() const;
   void setGlassPaused(bool paused);  // plain black meanwhile (the always-on clock)
+  void setPopupFade(float fade);     // 0..1: how far a Glass popup has faded in
+  bool transitionPending() const { return _transition != TRANSITION_NONE; }
 
   bool isOn() override { return _on; }
   void turnOn() override;
@@ -100,7 +102,8 @@ private:
   void fillSpan(int x0, int x1, int py);
   void flush(const uint16_t* buf, int py0 = 0, int py1 = -1);  // rows [py0, py1]
   void animate(Transition dir);
-  void glassFill(int x0, int y0, int x1, int y1, int radius, bool popup);
+  void glassFill(int x0, int y0, int x1, int y1, int radius);
+  void glassPopup(int x0, int y0, int x1, int y1, int radius);
   void glassRim(int x0, int y0, int x1, int y1, int radius, bool popup);
 
   rt_device_t _lcd = nullptr;

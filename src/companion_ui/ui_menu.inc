@@ -176,7 +176,27 @@ public:
 #ifdef SF32_FRAME_LOG
     rt_tick_t m2 = rt_tick_get();
 #endif
-    sd.composeLayer(4, LIST_Y, 120, LIST_H, (int)lroundf(_ds.pos * SF32Display::SCALE));
+    if (_entering && sd.transitionPending()) _entering = false;  // a slide instead: no glide on top
+    if (_entering) {
+      // rows glide up into place, one after another
+      unsigned long el = millis() - _enter_at;
+      bool busy = false;
+      for (int i = first, k = 0; i <= last && i < _n; i++, k++) {
+        long since = (long)el - k * 45;
+        if (since <= 0) { busy = true; continue; }
+        float t = since / 190.0f;
+        if (t < 1) busy = true; else t = 1;
+        int y = rowY(i) + (int)((1 - t) * (1 - t) * (1 - t) * 24 + 0.5f), h = ROW_H, src = i * (ROW_H + ROW_GAP);
+        if (y < LIST_Y) { h -= LIST_Y - y; src += LIST_Y - y; y = LIST_Y; }
+        if (y + h > LIST_Y + LIST_H) h = LIST_Y + LIST_H - y;
+        if (h > 0) sd.composeLayer(4, y, 120, h, (int)lroundf(src * SF32Display::SCALE));
+      }
+      if (!_enter_first) sd.setFlushBand(LIST_Y, LIST_H);  // the first frame has the new header to send
+      _enter_first = false;
+      if (!busy) _entering = false;
+    } else {
+      sd.composeLayer(4, LIST_Y, 120, LIST_H, (int)lroundf(_ds.pos * SF32Display::SCALE));
+    }
 #ifdef SF32_FRAME_LOG
     rt_kprintf("menu: header %d, rows %d (dirty %d, marquee %lx), compose %d ms\n", (int)(m1 - m0), (int)(m2 - m1),
                was_dirty, (unsigned long)mrows, (int)(rt_tick_get() - m2));
@@ -195,13 +215,15 @@ public:
       display.setColor(THEME_ACCENT);
       display.fillRect(125, ty, 2, thumb);
     }
-    if (moving || (_drawn & all) != all) return 16;  // follow the finger / glide / finish the rows
+    if (_entering || moving || (_drawn & all) != all) return 16;  // rows gliding in / follow the finger / glide / finish the rows
     if (_marquee_rows) {                              // a long label: when it next moves
       long wait = (long)(_marquee_at - millis());
       return wait < 16 ? 16 : wait > 1000 ? 1000 : (int)wait;
     }
     return 1000;
   }
+
+  void startEnter() { _entering = _enter_first = true; _enter_at = millis(); }  // rows glide in
 
   // a hint at the bottom edge: this menu came down from the top, swipe up to put it back
   void setHandle(bool on) { _handle = on; }
@@ -269,6 +291,8 @@ private:
   DragScroll _ds;
   bool _dirty = true, _handle = false;
   int _vs = 2;  // the values' text size in this menu (valueSize)
+  bool _entering = false, _enter_first = false;
+  unsigned long _enter_at = 0;
   uint32_t _colors = 0;  // theme colours the rows in the layer were drawn in
   uint32_t _marquee_rows = 0;  // rows whose label scrolls sideways
   unsigned long _marquee_at = 0;  // when one of them next moves

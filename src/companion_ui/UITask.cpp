@@ -319,6 +319,7 @@ void UITask::showNewMessage(bool direct) {
   }
   if (alert) {
     ((MsgPreviewScreen*)msg_preview)->latest(_banner_from, sizeof(_banner_from), _banner_text, sizeof(_banner_text));
+    if (millis() >= _banner_expiry) { _banner_start = millis(); _banner_first = true; }
     _banner_expiry = millis() + 6000;
   }
   _next_refresh = 0;  // the envelope count (and the banner)
@@ -337,7 +338,31 @@ bool UITask::showMessages() {
 
 void UITask::showAlert(const char* text, int duration_millis) {
   strcpy(_alert, text);
+#ifdef SF32_REMOTE_TOUCH
+  duration_millis *= 12;  // debug builds: long enough to screenshot
+#endif
+  if (millis() >= _alert_expiry) { _alert_start = millis(); _alert_first = true; }  // already up: just the new text
   _alert_expiry = millis() + duration_millis;
+}
+
+// How far a popup is in (0..1): eased in after it starts, out before it ends.
+static float popupEase(unsigned long start, unsigned long expiry, int in_ms, int out_ms, bool* moving) {
+  unsigned long now = millis();
+  long el = (long)(now - start), left = (long)(expiry - now);
+  float e = 1;
+  *moving = false;
+  if (el < in_ms) {
+    float t = el < 0 ? 0 : (float)el / in_ms;
+    e = 1 - (1 - t) * (1 - t) * (1 - t);
+    *moving = true;
+  }
+  if (left < out_ms) {
+    float t = left < 0 ? 0 : (float)left / out_ms;
+    t = t * t;
+    if (t < e) e = t;
+    *moving = true;
+  }
+  return e;
 }
 
 void UITask::notify(UIEventType t) {
@@ -871,16 +896,23 @@ void UITask::loop() {
           sd->drawLineAA(x, y, x, y, k <= n ? 2.6f : 1.4f);
         }
       }
-      if (millis() < _banner_expiry) {  // SF32: new message banner (top)
+      bool popup_moving = false, popup_full = false;  // an eased popup: its frames come quickly
+      if (millis() < _banner_expiry) {  // SF32: new message banner (top): slides down, and back up
+        bool moving;
+        float e = popupEase(_banner_start, _banner_expiry, 240, 180, &moving);
+        popup_moving |= moving;
+        if (_banner_first) { popup_full = true; _banner_first = false; }
+        int by = 3 - (int)((1 - e) * 38 + 0.5f);
         char from[sizeof(_banner_from)], text[sizeof(_banner_text)];
         _display->translateUTF8ToBlocks(from, _banner_from, sizeof(from));
         _display->translateUTF8ToBlocks(text, _banner_text, sizeof(text));
+        ((SF32Display*)_display)->setPopupFade(e);
         _display->setColor(UIColor::popup_bkg);
-        _display->fillRect(4, 3, 120, 34);
+        _display->fillRect(4, by, 120, 34);
         _display->setColor(THEME_ACCENT);
-        _display->fillRect(4, 3, 2, 34);
+        _display->fillRect(4, by + 4, 2, 26);
         _display->setTextSize(1);
-        _display->drawTextEllipsized(10, 6, 110, from);
+        _display->drawTextEllipsized(10, by + 3, 110, from);
         _display->setColor(UIColor::popup_txt);
         // two lines at most (the rest is in the message view): the first broken at a word
         const char* t = text;
@@ -895,25 +927,48 @@ void UITask::loop() {
         if (!t[n]) cut = n;   // all of it fits
         if (cut == 0) cut = n;  // one long word
         memcpy(line, t, cut); line[cut] = 0;
-        _display->setCursor(10, 16);
+        _display->setCursor(10, by + 13);
         _display->print(line);
         t += cut;
         while (*t == ' ') t++;
-        if (*t) _display->drawTextEllipsized(10, 26, 110, t);
+        if (*t) _display->drawTextEllipsized(10, by + 23, 110, t);
       }
-      if (millis() < _alert_expiry) {  // render alert popup (SF32: themed card)
+      bool alert_up = millis() < _alert_expiry;
+      if (alert_up) {  // render alert popup (SF32: themed card): grows in, and shrinks away
+        bool moving;
+        float e = popupEase(_alert_start, _alert_expiry, 200, 150, &moving);
+        popup_moving |= moving;
+        if (_alert_first) { popup_full = true; _alert_first = false; }
+        float scale = 0.84f + 0.16f * e;
+        int aw = (int)(108 * scale + 0.5f), ah = (int)(30 * scale + 0.5f);
+        ((SF32Display*)_display)->setPopupFade(e);
         _display->setColor(UIColor::popup_bkg);
-        _display->fillRect(10, 48, 108, 30);
-        _display->setColor(THEME_ACCENT);
-        _display->fillRect(58, 72, 12, 2);
-        _display->setTextSize(1);
-        _display->setColor(UIColor::popup_txt);
-        _display->drawTextCentered(_display->width() / 2, 59, _alert);
+        _display->fillRect((128 - aw) / 2, 63 - ah / 2, aw, ah);
+        if (e > 0.6f) {
+          _display->setColor(THEME_ACCENT);
+          _display->fillRect(58, 63 + ah / 2 - 6, 12, 2);
+          _display->setTextSize(1);
+          ColorVal txt = UIColor::popup_txt;  // fades in with it
+          int f = (int)((e - 0.6f) / 0.4f * 31 + 0.5f);
+          _display->setColor((ColorVal)((((txt >> 11) * f / 31) << 11) | ((((txt >> 5) & 0x3F) * f / 31) << 5) | ((txt & 0x1F) * f / 31)));
+          _display->drawTextCentered(_display->width() / 2, 59, _alert);
+        }
         _next_refresh = _alert_expiry;   // will need refresh when alert is dismissed
       } else {
         // SF32: animating (scrolling, gliding): the next frame starts as soon as this one's
         // time is up, counted from when it started, not after drawing it as well
         _next_refresh = (delay_millis <= 20 ? frame_start : millis()) + delay_millis;
+      }
+      ((SF32Display*)_display)->setPopupFade(1);
+      if (popup_moving) {
+        _next_refresh = millis() + 16;
+        // only the popup moves: send just its band, once the frame it first appears on has gone
+        // whole (the page may have just changed). The frame after the easing is a whole one too.
+        bool banner_up = millis() < _banner_expiry;
+        if (!popup_full && !(banner_up && alert_up)) {
+          if (banner_up) ((SF32Display*)_display)->setFlushBand(0, 42);
+          else ((SF32Display*)_display)->setFlushBand(40, 48);
+        }
       }
       // SF32: the banner's end needs a frame too
       if (millis() < _banner_expiry && (long)(_next_refresh - _banner_expiry) > 0) _next_refresh = _banner_expiry;

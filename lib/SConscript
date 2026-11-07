@@ -81,6 +81,7 @@ elif firmware == 'companion':
                                          (['SF32_SOUND_STRESS'] if os.getenv('SF32_SOUND_STRESS') else []) +
                                          (['SF32_NOISE_TEST'] if os.getenv('SF32_NOISE_TEST') else []) +
                                          (['SF32_RAINBOW_TEST'] if os.getenv('SF32_RAINBOW_TEST') else []) +
+                                         (['SF32_REMOTE_TOUCH'] if os.getenv('SF32_REMOTE_TOUCH') else []) +
                                          (['SF32_CPU_TEST'] if os.getenv('SF32_CPU_TEST') else []) +
                                          (['SF32_CPU_TOGGLE_TEST'] if os.getenv('SF32_CPU_TOGGLE_TEST') else []) +
                                          (['SF32_PM_LOG'] if os.getenv('SF32_PM_LOG') else []) +

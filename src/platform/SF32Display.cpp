@@ -75,7 +75,12 @@ static uint16_t* s_shown = s_fb_b;  // frame on the panel
 // For tools/sf32_debug_uart.py shot (@address of this pointer): the frame on the panel.
 extern "C" { uint16_t* volatile sf32_shown_fb = s_fb_b; }
 
-#define ANIM_STEPS 6  // frames per transition, ~41 ms each (a full-panel flush at the panel's 50 MHz)
+#define FADE_STEPS   8   // screen wake and sleep
+#define FADE_STEP_MS 20
+#define ANIM_STEPS 7  // frames per transition, ~41 ms each (a full-panel flush at the panel's 50 MHz)
+#ifdef SF32_REMOTE_TOUCH
+extern "C" { volatile uint32_t sf32_anim_ms = 0; }  // debug builds: how long the last transition took
+#endif
 
 static struct rt_semaphore s_flush_done;
 
@@ -174,7 +179,15 @@ void SF32Display::panelToLogical(int px, int py, int& x, int& y) {
 void SF32Display::turnOff() {
   if (!_lcd) return;
   waitFlush();
-  if (_on) rt_device_control(_lcd, RTGRAPHIC_CTRL_POWEROFF, RT_NULL);
+  if (_on) {
+    for (int i = FADE_STEPS - 1; i >= 1 && !_wake_pending; i--) {  // fade down
+      uint8_t b = (uint8_t)(_brightness * i * i / (FADE_STEPS * FADE_STEPS));
+      if (b < 1) b = 1;
+      rt_device_control(_lcd, RTGRAPHIC_CTRL_SET_BRIGHTNESS, &b);
+      rt_thread_mdelay(FADE_STEP_MS);
+    }
+    rt_device_control(_lcd, RTGRAPHIC_CTRL_POWEROFF, RT_NULL);
+  }
   _on = false;
   _transition = TRANSITION_NONE;
 }
@@ -303,8 +316,8 @@ static void glass_build() {
     }
   }
 
-  // Frost: the wallpaper itself, lightly blurred, with a thin veil of light over it. Averaged
-  // down to the grid, blurred twice there (about 8 px), then smoothed back up.
+  // Frost: the wallpaper itself, blurred, with a veil of light over it. Averaged down to the
+  // grid, blurred there (about 20 px across), then smoothed back up.
   uint8_t* g = s_glass_grid;
   for (int gy = 0; gy < GLASS_GRID; gy++) {
     for (int gx = 0; gx < GLASS_GRID; gx++) {
@@ -320,7 +333,7 @@ static void glass_build() {
       *g++ = sr / 16; *g++ = sg / 16; *g++ = sb / 16;
     }
   }
-  for (int pass = 0; pass < 2; pass++) {
+  for (int pass = 0; pass < 5; pass++) {
     memcpy(s_glass_tmp, s_glass_grid, sizeof(s_glass_tmp));
     for (int gy = 0; gy < GLASS_GRID; gy++) {
       for (int gx = 0; gx < GLASS_GRID; gx++) {
@@ -351,10 +364,10 @@ static void glass_build() {
       for (int k = 0; k < 3; k++) {
         int top = a[k] * (4 - tx) + a[k + 3] * tx, bot = b[k] * (4 - tx) + b[k + 3] * tx;
         c[k] = (top * (4 - ty) + bot * ty) / 16;
-        c[k] = c[k] * 13 / 16 + 18;  // the veil
+        c[k] = c[k] * 12 / 16 + 24;  // the veil
       }
       grain ^= grain << 13; grain ^= grain >> 17; grain ^= grain << 5;
-      int n = (int)(grain & 3) - 1;  // a very fine grain
+      int n = (int)(grain & 7) - 3;  // a fine grain
       *f++ = glass_pixel(x, y, c[0] + n, c[1] + n, c[2] + n);
     }
   }
@@ -620,27 +633,41 @@ void SF32Display::fillRect(int x, int y, int w, int h) {
   if (glassActive() && w >= 6 && h >= 3 && (_color == UIColor::title_bkg || _color == UIColor::popup_bkg)) {
     if (radius) radius = GLASS_RADIUS;
     bool popup = _color == UIColor::popup_bkg;
-    glassFill(x0, y0, x1, y1, radius, popup);
-    if (radius) glassRim(x0, y0, x1, y1, radius, popup);
+    if (popup && s_fb != s_layer) {
+      glassPopup(x0, y0, x1, y1, radius);
+    } else {
+      glassFill(x0, y0, x1, y1, radius);
+      if (radius) glassRim(x0, y0, x1, y1, radius, false);
+    }
     return;
   }
   fillPhys(x0, y0, x1, y1, radius);
 }
 
+// The soft light inside a pane, strongest at the top edge (added to the frost), dithered so
+// it fades smoothly instead of in visible steps. 0 below it.
+#define GLASS_SHEEN_ROWS 36
+static inline uint16_t glass_sheen(int dy, int x, int y) {
+  if (dy >= GLASS_SHEEN_ROWS) return 0;
+  int q = (GLASS_SHEEN_ROWS - dy) * 64 / GLASS_SHEEN_ROWS;  // 0..64: four levels, in sixteenths
+  int a = (q + BAYER4[(y & 3) * 4 + (x & 3)]) / 16;
+  return a > 0 ? (uint16_t)((a << 11) | ((a * 2) << 5) | a) : 0;
+}
+
 // A pane: the frosted picture through a rounded rectangle (in a layer: marked, frosted when
 // composed, so it stays true to what's behind it while the list scrolls).
-void SF32Display::glassFill(int x0, int y0, int x1, int y1, int radius, bool popup) {
+void SF32Display::glassFill(int x0, int y0, int x1, int y1, int radius) {
   int w = x1 - x0, h = y1 - y0;
   if (w <= 0 || h <= 0) return;
   if (radius * 2 > w) radius = w / 2;
   if (radius * 2 > h) radius = h / 2;
   bool layer = s_fb == s_layer;
-  const uint16_t lift = 0x18C3;  // popups: lighter, to stand out from the cards under them
   uint16_t saved = _color;
   for (int py = y0; py < y1; py++) {
     if (py < OFFSET_Y || py >= OFFSET_Y + AREA_H) continue;
     if (_clip_on && (py < _clip_y0 || py >= _clip_y1)) continue;
     int cy_d = py < y0 + radius ? y0 + radius - py : (py >= y1 - radius ? py - (y1 - radius) + 1 : 0);
+    const bool shine = h >= 16 && py - y0 < GLASS_SHEEN_ROWS;
     int xa = x0, xb = x1;
     if (cy_d) {  // a corner row: the corners blended, one pixel at a time, the middle below
       for (int side = 0; side < 2; side++) {
@@ -650,11 +677,14 @@ void SF32Display::glassFill(int x0, int y0, int x1, int y1, int radius, bool pop
           float cov = radius - sqrtf(dx * dx + dy * dy) + 0.5f;
           if (cov <= 0 || px < 0 || px >= PANEL_W) continue;
           if (layer) {
-            if (cov >= 0.5f && (!_clip_on || (px >= _clip_x0 && px < _clip_x1))) s_fb[py * PANEL_W + px] = GLASS_KEY;
+            if (cov >= 0.5f && (!_clip_on || (px >= _clip_x0 && px < _clip_x1))) {
+              uint16_t v = shine ? glass_sheen(py - y0, px, py) : 0;
+              s_fb[py * PANEL_W + px] = v ? v : GLASS_KEY;
+            }
             continue;
           }
           uint16_t f = py >= 0 && py < PANEL_H ? s_frost[py * PANEL_W + px] : 0;
-          _color = popup ? add565(f, lift) : f;
+          _color = shine ? add565(f, glass_sheen(py - y0, px, py)) : f;
           blendPixel(px, py, cov >= 1 ? 15 : (int)(cov * 15 + 0.5f));
         }
       }
@@ -667,15 +697,124 @@ void SF32Display::glassFill(int x0, int y0, int x1, int y1, int radius, bool pop
     if (xb <= xa) continue;
     uint16_t* d = s_fb + py * PANEL_W + xa;
     if (layer) {
-      for (int i = 0; i < xb - xa; i++) d[i] = GLASS_KEY;
-    } else if (popup) {
+      for (int i = 0; i < xb - xa; i++) {
+        uint16_t v = shine ? glass_sheen(py - y0, xa + i, py) : 0;
+        d[i] = v ? v : GLASS_KEY;
+      }
+    } else if (shine) {
       const uint16_t* f = s_frost + py * PANEL_W + xa;
-      for (int i = 0; i < xb - xa; i++) d[i] = add565(f[i], lift);
+      for (int i = 0; i < xb - xa; i++) d[i] = add565(f[i], glass_sheen(py - y0, xa + i, py));
     } else {
       memcpy(d, s_frost + py * PANEL_W + xa, (xb - xa) * 2);
     }
   }
   _color = saved;
+}
+
+// A popup over a page: real glass. Blurs what's actually behind it (the page too), with a soft
+// shadow under it so it floats. s_popup_fade: how far it has faded in.
+static float s_popup_fade = 1;
+void SF32Display::setPopupFade(float fade) { s_popup_fade = fade < 0 ? 0 : (fade > 1 ? 1 : fade); }
+
+void SF32Display::glassPopup(int x0, int y0, int x1, int y1, int radius) {
+  int w = x1 - x0, h = y1 - y0;
+  if (w <= 0 || h <= 0 || s_popup_fade <= 0) return;
+  if (radius * 2 > w) radius = w / 2;
+  if (radius * 2 > h) radius = h / 2;
+  const int fade = (int)(s_popup_fade * 15 + 0.5f);
+
+  // the frame behind it, a little beyond its edges, averaged down and blurred
+  const int M = 16;
+  int bx = x0 - M < 0 ? 0 : (x0 - M) & ~3, by = y0 - M < 0 ? 0 : (y0 - M) & ~3;
+  int gw = (x1 + M - bx) / 4 + 2, gh = (y1 + M - by) / 4 + 2;
+  if (gw > GLASS_GRID) gw = GLASS_GRID;
+  if (gh > GLASS_GRID) gh = GLASS_GRID;
+  uint8_t* g = s_glass_grid;
+  for (int gy = 0; gy < gh; gy++) {
+    int sy = by + gy * 4 > PANEL_H - 4 ? PANEL_H - 4 : by + gy * 4;
+    for (int gx = 0; gx < gw; gx++) {
+      int sx = bx + gx * 4 > PANEL_W - 4 ? PANEL_W - 4 : bx + gx * 4;
+      int sr = 0, sg = 0, sb = 0;
+      for (int j = 0; j < 4; j++) {
+        const uint16_t* row = s_fb + (sy + j) * PANEL_W + sx;
+        for (int i = 0; i < 4; i++) {
+          uint16_t p = row[i];
+          sr += (p >> 11) << 3; sg += ((p >> 5) & 0x3F) << 2; sb += (p & 0x1F) << 3;
+        }
+      }
+      *g++ = sr / 16; *g++ = sg / 16; *g++ = sb / 16;
+    }
+  }
+  for (int pass = 0; pass < 4; pass++) {
+    memcpy(s_glass_tmp, s_glass_grid, gw * gh * 3);
+    for (int gy = 0; gy < gh; gy++) {
+      for (int gx = 0; gx < gw; gx++) {
+        for (int k = 0; k < 3; k++) {
+          int sum = 0;
+          for (int dy = -1; dy <= 1; dy++) {
+            int yy = gy + dy < 0 ? 0 : (gy + dy >= gh ? gh - 1 : gy + dy);
+            for (int dx = -1; dx <= 1; dx++) {
+              int xx = gx + dx < 0 ? 0 : (gx + dx >= gw ? gw - 1 : gx + dx);
+              sum += s_glass_tmp[(yy * gw + xx) * 3 + k];
+            }
+          }
+          s_glass_grid[(gy * gw + gx) * 3 + k] = sum / 9;
+        }
+      }
+    }
+  }
+
+  // the shadow, drawn now that the blur has its copy
+  uint16_t saved = _color;
+  _color = 0;
+  const int S = 18, DROP = 6;
+  for (int py = y0 - S + DROP; py < y1 + S + DROP; py++) {
+    int dy = py - DROP < y0 + radius ? y0 + radius - (py - DROP) : (py - DROP >= y1 - radius ? py - DROP - (y1 - radius) + 1 : 0);
+    for (int px = x0 - S; px < x1 + S; px++) {
+      if (py >= y0 && py < y1 && px >= x0 && px < x1) { px = x1 - 1; continue; }  // under the pane
+      int dx = px < x0 + radius ? x0 + radius - px : (px >= x1 - radius ? px - (x1 - radius) + 1 : 0);
+      float d = ((dx && dy) ? sqrtf((float)(dx * dx + dy * dy)) : (float)(dx + dy)) - radius;
+      if (d >= S) continue;
+      float t = d <= 0 ? 1 : 1 - d / S;
+      blendPixel(px, py, (int)(t * t * 8 * s_popup_fade + 0.5f));
+    }
+  }
+
+  // the pane
+  uint32_t grain = 0x9E3779B9;
+  for (int py = y0; py < y1; py++) {
+    int cy_d = py < y0 + radius ? y0 + radius - py : (py >= y1 - radius ? py - (y1 - radius) + 1 : 0);
+    int ty = py - by, gy = ty / 4, fy = ty & 3;
+    if (gy < 0) { gy = 0; fy = 0; }
+    if (gy >= gh - 1) { gy = gh - 2; fy = 4; }
+    int a_sheen = py - y0 < GLASS_SHEEN_ROWS ? (GLASS_SHEEN_ROWS - (py - y0)) * 28 / GLASS_SHEEN_ROWS : 0;  // the sheen
+    for (int px = x0; px < x1; px++) {
+      int tx = px - bx, gx = tx / 4, fx = tx & 3;
+      if (gx < 0) { gx = 0; fx = 0; }
+      if (gx >= gw - 1) { gx = gw - 2; fx = 4; }
+      const uint8_t* a = s_glass_grid + (gy * gw + gx) * 3, *b = a + gw * 3;
+      grain ^= grain << 13; grain ^= grain >> 17; grain ^= grain << 5;
+      int n = (int)(grain & 7) - 3;
+      int c[3];
+      for (int k = 0; k < 3; k++) {
+        int top = a[k] * (4 - fx) + a[k + 3] * fx, bot = b[k] * (4 - fx) + b[k + 3] * fx;
+        c[k] = ((top * (4 - fy) + bot * fy) / 16) * 11 / 16 + 44 + n + a_sheen;  // a thicker veil than the cards
+      }
+      int cov = fade;
+      if (cy_d) {
+        int dx = px < x0 + radius ? x0 + radius - px : (px >= x1 - radius ? px - (x1 - radius) + 1 : 0);
+        if (dx) {
+          float ddx = dx - 0.5f, ddy = cy_d - 0.5f, e = radius - sqrtf(ddx * ddx + ddy * ddy) + 0.5f;
+          if (e <= 0) continue;
+          if (e < 1) cov = (int)(e * fade + 0.5f);
+        }
+      }
+      _color = glass_pixel(px, py, c[0], c[1], c[2]);
+      blendPixel(px, py, cov);
+    }
+  }
+  _color = saved;
+  if (radius) glassRim(x0, y0, x1, y1, radius, true);
 }
 
 // The pane's edge: light catching it, brightest along the top, from the left.
@@ -687,8 +826,9 @@ void SF32Display::glassRim(int x0, int y0, int x1, int y1, int radius, bool popu
   uint16_t saved = _color;
   _color = 0xFFFF;
   int boost = popup ? 3 : 0;
+  const float rim_fade = popup ? s_popup_fade : 1;
   for (int py = y0; py < y1; py++) {
-    int a = 2 + boost + (9 * (y1 - py)) / (h * 2);  // the sides: fading downward
+    int a = (int)((2 + boost + (9 * (y1 - py)) / (h * 2)) * rim_fade + 0.5f);  // the sides: fading downward
     int cy_d = py < y0 + radius ? y0 + radius - py : (py >= y1 - radius ? py - (y1 - radius) + 1 : 0);
     if (cy_d) {
       for (int side = 0; side < 2; side++) {
@@ -704,7 +844,7 @@ void SF32Display::glassRim(int x0, int y0, int x1, int y1, int radius, bool popu
       if (rows < (int)RIM) {  // the straight top or bottom edge
         bool top = py < y0 + radius;
         for (int px = x0 + radius; px < x1 - radius; px++) {
-          int along = top ? 11 + boost - (6 * (px - x0)) / w : 3 + boost;
+          int along = (int)((top ? 11 + boost - (6 * (px - x0)) / w : 3 + boost) * rim_fade + 0.5f);
           blendPixel(px, py, rows == 0 ? along : along / 2);
         }
       }
@@ -911,6 +1051,9 @@ void SF32Display::endFrame() {
   if (_transition != TRANSITION_NONE) {
     rt_tick_t t0 = rt_tick_get();
     animate(_transition);
+#ifdef SF32_REMOTE_TOUCH
+    sf32_anim_ms = (rt_tick_get() - t0) * 1000 / RT_TICK_PER_SECOND;
+#endif
 #ifdef SF32_FRAME_LOG
     rt_kprintf("transition %d: %d ms\n", _transition, (int)(rt_tick_get() - t0) * 1000 / RT_TICK_PER_SECOND);
 #else
@@ -930,7 +1073,12 @@ void SF32Display::endFrame() {
       flush(s_fb);
       waitFlush();
     }
-    rt_device_control(_lcd, RTGRAPHIC_CTRL_SET_BRIGHTNESS, &_brightness);
+    for (int i = 1; i <= FADE_STEPS; i++) {  // fade up (squared: brightness looks linear that way)
+      uint8_t b = (uint8_t)(_brightness * i * i / (FADE_STEPS * FADE_STEPS));
+      if (b < 1) b = 1;
+      rt_device_control(_lcd, RTGRAPHIC_CTRL_SET_BRIGHTNESS, &b);
+      if (i < FADE_STEPS) rt_thread_mdelay(FADE_STEP_MS);
+    }
   }
   uint16_t* t = s_shown;  // the new frame is now the shown one
   s_shown = s_fb;
@@ -940,11 +1088,23 @@ void SF32Display::endFrame() {
 
 // Slides from the shown frame to the new one (s_fb): the new frame pushes the old one
 // out in the given direction, ease-out. The last step is the new frame itself (endFrame).
+// One row of a sliding frame in the Glass style: the wallpaper holds still and only what's on
+// it moves, and panes frost whatever they're passing over.
+static inline void glass_slide_span(uint16_t* out, const uint16_t* src, const uint16_t* wall_s, const uint16_t* frost_s,
+                                    const uint16_t* wall_d, const uint16_t* frost_d, int n) {
+  for (int i = 0; i < n; i++) {
+    uint16_t p = src[i];
+    out[i] = p == wall_s[i] ? wall_d[i] : (p == frost_s[i] ? frost_d[i] : p);
+  }
+}
+
 void SF32Display::animate(Transition dir) {
   const int W = PANEL_W, Hh = PANEL_H;
+  const bool glass = glassActive();
   for (int i = 1; i < ANIM_STEPS; i++) {
     float t = (float)i / ANIM_STEPS;
-    float e = 1 - (1 - t) * (1 - t) * (1 - t);
+    // soft start, long settle: half ease-in-out, half ease-out
+    float e = 0.5f * t * t * (3 - 2 * t) + 0.5f * (1 - (1 - t) * (1 - t) * (1 - t));
     uint16_t* out = s_fb_anim;
     waitFlush();  // the previous step is still being sent from s_fb_anim (composing during
                   // a send also slows the send: they share the PSRAM)
@@ -954,7 +1114,16 @@ void SF32Display::animate(Transition dir) {
         uint16_t* o = out + y * W;
         const uint16_t* oldr = s_shown + y * W;
         const uint16_t* newr = s_fb + y * W;
-        if (dir == TRANSITION_LEFT) {  // new page comes in from the right
+        if (glass) {
+          const uint16_t* wr = s_wall + y * W, *fr = s_frost + y * W;
+          if (dir == TRANSITION_LEFT) {
+            glass_slide_span(o, oldr + off, wr + off, fr + off, wr, fr, W - off);
+            glass_slide_span(o + W - off, newr, wr, fr, wr + W - off, fr + W - off, off);
+          } else {
+            glass_slide_span(o, newr + W - off, wr + W - off, fr + W - off, wr, fr, off);
+            glass_slide_span(o + off, oldr, wr, fr, wr + off, fr + off, W - off);
+          }
+        } else if (dir == TRANSITION_LEFT) {  // new page comes in from the right
           memcpy(o, oldr + off, (W - off) * 2);
           memcpy(o + W - off, newr, off * 2);
         } else {                       // new page comes in from the left
@@ -964,7 +1133,15 @@ void SF32Display::animate(Transition dir) {
       }
     } else {
       int off = (int)(e * Hh + 0.5f);
-      if (dir == TRANSITION_UP) {  // new screen comes up from the bottom
+      if (glass) {
+        for (int y = 0; y < Hh; y++) {
+          // which frame this row comes from, and which of its rows
+          int sy; const uint16_t* f;
+          if (dir == TRANSITION_UP) { f = y < Hh - off ? s_shown : s_fb; sy = y < Hh - off ? y + off : y - (Hh - off); }
+          else { f = y < off ? s_fb : s_shown; sy = y < off ? y + Hh - off : y - off; }
+          glass_slide_span(out + y * W, f + sy * W, s_wall + sy * W, s_frost + sy * W, s_wall + y * W, s_frost + y * W, W);
+        }
+      } else if (dir == TRANSITION_UP) {  // new screen comes up from the bottom
         memcpy(out, s_shown + off * W, (Hh - off) * W * 2);
         memcpy(out + (Hh - off) * W, s_fb, off * W * 2);
       } else {                     // new screen comes down from the top

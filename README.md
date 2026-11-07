@@ -365,7 +365,7 @@ menu > **Long press** picks what its long press sends.
 <summary><b>Display, sound and motion options</b></summary>
 
 - **Glass style** (Settings > Theme): a wallpaper in the theme's colours (Aurora, Dunes or
-  Gradient), with cards as lightly frosted panes. It lights more of the screen than Normal, so it uses more power while the
+  Gradient), with cards as frosted panes and popups that blur what's behind them. It lights more of the screen than Normal, so it uses more power while the
   screen is on. The always-on clock stays on black.
 - **Themes**: MeshCore blue, cyan, teal, green, purple, pink, red, orange, mono, and
   Rainbow (every page in its own hue).

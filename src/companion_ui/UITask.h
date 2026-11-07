@@ -100,7 +100,8 @@ class UITask : public AbstractUITask {
   NodePrefs* _node_prefs;
   char _alert[80];
   char _banner_from[32], _banner_text[96];  // SF32: new message banner (showNewMessage)
-  unsigned long _banner_expiry = 0;
+  unsigned long _banner_expiry = 0, _banner_start = 0, _alert_start = 0;  // SF32: popups ease in and out
+  bool _banner_first = false, _alert_first = false;
   float _hold_frac = 0;     // SF32: hold on the clock to change its face: the ring's progress
   bool _hold_done = false;  //   (the face changed during this hold)
   unsigned long _alert_expiry;

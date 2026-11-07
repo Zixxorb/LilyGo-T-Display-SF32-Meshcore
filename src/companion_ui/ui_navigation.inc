@@ -13,9 +13,11 @@ void UITask::openMenu(MenuKind kind) {
     _menu_return = curr;
     // swipe down: the power menu comes down from the top; swipe up: page menu from below
     _menu_open_dir = kind == MENU_POWER ? SF32Display::TRANSITION_DOWN : SF32Display::TRANSITION_UP;
-    d->setTransition((SF32Display::Transition)_menu_open_dir);
-  } else if (kind != _menu_kind) {  // deeper: from the right; back to the parent: from the left
-    d->setTransition(kind == menuParent(_menu_kind) ? SF32Display::TRANSITION_RIGHT : SF32Display::TRANSITION_LEFT);
+    // the power menu slides down from the top; the others' rows glide in, one after another
+    if (kind == MENU_POWER) d->setTransition((SF32Display::Transition)_menu_open_dir);
+    else m->startEnter();
+  } else if (kind != _menu_kind) {
+    m->startEnter();
   }
   _menu_kind = kind;
   m->setHandle(kind == MENU_POWER);  // came down from the top: swipe up to close
