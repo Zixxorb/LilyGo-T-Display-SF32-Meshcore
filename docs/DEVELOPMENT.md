@@ -123,9 +123,11 @@ and EPIC takes 2 layers plus a mask per operation, so a Glass list takes two ope
 
 **Page drag** (`UITask::pageDrag`): past 26 px sideways (beyond what still counts as a tap), the page sticks to the finger. The page
 coming in is rendered once, off screen (again if the finger crosses back over its start), and each
-move just sends the two frames at the new offset. Let go past a third of the way, or with a flick,
-and it goes on; otherwise it springs back. `tools/touch.sh drag` drives it in debug builds, but
+move just sends the two frames at the new offset. Let go past a third of the way, with a flick, or
+after a quick swipe (60 px in under 350 ms) and it goes on; otherwise it springs back. Moves can
+arrive in a batch while the page is being drawn, so the whole touch counts, not only the last speed. `tools/touch.sh drag` drives it in debug builds, but
 screenshots read the last whole frame, so mid-drag frames can only be judged on the panel.
+`tools/frames.sh` prints recent frame times in debug builds.
 
 Before flashing, `flash.sh` saves what the board holds in RAM (`tools/savelogs.sh`, into
 `board-logs/`, not in git): raw dumps of the sleep counters, test log, battery history and UI

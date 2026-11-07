@@ -73,6 +73,7 @@ void SF32TouchInput::update() {
       _y = rc & 0xFFF;
     } else if (kind == 8) {  // that finger lifts
       _release_vx = 0;
+      _touch_ms = millis() - _down_at;
       if (_down && !_consumed && display.isOn() && _direct) { _tap_pending = true; _tap_x = _x0; _tap_y = _y0; }
       _down = false;
       _consumed = false;
@@ -116,6 +117,7 @@ void SF32TouchInput::update() {
       _hist_t[k] = millis();
     } else if (m.event == TOUCH_EVENT_UP && _down) {
       _down = false;
+      _touch_ms = millis() - _down_at;
       _release_vx = 0;  // (before the rest: a page being dragged has taken the touch over)
       if (_hist_n >= 2) {
         int newest = (_hist_n - 1) % 4, oldest = (_hist_n >= 4 ? _hist_n - 4 : 0) % 4;

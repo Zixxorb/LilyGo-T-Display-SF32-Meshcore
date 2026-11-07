@@ -462,6 +462,9 @@ bool MenuScreen::handleInput(char c) {
 // third of the way, or with a flick, and it goes on to that page; otherwise it springs back.
 #define PAGE_DRAG_SLOP   26     // panel px before it counts: past what still counts as a tap (TAP_MAX_PX)
 #define PAGE_DRAG_FLICK  0.35f  // panel px per ms
+#define PAGE_SWIPE_MIN   60     // panel px: a quick touch this far is a swipe, whatever was shown
+#define PAGE_SWIPE_MS    350
+#define MENU_SWIPE_MIN   60     // panel px up or down on a page: the menu opens, finger still down
 void UITask::pageDrag() {
   HomeScreen* h = (HomeScreen*)home;
   SF32Display* d = (SF32Display*)_display;
@@ -499,14 +502,29 @@ void UITask::pageDrag() {
     }
     return;
   }
-  // let go
+  // let go. Moves can arrive all at once (the UI was busy drawing the page coming in), with no
+  // speed to read and maybe nothing shown yet, so judge by the whole touch as well: a quick swipe
+  // always counts, as it did before pages followed the finger.
   _drag_on = false;
   _next_refresh = 0;
-  if (!_drag_dir) return;
+  int dx = touch_input.fingerX() - touch_input.fingerX0();
+  int dir = dx < 0 ? 1 : -1;
+  unsigned long ms = touch_input.lastTouchMs();
+  bool quick = abs(dx) >= PAGE_SWIPE_MIN && ms < PAGE_SWIPE_MS;
+  if (!_drag_dir) {  // it never got as far as showing anything
+    if (quick) {
+      h->dragStep(dir);
+      d->setTransition(dir > 0 ? SF32Display::TRANSITION_LEFT : SF32Display::TRANSITION_RIGHT);
+      touch_input.click(2);
+    }
+    return;
+  }
   float v = touch_input.releaseVelocityX();  // < 0: going left
+  if (v == 0 && ms > 0) v = (float)dx / ms;
   bool flick = _drag_dir > 0 ? v < -PAGE_DRAG_FLICK : v > PAGE_DRAG_FLICK;
   bool back_flick = _drag_dir > 0 ? v > PAGE_DRAG_FLICK : v < -PAGE_DRAG_FLICK;
-  bool commit = !back_flick && (flick || _drag_off > 480 / 3);
+  bool past = dir == _drag_dir && abs(dx) - PAGE_DRAG_SLOP > 480 / 3;
+  bool commit = !back_flick && (flick || past || (quick && dir == _drag_dir));
   d->dragSettle(_drag_off, _drag_dir > 0, commit);
   if (commit) touch_input.click(2);
   else h->dragStep(-_drag_dir);
@@ -556,6 +574,17 @@ void UITask::handleTouchMenus() {
   }
 
   if (curr == home && !_aod) pageDrag();
+  // Up or down on a page: the menu opens as soon as it's clearly that, not when the finger lifts.
+  if (curr == home && !_aod && !_drag_on && _hold_frac == 0 && !_hold_done && touch_input.fingerDown() && !touch_input.touchConsumed()) {
+    int mdx = touch_input.fingerX() - touch_input.fingerX0(), mdy = touch_input.fingerY() - touch_input.fingerY0();
+    if (abs(mdy) >= MENU_SWIPE_MIN && abs(mdy) > 2 * abs(mdx)) {
+      touch_input.consumeTouch();
+      touch_input.click(2);
+      openMenu(mdy > 0 ? MENU_POWER : MENU_PAGE);
+      _auto_off = millis() + autoOffMillis();
+      _next_refresh = 0;
+    }
+  }
 
   // Long lists (Settings, About): the finger drags them, a flick glides on.
   DragScroll* ds = NULL;
@@ -563,7 +592,9 @@ void UITask::handleTouchMenus() {
   else if (curr == about_screen && ((AboutScreen*)about_screen)->scrolls()) ds = &((AboutScreen*)about_screen)->drag();
   else if (curr == logs_screen && !((LogScreen*)logs_screen)->inDetail()) ds = &((LogScreen*)logs_screen)->drag();
   if (ds) {
-    if (touch_input.fingerDown()) {
+    if (touch_input.fingerDown() && touch_input.touchConsumed()) {
+      // the touch that opened this menu: it doesn't drag the list as well
+    } else if (touch_input.fingerDown()) {
       if (!ds->active) ds->begin();
       // follow the finger after a small dead zone (taken off: no jump), so a tap doesn't move the list
       int dy = touch_input.fingerY() - touch_input.fingerY0();

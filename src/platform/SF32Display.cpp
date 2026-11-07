@@ -552,7 +552,8 @@ static void frame_from(const uint16_t* src) {
 }
 static void frame_black() {
 #ifdef SF32_GFX_HW
-  static const uint32_t zero = 0;
+  static uint32_t zero = 0;  // in RAM: not const, which would put it in flash, very slow for DMA
+  mpu_dcache_clean(&zero, 4);
   mpu_dcache_clean((void*)s_fb, FB_PIXELS * 2);
   if (EXT_DMA_Config(0, 1) == RT_EOK && EXT_DMA_TRANS_SYNC((uint32_t)&zero, (uint32_t)s_fb, FB_PIXELS / 2, 200) == RT_EOK) {
     mpu_dcache_invalidate((void*)s_fb, FB_PIXELS * 2);
@@ -677,7 +678,16 @@ bool SF32Display::composeList(int, int, int) { return false; }
 #endif
 
 
+#ifdef SF32_REMOTE_TOUCH
+// Debug builds: recent frames, for tools/frames.sh. Gap since the last frame, and time to draw.
+extern "C" { volatile uint32_t sf32_gaps[32] = {0}, sf32_draws[32] = {0}, sf32_frame_n = 0; }
+static rt_tick_t s_last_end = 0, s_frame_t0 = 0;
+#endif
+
 void SF32Display::startFrame(ColorVal bkg) {
+#ifdef SF32_REMOTE_TOUCH
+  s_frame_t0 = rt_tick_get();
+#endif
   setSquareLayout(false);
   _clip_on = false;
   _list_frame = _list_next && _transition == TRANSITION_NONE && !_wake_pending;
@@ -1248,6 +1258,10 @@ uint16_t SF32Display::getTextWidth(const char* str) {
 
 void SF32Display::endFrame() {
   if (!_lcd || !_on) return;
+#ifdef SF32_REMOTE_TOUCH
+  { uint32_t k = sf32_frame_n++ & 31; rt_tick_t now = rt_tick_get();
+    sf32_gaps[k] = now - s_last_end; sf32_draws[k] = now - s_frame_t0; s_last_end = now; }
+#endif
   if (_wake_pending) _transition = TRANSITION_NONE;  // first frame after waking: no slide
   if (_transition != TRANSITION_NONE) {
     rt_tick_t t0 = rt_tick_get();

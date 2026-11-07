@@ -120,6 +120,7 @@ public:
     _ds.max = maxScroll();
     bool moving = _ds.step();
     SF32Display& sd = (SF32Display&)display;
+    if (_entering && sd.transitionPending()) _entering = false;  // a slide instead: no glide on top
 
     // The rows live in the layer, redrawn only when they change. A new list draws just the
     // rows in view first (it appears sooner), then the rest a few per frame. A label too
@@ -148,14 +149,15 @@ public:
         _marquee_set = false;
         sd.beginLayer(_n * (ROW_H + ROW_GAP), false);  // each row clears its own strip
         _layer_gen = sd.layerGen();
-        for (int i = first; i <= last && i < _n; i++) drawRow(display, i);
+        // (gliding in: each row is drawn when its turn comes, so the first frame comes at once)
+        if (!_entering) for (int i = first; i <= last && i < _n; i++) drawRow(display, i);
         sd.endLayer();
       }
       memcpy(_shown, _items, sizeof(Item) * _n);
       _shown_n = _n;
       _shown_sel = _sel;
     }
-    if (!fresh) {
+    if (!fresh && !_entering) {  // (nothing else while rows glide in: the frames are for that)
       bool urgent = _ds.active || moving;  // scrolling: the rest are needed now
       // only the list changes while it scrolls: send just its band to the panel
       if (urgent) sd.setFlushBand(LIST_Y, LIST_H);
@@ -176,15 +178,19 @@ public:
 #ifdef SF32_FRAME_LOG
     rt_tick_t m2 = rt_tick_get();
 #endif
-    if (_entering && sd.transitionPending()) _entering = false;  // a slide instead: no glide on top
     if (_entering) {
       // rows glide up into place, one after another
       unsigned long el = millis() - _enter_at;
       bool busy = false;
       for (int i = first, k = 0; i <= last && i < _n; i++, k++) {
-        long since = (long)el - k * 45;
+        long since = (long)el - k * 30;
         if (since <= 0) { busy = true; continue; }
-        float t = since / 190.0f;
+        if (!(_drawn & (1UL << i))) {  // its turn
+          sd.resumeLayer();
+          drawRow(display, i);
+          sd.endLayer();
+        }
+        float t = since / 150.0f;
         if (t < 1) busy = true; else t = 1;
         int y = rowY(i) + (int)((1 - t) * (1 - t) * (1 - t) * 24 + 0.5f), h = ROW_H, src = i * (ROW_H + ROW_GAP);
         if (y < LIST_Y) { h -= LIST_Y - y; src += LIST_Y - y; y = LIST_Y; }

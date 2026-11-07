@@ -53,6 +53,7 @@ public:
   // Vertical speed (panel px per ms) when the finger last lifted, for flick scrolling.
   float releaseVelocity() const { return _release_vy; }
   float releaseVelocityX() const { return _release_vx; }  // the same, sideways
+  unsigned long lastTouchMs() const { return _touch_ms; }  // how long the last touch lasted
 
 private:
   void update();
@@ -66,6 +67,7 @@ private:
   unsigned long _hist_t[4] = {0, 0, 0, 0};
   int _hist_n = 0;
   float _release_vy = 0, _release_vx = 0;
+  unsigned long _touch_ms = 0;
   int _x0 = 0, _y0 = 0, _x = 0, _y = 0;
   unsigned long _down_at = 0;
   // tap replay
