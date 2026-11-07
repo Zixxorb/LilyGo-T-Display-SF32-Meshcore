@@ -358,7 +358,8 @@ static void glass_build() {
   }
   // With no backdrop there's nothing to frost: the panes are just the veil, tinted by the theme.
   int tint[3] = {0, 0, 0};
-  if (s_glass_bg == 3) for (int k = 0; k < 3; k++) tint[k] = (int)(unit[0][k] * 0.07f);
+  // (Rainbow gives each page its own colour, so one tint would be wrong on all of them: none.)
+  if (s_glass_bg == 3 && !s_glass_multi) for (int k = 0; k < 3; k++) tint[k] = (int)(unit[0][k] * 0.07f);
   uint16_t* f = s_frost;
   uint32_t grain = 0x2545F491;
   for (int y = 0; y < PANEL_H; y++) {
