@@ -180,7 +180,7 @@ on the clock. Long lists follow your finger and glide after a flick.
 | **Heard** | Recently heard nodes |
 | **Radio** | Frequency, BW, SF, CR, TX power, noise floor. Menu: edit radio, band scan |
 | **Bluetooth** | Connection; menu: turn off, forget paired phones |
-| **Advert** | Send an advert (long press: nearby or whole mesh, your choice) |
+| **Advert** | Send an advert (tap the icon or long press button A: nearby or whole mesh, your choice) |
 | **Bot** | Optional auto-reply to senders using 1-byte path hashes (off by default) |
 | **Discover** | Scan for nearby nodes |
 | **Signal** | Signal tester and repeater finder |
