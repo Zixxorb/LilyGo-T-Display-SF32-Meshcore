@@ -6,7 +6,7 @@
 # must be the flashed build.
 cd "$(dirname "$0")/.."
 source ./env.sh >/dev/null 2>&1
-elf=project_companion/build_t-display-sf32_hcpu/main.elf
+elf="${ELF:-project_companion/build_t-display-sf32_hcpu/main.elf}"
 addr=$(arm-none-eabi-nm "$elf" | awk '/ sf32_ab_log$/{print $1}')
 [ -n "$addr" ] || { echo "no sf32_ab_log in this build (build with SF32_RADIO_AB=1 or SF32_SLEEP_AB=1)"; exit 1; }
 if arm-none-eabi-nm "$elf" | grep -q sf32_radio_ab_off; then export AB_A="radio on" AB_B="radio OFF"; else export AB_A="light sleep" AB_B="DEEP sleep"; fi

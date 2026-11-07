@@ -14,3 +14,7 @@ shots/
 # CI (ci/build-all.sh)
 .ci/
 dist/
+
+# board data saved before flashing (tools/savelogs.sh), the flashed ELF
+board-logs/
+.flashed/

@@ -62,6 +62,11 @@ L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint16_t s_fb_anim[FB_PIXELS]);
 // Off-screen layer for scrolling lists: drawn once, then slices are copied into frames.
 #define LAYER_ROWS 2600  // panel px (~742 logical px of list: the 20 log entries are 680)
 L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint16_t s_layer[PANEL_W * LAYER_ROWS]);
+// The Glass style (setGlass): the wallpaper, and the same picture frosted (what cards show).
+#define GLASS_GRID 61  // the frosted picture is worked out on this grid (8 px cells), then smoothed
+L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint16_t s_wall[FB_PIXELS]);
+L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint16_t s_frost[FB_PIXELS]);
+L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint8_t s_glass_grid[GLASS_GRID * GLASS_GRID * 3]);
 L2_NON_RET_BSS_SECT_END
 static uint16_t* s_fb = s_fb_a;     // frame being drawn
 static uint16_t* s_shown = s_fb_b;  // frame on the panel
@@ -76,6 +81,8 @@ static rt_err_t on_flush_done(rt_device_t, void*) {
   rt_sem_release(&s_flush_done);
   return RT_EOK;
 }
+
+static void glass_check();  // the Glass pictures are intact? (setGlass)
 
 bool SF32Display::begin() {
   _lcd = rt_device_find("lcd");
@@ -104,6 +111,7 @@ void SF32Display::turnOn() {
     uint8_t dark = 0;
     rt_device_control(_lcd, RTGRAPHIC_CTRL_SET_BRIGHTNESS, &dark);
     _wake_pending = true;
+    glass_check();
   }
   _on = true;
 }
@@ -168,6 +176,156 @@ void SF32Display::turnOff() {
   _on = false;
   _transition = TRANSITION_NONE;
 }
+
+// ---- the Glass style ----
+#define GLASS_KEY     0x0841  // in a layer: "a pane here", frosted when the layer is composed
+#define GLASS_RADIUS  13
+static bool s_glass_on = false, s_glass_paused = false, s_glass_multi = false;
+static uint16_t s_glass_accent = 0;
+static uint32_t s_glass_sum = 0;
+static inline bool glassActive() { return s_glass_on && !s_glass_paused; }
+
+static inline uint16_t add565(uint16_t a, uint16_t b) {
+  int r = (a >> 11) + (b >> 11), g = ((a >> 5) & 0x3F) + ((b >> 5) & 0x3F), bl = (a & 0x1F) + (b & 0x1F);
+  return (uint16_t)(((r > 31 ? 31 : r) << 11) | ((g > 63 ? 63 : g) << 5) | (bl > 31 ? 31 : bl));
+}
+
+static void glass_hsv(float h, float s, float v, float* rgb) {  // 0..255
+  h = fmodf(h, 360.0f);
+  if (h < 0) h += 360.0f;
+  float c = v * s, x = c * (1 - fabsf(fmodf(h / 60.0f, 2) - 1)), m = v - c;
+  float r = 0, g = 0, b = 0;
+  if (h < 60) { r = c; g = x; } else if (h < 120) { r = x; g = c; } else if (h < 180) { g = c; b = x; }
+  else if (h < 240) { g = x; b = c; } else if (h < 300) { r = x; b = c; } else { r = c; b = x; }
+  rgb[0] = (r + m) * 255; rgb[1] = (g + m) * 255; rgb[2] = (b + m) * 255;
+}
+
+// Ordered dither, so the slow gradients don't show bands in 16-bit colour.
+static const uint8_t BAYER4[16] = {0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5};
+static inline uint16_t glass_pixel(int x, int y, int r, int g, int b) {
+  int d = BAYER4[(y & 3) * 4 + (x & 3)];
+  r += d / 2; g += d / 4; b += d / 2;
+  r = r < 0 ? 0 : (r > 255 ? 255 : r); g = g < 0 ? 0 : (g > 255 ? 255 : g); b = b < 0 ? 0 : (b > 255 ? 255 : b);
+  return (uint16_t)(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3));
+}
+
+struct GlassOrb { float x, y, r, hue, v; };
+static const GlassOrb GLASS_ORBS[] = {
+  {135, 140, 175,   0, 0.48f},
+  {375, 205, 125,  48, 0.40f},
+  {270, 405, 150, -42, 0.36f},
+  { 55, 395,  70,  22, 0.24f},
+};
+#define GLASS_ORB_N 4
+static const float GLASS_MULTI_HUE[GLASS_ORB_N] = {300, 190, 40, 120};  // Rainbow: its own hues
+
+static uint32_t glass_sum() {  // a quick sample of both pictures (setGlass, glass_check)
+  uint32_t sum = 0;
+  for (int i = 0; i < 64; i++) {
+    int p = (i * 3607 + 11) % FB_PIXELS;
+    sum = sum * 31 + s_wall[p] + ((uint32_t)s_frost[p] << 16);
+  }
+  return sum;
+}
+
+// The picture at (x, y): the orbs over a dark base. edge: how soft their edges are, as a part of
+// each one's radius plus `edge_px` (the wallpaper nearly sharp, the frost melted together).
+static void glass_colour(float x, float y, float edge, float edge_px, const float base[3],
+                         const float colors[GLASS_ORB_N][3], float* out) {
+  float fade = 1.0f - y / 480 * 0.55f;
+  out[0] = base[0] * fade; out[1] = base[1] * fade; out[2] = base[2] * fade;
+  for (int i = 0; i < GLASS_ORB_N; i++) {
+    const GlassOrb& o = GLASS_ORBS[i];
+    float e = o.r * edge + edge_px, dx = x - o.x, dy = y - o.y, d2 = dx * dx + dy * dy;
+    if (d2 >= (o.r + e) * (o.r + e)) continue;
+    float d = sqrtf(d2), a = (o.r + e - d) / (2 * e);
+    if (a > 1) a = 1;
+    a = a * a * (3 - 2 * a);
+    // lit from the top left, a little brighter toward its rim
+    float shade = 0.70f + 0.30f * (d / o.r) - (dx + dy) / o.r * 0.12f;
+    if (shade < 0.2f) shade = 0.2f;
+    if (shade > 1.2f) shade = 1.2f;
+    a *= shade;
+    for (int k = 0; k < 3; k++) {  // "screen": overlaps get lighter, never clip
+      float c = colors[i][k] * a;
+      out[k] = out[k] + c - out[k] * c / 255;
+    }
+  }
+}
+
+static void glass_build() {
+  float r0 = ((s_glass_accent >> 11) & 0x1F) / 31.0f, g0 = ((s_glass_accent >> 5) & 0x3F) / 63.0f, b0 = (s_glass_accent & 0x1F) / 31.0f;
+  float mx = fmaxf(r0, fmaxf(g0, b0)), mn = fminf(r0, fminf(g0, b0)), dl = mx - mn, hue = 0;
+  if (dl > 0.001f) {
+    if (mx == r0) hue = 60 * fmodf((g0 - b0) / dl + 6, 6);
+    else if (mx == g0) hue = 60 * ((b0 - r0) / dl + 2);
+    else hue = 60 * ((r0 - g0) / dl + 4);
+  }
+  float sat = (mx > 0 && dl / mx < 0.15f) ? 0.0f : 0.78f;  // the Mono theme stays grey
+  float base[3], colors[GLASS_ORB_N][3];
+  glass_hsv(hue, sat * 0.7f, 0.10f, base);
+  for (int i = 0; i < GLASS_ORB_N; i++) {
+    float h = s_glass_multi ? GLASS_MULTI_HUE[i] : hue + GLASS_ORBS[i].hue;
+    glass_hsv(h, sat, GLASS_ORBS[i].v, colors[i]);
+  }
+
+  // the frosted picture on a coarse grid: melted edges, dimmed, a veil of light over it
+  float px[3];
+  uint8_t* g = s_glass_grid;
+  for (int gy = 0; gy < GLASS_GRID; gy++) {
+    for (int gx = 0; gx < GLASS_GRID; gx++) {
+      glass_colour(gx * 8.0f, gy * 8.0f, 0.75f, 0, base, colors, px);
+      for (int k = 0; k < 3; k++) {
+        float v = px[k] * 0.66f + 30;
+        *g++ = (uint8_t)(v > 255 ? 255 : v);
+      }
+    }
+  }
+
+  uint16_t* w = s_wall;
+  uint16_t* f = s_frost;
+  uint32_t grain = 0x2545F491;
+  for (int y = 0; y < PANEL_H; y++) {
+    int gy = y / 8, ty = y & 7;
+    if (gy >= GLASS_GRID - 1) { gy = GLASS_GRID - 2; ty = 8; }
+    const uint8_t* row0 = s_glass_grid + gy * GLASS_GRID * 3;
+    const uint8_t* row1 = row0 + GLASS_GRID * 3;
+    for (int x = 0; x < PANEL_W; x++) {
+      glass_colour(x, y, 0, 2.5f, base, colors, px);
+      *w++ = glass_pixel(x, y, (int)px[0], (int)px[1], (int)px[2]);
+
+      int gx = x / 8, tx = x & 7;
+      if (gx >= GLASS_GRID - 1) { gx = GLASS_GRID - 2; tx = 8; }
+      const uint8_t* a = row0 + gx * 3, *b = row1 + gx * 3;
+      int c[3];
+      for (int k = 0; k < 3; k++) {
+        int top = a[k] * (8 - tx) + a[k + 3] * tx, bot = b[k] * (8 - tx) + b[k + 3] * tx;
+        c[k] = (top * (8 - ty) + bot * ty) / 64;
+      }
+      // a fine grain over the frost: the same in all channels, like the texture of the glass
+      grain ^= grain << 13; grain ^= grain >> 17; grain ^= grain << 5;
+      int n = (int)(grain & 7) - 3;
+      *f++ = glass_pixel(x, y, c[0] + n, c[1] + n, c[2] + n);
+    }
+  }
+  s_glass_sum = glass_sum();
+}
+
+// Screen back on: if a sleep cost us the pictures (they live in PSRAM), make them again.
+static void glass_check() {
+  if (s_glass_on && glass_sum() != s_glass_sum) glass_build();
+}
+
+void SF32Display::setGlass(bool on, uint16_t accent, bool multi) {
+  bool same = s_glass_sum && accent == s_glass_accent && multi == s_glass_multi;
+  s_glass_accent = accent;
+  s_glass_multi = multi;
+  s_glass_on = on;
+  if (on && !same) glass_build();
+}
+
+bool SF32Display::glassOn() const { return glassActive(); }
+void SF32Display::setGlassPaused(bool paused) { s_glass_paused = paused; }
 
 // Fill n pixels with one colour, two at a time (much faster than 16-bit stores).
 static void fill16(uint16_t* p, ColorVal c, int n) {
@@ -235,6 +393,22 @@ void SF32Display::composeLayer(int x, int y, int w, int h, int src_px) {
   int x0 = px_x(x), x1 = px_x(x + w), y0 = px_y(y), y1 = px_y(y + h);
   if (x0 < 0) x0 = 0;
   if (x1 > PANEL_W) x1 = PANEL_W;
+  if (glassActive()) {  // the wallpaper stays fixed behind the list, panes frost what's under them
+    for (int py = y0; py < y1; py++) {
+      if (py < 0 || py >= PANEL_H) continue;
+      int src = src_px + (py - y0);
+      if (src < 0 || src >= s_layer_h) continue;
+      const uint16_t* from = s_layer + src * PANEL_W;
+      uint16_t* dst = s_fb + py * PANEL_W;
+      const uint16_t* frost = s_frost + py * PANEL_W;
+      for (int i = x0; i < x1; i++) {
+        uint16_t p = from[i];
+        if (p == 0) continue;
+        dst[i] = p == GLASS_KEY ? frost[i] : add565(frost[i], p);
+      }
+    }
+    return;
+  }
   for (int py = y0; py < y1; py++) {
     if (py < 0 || py >= PANEL_H) continue;
     int src = src_px + (py - y0);
@@ -252,7 +426,8 @@ void SF32Display::setSquareLayout(bool square) {
 void SF32Display::startFrame(ColorVal bkg) {
   setSquareLayout(false);
   _clip_on = false;
-  fill16(s_fb, bkg, PANEL_W * PANEL_H);
+  if (glassActive() && bkg == UIColor::window_bkg) memcpy(s_fb, s_wall, sizeof(s_wall));
+  else fill16(s_fb, bkg, PANEL_W * PANEL_H);
   _color = UIColor::primary_txt;
   _text_size = 1;
   _cx = _cy = 0;
@@ -391,7 +566,105 @@ void SF32Display::fillRect(int x, int y, int w, int h) {
   } else if (w >= 24 && h >= 8) {
     radius = PANEL_RADIUS;   // title bar, popups
   }
+  if (glassActive() && w >= 6 && h >= 3 && (_color == UIColor::title_bkg || _color == UIColor::popup_bkg)) {
+    if (radius) radius = GLASS_RADIUS;
+    bool popup = _color == UIColor::popup_bkg;
+    glassFill(x0, y0, x1, y1, radius, popup);
+    if (radius) glassRim(x0, y0, x1, y1, radius, popup);
+    return;
+  }
   fillPhys(x0, y0, x1, y1, radius);
+}
+
+// A pane: the frosted picture through a rounded rectangle (in a layer: marked, frosted when
+// composed, so it stays true to what's behind it while the list scrolls).
+void SF32Display::glassFill(int x0, int y0, int x1, int y1, int radius, bool popup) {
+  int w = x1 - x0, h = y1 - y0;
+  if (w <= 0 || h <= 0) return;
+  if (radius * 2 > w) radius = w / 2;
+  if (radius * 2 > h) radius = h / 2;
+  bool layer = s_fb == s_layer;
+  const uint16_t lift = 0x18C3;  // popups: lighter, to stand out from the cards under them
+  uint16_t saved = _color;
+  for (int py = y0; py < y1; py++) {
+    if (py < OFFSET_Y || py >= OFFSET_Y + AREA_H) continue;
+    if (_clip_on && (py < _clip_y0 || py >= _clip_y1)) continue;
+    int cy_d = py < y0 + radius ? y0 + radius - py : (py >= y1 - radius ? py - (y1 - radius) + 1 : 0);
+    int xa = x0, xb = x1;
+    if (cy_d) {  // a corner row: the corners blended, one pixel at a time, the middle below
+      for (int side = 0; side < 2; side++) {
+        for (int i = 0; i < radius; i++) {
+          int px = side ? x1 - 1 - i : x0 + i;
+          float dx = radius - i - 0.5f, dy = cy_d - 0.5f;
+          float cov = radius - sqrtf(dx * dx + dy * dy) + 0.5f;
+          if (cov <= 0 || px < 0 || px >= PANEL_W) continue;
+          if (layer) {
+            if (cov >= 0.5f && (!_clip_on || (px >= _clip_x0 && px < _clip_x1))) s_fb[py * PANEL_W + px] = GLASS_KEY;
+            continue;
+          }
+          uint16_t f = py >= 0 && py < PANEL_H ? s_frost[py * PANEL_W + px] : 0;
+          _color = popup ? add565(f, lift) : f;
+          blendPixel(px, py, cov >= 1 ? 15 : (int)(cov * 15 + 0.5f));
+        }
+      }
+      xa = x0 + radius;
+      xb = x1 - radius;
+    }
+    if (xa < CLIP_X0) xa = CLIP_X0;
+    if (xb > CLIP_X1) xb = CLIP_X1;
+    if (_clip_on) { if (xa < _clip_x0) xa = _clip_x0; if (xb > _clip_x1) xb = _clip_x1; }
+    if (xb <= xa) continue;
+    uint16_t* d = s_fb + py * PANEL_W + xa;
+    if (layer) {
+      for (int i = 0; i < xb - xa; i++) d[i] = GLASS_KEY;
+    } else if (popup) {
+      const uint16_t* f = s_frost + py * PANEL_W + xa;
+      for (int i = 0; i < xb - xa; i++) d[i] = add565(f[i], lift);
+    } else {
+      memcpy(d, s_frost + py * PANEL_W + xa, (xb - xa) * 2);
+    }
+  }
+  _color = saved;
+}
+
+// The pane's edge: light catching it, brightest along the top, from the left.
+void SF32Display::glassRim(int x0, int y0, int x1, int y1, int radius, bool popup) {
+  int w = x1 - x0, h = y1 - y0;
+  if (radius * 2 > w) radius = w / 2;
+  if (radius * 2 > h) radius = h / 2;
+  const float RIM = 2.0f;
+  uint16_t saved = _color;
+  _color = 0xFFFF;
+  int boost = popup ? 3 : 0;
+  for (int py = y0; py < y1; py++) {
+    int a = 2 + boost + (9 * (y1 - py)) / (h * 2);  // the sides: fading downward
+    int cy_d = py < y0 + radius ? y0 + radius - py : (py >= y1 - radius ? py - (y1 - radius) + 1 : 0);
+    if (cy_d) {
+      for (int side = 0; side < 2; side++) {
+        for (int i = 0; i < radius; i++) {
+          float dx = radius - i - 0.5f, dy = cy_d - 0.5f, d = sqrtf(dx * dx + dy * dy);
+          float out = radius - d + 0.5f, in = d - (radius - RIM) + 0.5f;
+          float cov = (out > 1 ? 1 : out) * (in > 1 ? 1 : in);
+          if (out <= 0 || in <= 0) continue;
+          blendPixel(side ? x1 - 1 - i : x0 + i, py, (int)(a * cov + 0.5f));
+        }
+      }
+      int rows = py < y0 + radius ? py - y0 : y1 - 1 - py;
+      if (rows < (int)RIM) {  // the straight top or bottom edge
+        bool top = py < y0 + radius;
+        for (int px = x0 + radius; px < x1 - radius; px++) {
+          int along = top ? 11 + boost - (6 * (px - x0)) / w : 3 + boost;
+          blendPixel(px, py, rows == 0 ? along : along / 2);
+        }
+      }
+    } else {
+      for (int i = 0; i < (int)RIM; i++) {
+        blendPixel(x0 + i, py, a);
+        blendPixel(x1 - 1 - i, py, a);
+      }
+    }
+  }
+  _color = saved;
 }
 
 void SF32Display::drawRect(int x, int y, int w, int h) {

@@ -31,6 +31,7 @@ void UITask::openMenu(MenuKind kind) {
     // what you see (screen, pages, clock), what you hear and when (sound, night), sensors,
     // the radio side (Bluetooth, SOS), then the system (power use, logs, power off)
     m->begin("Settings");
+    m->add("Theme", ACT_THEME_MENU);
     m->add("Display", ACT_DISPLAY_MENU);
     m->add("Pages", ACT_PAGES_MENU);  // which pages to show
     m->add("Clock", ACT_TIME_MENU);
@@ -47,10 +48,14 @@ void UITask::openMenu(MenuKind kind) {
     if (board.sleepSupported()) m->add("Low power", ACT_POWER_SAVE, _ui_prefs.power_save ? "On" : "Off");
     m->add("Logs", ACT_LOGS);
     m->add("Power", ACT_POWER_MENU);  // screen off / reboot / power off
+  } else if (kind == MENU_THEME) {
+    m->begin("Theme");
+    m->add("Style", ACT_THEME_STYLE, _ui_prefs.glass ? "Glass" : "Normal");
+    m->add("Color", ACT_THEME, THEMES[themeIndex()].name);  // each style keeps its own
+    m->add("Back", ACT_SETTINGS);
   } else if (kind == MENU_DISPLAY) {
     m->begin("Display");
     // how it looks, then how the screen behaves
-    m->add("Theme", ACT_THEME, THEMES[_ui_prefs.theme].name);
     m->add("Clock face", ACT_CLOCK_FACE, CLOCK_FACE_NAMES[_ui_prefs.clock_face % NUM_CLOCK_FACES]);
     sprintf(tmp, "%d%%", BRIGHTNESS_STEPS[_ui_prefs.brightness_idx]);
     m->add("Brightness", ACT_SET_BRIGHTNESS, tmp);
@@ -264,6 +269,13 @@ void UITask::menuAction(uint8_t action) {
       break;
     case ACT_RADIO_EDIT: openRadioEditor(); break;
     case ACT_THEME: openTheme(); break;
+    case ACT_THEME_MENU: openMenu(MENU_THEME); break;
+    case ACT_THEME_STYLE:
+      _ui_prefs.glass = !_ui_prefs.glass;
+      applyStyle();
+      saveUIPrefs();
+      openMenu(_menu_kind);
+      break;
     case ACT_ABOUT: openAbout(); break;
     case ACT_TIME_MENU: openMenu(MENU_TIME); break;
     case ACT_NIGHT_MENU: openMenu(MENU_NIGHT); break;

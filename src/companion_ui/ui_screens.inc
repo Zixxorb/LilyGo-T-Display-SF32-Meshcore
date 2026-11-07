@@ -38,8 +38,8 @@ public:
   ThemeScreen(UITask* task) : _task(task) {}
 
   int render(DisplayDriver& d) override {
-    themeHeader(d, "Theme", _task->getBattMilliVolts());
-    int cur = _task->uiPrefs().theme;
+    themeHeader(d, "Color", _task->getBattMilliVolts());
+    int cur = _task->themeIndex();
     for (int i = 0; i < NUM_THEMES; i++) {
       Btn c = cell(i);
       d.setColor(THEMES[i].card);
@@ -74,8 +74,8 @@ public:
 
   // button A: click = next swatch (applied), long press = done
   bool handleInput(char c) override {
-    if (c == KEY_NEXT || c == KEY_RIGHT) { _task->setTheme((_task->uiPrefs().theme + 1) % NUM_THEMES); return true; }
-    if (c == KEY_PREV || c == KEY_LEFT) { _task->setTheme((_task->uiPrefs().theme + NUM_THEMES - 1) % NUM_THEMES); return true; }
+    if (c == KEY_NEXT || c == KEY_RIGHT) { _task->setTheme((_task->themeIndex() + 1) % NUM_THEMES); return true; }
+    if (c == KEY_PREV || c == KEY_LEFT) { _task->setTheme((_task->themeIndex() + NUM_THEMES - 1) % NUM_THEMES); return true; }
     if (c == KEY_ENTER) { _task->closeTheme(); return true; }
     return false;
   }
@@ -88,16 +88,22 @@ private:
 };
 
 void UITask::setTheme(int i) {
-  _ui_prefs.theme = (uint8_t)i;
-  applyTheme(i);
+  if (_ui_prefs.glass) _ui_prefs.glass_theme = (uint8_t)i;
+  else _ui_prefs.theme = (uint8_t)i;
+  applyStyle();
   saveUIPrefs();
+}
+void UITask::applyStyle() {
+  int i = themeIndex();
+  applyTheme(i);
+  if (_display) ((SF32Display*)_display)->setGlass(_ui_prefs.glass, THEMES[i].accent, THEMES[i].rainbow);
 }
 void UITask::openTheme() {
   _menu_return_theme = _menu_return;
   ((SF32Display*)_display)->setTransition(SF32Display::TRANSITION_LEFT);
   setCurrScreen(theme_screen);
 }
-void UITask::closeTheme() { closeToMenu(MENU_DISPLAY); }  // Display > Theme
+void UITask::closeTheme() { closeToMenu(MENU_THEME); }  // Settings > Theme > Color
 void UITask::closeToMenu(MenuKind kind) {
   _menu_return = _menu_return_theme;
   ((SF32Display*)_display)->setTransition(SF32Display::TRANSITION_RIGHT);

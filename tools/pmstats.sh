@@ -3,7 +3,7 @@
 # battery: plug USB back in (that freezes them), then run this. The ELF must be the flashed build.
 cd "$(dirname "$0")/.."
 source ./env.sh >/dev/null 2>&1
-addr=$(arm-none-eabi-nm project_companion/build_t-display-sf32_hcpu/main.elf | awk '/ sf32_pm_stats$/{print $1}')
+addr=$(arm-none-eabi-nm "${ELF:-project_companion/build_t-display-sf32_hcpu/main.elf}" | awk '/ sf32_pm_stats$/{print $1}')
 [ -n "$addr" ] || { echo "no sf32_pm_stats in this build"; exit 1; }
 port=$(readlink -f $(ls /dev/serial/by-id/*1a86* 2>/dev/null | head -1) 2>/dev/null)
 [ -n "$port" ] || { echo "board not found"; exit 1; }

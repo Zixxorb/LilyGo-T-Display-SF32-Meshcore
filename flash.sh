@@ -18,6 +18,17 @@ source ./env.sh
 port="${1:-$(readlink -f $(ls /dev/serial/by-id/*1a86* 2>/dev/null | head -n1) 2>/dev/null)}"
 [ -n "$port" ] || { echo "No serial port found; pass one, e.g. ./flash.sh $target /dev/ttyACM0"; exit 1; }
 [ -f "$dir/build_t-display-sf32_hcpu/main.bin" ] || { echo "Not built yet: ./build.sh $target"; exit 1; }
+
+# The board's RAM (test logs, sleep counters, battery history) doesn't survive a flash: save it
+# first (tools/savelogs.sh, into board-logs/). If it can't be read, stop: SKIP_SAVELOGS=1 to
+# flash anyway, e.g. a board that's crashed or has never been flashed from here.
+if [ -z "$SKIP_SAVELOGS" ]; then
+  tools/savelogs.sh preflash "$port" || {
+    echo "Not flashing: the board's logs weren't saved. SKIP_SAVELOGS=1 ./flash.sh $target to flash anyway."
+    exit 1
+  }
+fi
+
 echo "Flashing $target ($dir) to $port"
 
 python -I tools/sf32_debug_uart.py "$port" download 115200 \
@@ -27,3 +38,9 @@ python -I tools/sf32_debug_uart.py "$port" download 115200 \
 cd "$dir/build_t-display-sf32_hcpu"
 sftool -p "$port" -c SF32LB52 -m nor write_flash \
   "bootloader/bootloader.bin@0x12010000" "main.bin@0x12020000" "ftab/ftab.bin@0x12000000"
+
+# Keep this firmware's ELF: the next save reads the board with it, even after new builds.
+cd ../..
+mkdir -p .flashed
+cp "$dir/build_t-display-sf32_hcpu/main.elf" .flashed/main.elf
+echo "$target" > .flashed/target

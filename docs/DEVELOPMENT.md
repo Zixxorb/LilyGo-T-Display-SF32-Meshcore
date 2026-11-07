@@ -111,6 +111,13 @@ halts the CPU (MeshCore's CLI would echo sftool's frames back), stops the hardwa
 watchdogs, and switches UART1 to 1 Mbaud for sftool. The host can't reset the board
 (DTR/RTS do nothing); it boots right after flashing.
 
+Before flashing, `flash.sh` saves what the board holds in RAM (`tools/savelogs.sh`, into
+`board-logs/`, not in git): raw dumps of the sleep counters, test log, battery history and UI
+state, the decoded versions, and the symbol table. It reads with the ELF kept in `.flashed/` by
+the last flash, because a new build moves the addresses. If the board can't be read, it stops;
+`SKIP_SAVELOGS=1 ./flash.sh ...` flashes anyway. After a test, `tools/savelogs.sh LABEL` saves
+a named copy.
+
 The same channel works on a running or crashed board:
 
 | Command | Does |

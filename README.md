@@ -46,7 +46,7 @@ device shows what's happening on the mesh, tests links, finds repeaters and keep
 | **Mesh SOS** | Triple-press A: location + battery to a channel, repeated |
 | **Extras** | Flashlight (white/red), share contact QR, auto adverts, mesh time, rotation |
 | **USB app** | MeshCore app protocol over USB too: PC tools and a raw-packet **observer** |
-| **Themes** | 9 colour themes plus Rainbow, night mode, always-on display, tap sounds |
+| **Themes** | Normal or frosted Glass style, 9 colours plus Rainbow on each, night mode, always-on display, tap sounds |
 
 ## Screenshots
 
@@ -195,11 +195,12 @@ Pages can be hidden in **Settings > Pages** (the clock always shows).
 ### Settings
 
 <details>
-<summary><b>All 13 menus</b></summary>
+<summary><b>All 14 menus</b></summary>
 
 | Menu | Contains |
 |---|---|
-| **Display** | Theme, clock face, brightness, timeout, always-on, rotation (Normal / Auto / Right / Upside down / Left) |
+| **Theme** | Style (Normal / Glass), Color (each style keeps its own) |
+| **Display** | Clock face, brightness, timeout, always-on, rotation (Normal / Auto / Right / Upside down / Left) |
 | **Pages** | Show or hide each home page |
 | **Clock** | Time zone, daylight saving (off/US/EU), 12/24 h, mesh time, reset clock |
 | **Sound** | Volume, new-message alerts (all / direct / off), tap sound (click / pop / tick / off) |
@@ -363,6 +364,9 @@ menu > **Long press** picks what its long press sends.
 <details>
 <summary><b>Display, sound and motion options</b></summary>
 
+- **Glass style** (Settings > Theme): a soft wallpaper in the theme's colours, with cards as
+  frosted panes. It lights more of the screen than Normal, so it uses more power while the
+  screen is on. The always-on clock stays on black.
 - **Themes**: MeshCore blue, cyan, teal, green, purple, pink, red, orange, mono, and
   Rainbow (every page in its own hue).
 - **Always-on**: instead of going dark, the time, date and an unread envelope on black at

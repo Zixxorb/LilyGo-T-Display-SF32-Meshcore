@@ -82,6 +82,8 @@ struct SF32UIPrefs {
   uint8_t adv_page_mesh = 0;   // the Advert page's long press: 0 nearby, 1 whole mesh (flood)
   uint8_t usb_app = 0;         // the app protocol over USB too (SF32UsbInterface): PC apps, observer
   uint8_t rotation = 0;        // 0 normal, 1 upside down, 2 auto (by how it's held), 3 turned right, 4 left
+  uint8_t glass = 0;           // theme style: 0 normal, 1 glass
+  uint8_t glass_theme = 0;     // THEMES[] index used by the glass style (`theme`: the normal style's)
 };
 
 class UITask : public AbstractUITask {
@@ -221,11 +223,11 @@ public:
   bool showMessages();          // SF32: open the unread messages (false if none)
 
   // SF32: menus and settings
-  enum MenuKind { MENU_POWER, MENU_PAGE, MENU_SETTINGS, MENU_TIME, MENU_NIGHT, MENU_SOUND, MENU_DISPLAY, MENU_MOTION, MENU_PAGES, MENU_ADVERTS };
+  enum MenuKind { MENU_POWER, MENU_PAGE, MENU_SETTINGS, MENU_TIME, MENU_NIGHT, MENU_SOUND, MENU_DISPLAY, MENU_MOTION, MENU_PAGES, MENU_ADVERTS, MENU_THEME };
   // the menu a submenu goes back to (MENU_PAGE: not a submenu)
   static MenuKind menuParent(MenuKind k) {
     return (k == MENU_NIGHT || k == MENU_TIME || k == MENU_SOUND || k == MENU_DISPLAY || k == MENU_MOTION ||
-            k == MENU_PAGES || k == MENU_ADVERTS) ? MENU_SETTINGS : MENU_PAGE;
+            k == MENU_PAGES || k == MENU_ADVERTS || k == MENU_THEME) ? MENU_SETTINGS : MENU_PAGE;
   }
   void openMenu(MenuKind kind);
   void closeMenu();
@@ -241,7 +243,9 @@ public:
   void openRadioReview(bool leaving);
   void closeRadioReview();
   void applyRadio();
-  void setTheme(int i);
+  void setTheme(int i);  // the colour of the current style
+  int themeIndex() const { return _ui_prefs.glass ? _ui_prefs.glass_theme : _ui_prefs.theme; }
+  void applyStyle();     // the saved style and its colour
   void openTheme();
   void closeTheme();
   void closeToMenu(MenuKind kind);  // from a screen opened from a menu, back to that menu

@@ -69,6 +69,13 @@ public:
   // drawXbm, drawn `scale` times larger (smoothed), e.g. 1.5 for big page icons
   void drawXbmScaled(int x, int y, const uint8_t* bits, int w, int h, float scale);
 
+  // The Glass style: a soft wallpaper behind everything, in colours taken from `accent` (multi:
+  // several hues), and cards (fillRect in the card or popup colour) become frosted panes: a
+  // blurred copy of the wallpaper with a bright rim. No other drawing changes.
+  void setGlass(bool on, uint16_t accent, bool multi);
+  bool glassOn() const;
+  void setGlassPaused(bool paused);  // plain black meanwhile (the always-on clock)
+
   bool isOn() override { return _on; }
   void turnOn() override;
   void turnOff() override;
@@ -93,6 +100,8 @@ private:
   void fillSpan(int x0, int x1, int py);
   void flush(const uint16_t* buf, int py0 = 0, int py1 = -1);  // rows [py0, py1]
   void animate(Transition dir);
+  void glassFill(int x0, int y0, int x1, int y1, int radius, bool popup);
+  void glassRim(int x0, int y0, int x1, int y1, int radius, bool popup);
 
   rt_device_t _lcd = nullptr;
   bool _on = false;

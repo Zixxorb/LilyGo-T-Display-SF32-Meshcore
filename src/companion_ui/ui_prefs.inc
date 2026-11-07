@@ -35,7 +35,8 @@ void UITask::resumeOrReset() {
 #define SF32_UI_PREFS_MAGIC_V13 0x5346553D  // "SFU=": + auto adverts
 #define SF32_UI_PREFS_MAGIC_V14 0x5346553E  // "SFU>": + Advert page long press: nearby / mesh
 #define SF32_UI_PREFS_MAGIC_V15 0x5346553F  // "SFU?": + USB app
-#define SF32_UI_PREFS_MAGIC     0x53465540  // "SFU@": + rotation
+#define SF32_UI_PREFS_MAGIC_V16 0x53465540  // "SFU@": + rotation
+#define SF32_UI_PREFS_MAGIC     0x53465541  // "SFUA": + glass style and its colour
 
 static const uint8_t  BRIGHTNESS_STEPS[] = {25, 50, 80, 100};
 static const uint16_t TIMEOUT_SECS[] = {15, 30, 60, 300, 0};  // 0 = on while on USB power (else 60 s)
@@ -46,6 +47,10 @@ void UITask::loadUIPrefs() {
   int n = f ? f.read((uint8_t*)&p, sizeof(p)) : 0;
   if (n == sizeof(p) && p.magic == SF32_UI_PREFS_MAGIC) {
     _ui_prefs = p;
+  } else if (n >= 39 && p.magic == SF32_UI_PREFS_MAGIC_V16) {  // up to rotation
+    _ui_prefs = p;
+    _ui_prefs.glass = SF32UIPrefs().glass;
+    _ui_prefs.glass_theme = SF32UIPrefs().glass_theme;
   } else if (n >= 38 && p.magic == SF32_UI_PREFS_MAGIC_V15) {  // up to usb_app
     _ui_prefs = p;
     _ui_prefs.rotation = SF32UIPrefs().rotation;
@@ -125,7 +130,9 @@ void UITask::loadUIPrefs() {
     _ui_prefs.theme = p.theme;
   }
   if (_ui_prefs.theme >= NUM_THEMES) _ui_prefs.theme = 0;
-  applyTheme(_ui_prefs.theme);
+  if (_ui_prefs.glass_theme >= NUM_THEMES) _ui_prefs.glass_theme = 0;
+  _ui_prefs.glass = _ui_prefs.glass ? 1 : 0;
+  applyStyle();
 #ifdef SF32_RAINBOW_TEST
   applyTheme(NUM_THEMES - 1);  // test builds: show Rainbow without saving it
 #endif
