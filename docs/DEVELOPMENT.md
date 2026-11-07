@@ -121,7 +121,7 @@ nothing: the panel is sent the two frames' visible parts directly (about 57 fps)
 length set in ms. On the SF32LB52 the LCD controller has one layer only (the SDK asserts this),
 and EPIC takes 2 layers plus a mask per operation, so a Glass list takes two operations.
 
-**Page drag** (`UITask::pageDrag`): past 12 px sideways, the page sticks to the finger. The page
+**Page drag** (`UITask::pageDrag`): past 26 px sideways (beyond what still counts as a tap), the page sticks to the finger. The page
 coming in is rendered once, off screen (again if the finger crosses back over its start), and each
 move just sends the two frames at the new offset. Let go past a third of the way, or with a flick,
 and it goes on; otherwise it springs back. `tools/touch.sh drag` drives it in debug builds, but

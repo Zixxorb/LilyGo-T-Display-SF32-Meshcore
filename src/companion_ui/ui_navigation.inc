@@ -460,7 +460,7 @@ bool MenuScreen::handleInput(char c) {
 
 // Sideways, a page sticks to the finger, with the next one coming in beside it. Let go past a
 // third of the way, or with a flick, and it goes on to that page; otherwise it springs back.
-#define PAGE_DRAG_SLOP   12     // panel px before it counts: taps still wobble a bit
+#define PAGE_DRAG_SLOP   26     // panel px before it counts: past what still counts as a tap (TAP_MAX_PX)
 #define PAGE_DRAG_FLICK  0.35f  // panel px per ms
 void UITask::pageDrag() {
   HomeScreen* h = (HomeScreen*)home;
@@ -565,15 +565,20 @@ void UITask::handleTouchMenus() {
   if (ds) {
     if (touch_input.fingerDown()) {
       if (!ds->active) ds->begin();
-      // follow the finger from the first few pixels (minus that dead zone: no jump)
+      // follow the finger after a small dead zone (taken off: no jump), so a tap doesn't move the list
       int dy = touch_input.fingerY() - touch_input.fingerY0();
-      if (abs(dy) > 4) {
-        ds->move(dy > 0 ? dy - 4 : dy + 4);
+      if (abs(dy) > 12) {
+        ds->move(dy > 0 ? dy - 12 : dy + 12);
         _next_refresh = 0;
         _auto_off = millis() + autoOffMillis();
       }
     } else if (ds->active) {
       ds->end(touch_input.releaseVelocity());
+      // that was a tap: it lands on what was under the finger when it came down, with no glide
+      if (abs(touch_input.fingerY() - touch_input.fingerY0()) <= 25 && abs(touch_input.fingerX() - touch_input.fingerX0()) <= 25) {
+        ds->vel = 0;
+        ds->set(ds->start);
+      }
       _next_refresh = 0;
     }
   }
