@@ -81,7 +81,7 @@ extern "C" { uint16_t* volatile sf32_shown_fb = s_fb_b; }
 #define SLIDE_LEAD_MS 30  // where in the curve the first frame lands: it's on screen a frame later
 #ifdef SF32_REMOTE_TOUCH
 extern "C" { volatile uint32_t sf32_anim_ms = 0, sf32_anim_frames = 0; }  // debug builds: the last slide
-static rt_tick_t s_last_end = 0;  // debug builds: how long the last transition took
+extern "C" { volatile uint32_t sf32_anim_ms = 0, sf32_anim_frames = 0; }  // debug builds: the last slide
 #endif
 
 static struct rt_semaphore s_flush_done;
