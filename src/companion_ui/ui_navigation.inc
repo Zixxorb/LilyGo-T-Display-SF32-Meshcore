@@ -397,7 +397,7 @@ void UITask::menuAction(uint8_t action) {
       _ui_prefs.bot_on = !_ui_prefs.bot_on;
       saveUIPrefs();
       if (curr == menu) openMenu(_menu_kind);
-      else { showAlert(_ui_prefs.bot_on ? "Bot on" : "Bot off", 800); _next_refresh = 0; }
+      else _next_refresh = 0;  // the page itself shows On or Off
       break;
     case ACT_BOT_DM:
       _ui_prefs.bot_dm = !_ui_prefs.bot_dm;
