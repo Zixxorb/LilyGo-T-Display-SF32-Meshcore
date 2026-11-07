@@ -573,6 +573,18 @@ void UITask::handleTouchMenus() {
     }
   }
 
+  // Bluetooth, Advert: hold the icon. It acts while still held, so you know it took.
+  if (curr == home && !_aod && h->iconHoldPage() && !touch_input.touchConsumed() && touch_input.stillHeldMs() >= 500) {
+    int ix, iy;
+    SF32Display::panelToLogical(touch_input.fingerX0(), touch_input.fingerY0(), ix, iy);
+    if (h->iconHit(ix, iy)) {
+      touch_input.consumeTouch();
+      h->iconAction();
+      if (_ui_prefs.touch_snd) sound.chime(SF32Sound::CHIME_POP, tapVolume());
+      _auto_off = millis() + autoOffMillis();
+      _next_refresh = 0;
+    }
+  }
   if (curr == home && !_aod) pageDrag();
   // Up or down on a page: the menu opens as soon as it's clearly that, not when the finger lifts.
   if (curr == home && !_aod && !_drag_on && _hold_frac == 0 && !_hold_done && touch_input.fingerDown() && !touch_input.touchConsumed()) {

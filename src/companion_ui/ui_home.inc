@@ -497,9 +497,13 @@ public:
 
   // Touch: pages with on-screen buttons take taps directly (see UITask::handleTouchMenus).
   void dragStep(int dir) { stepPage(dir); }  // a page being dragged in (UITask::pageDrag)
+  // Bluetooth, Advert: holding the icon does the page's action (UITask::handleTouchMenus)
+  bool iconHoldPage() const { return _page == HomePage::BLUETOOTH || _page == HomePage::ADVERT; }
+  bool iconHit(int x, int y) const { return x >= 32 && x < 96 && y >= 24 && y < 86; }
+  void iconAction() { handleInput(KEY_ENTER); }
   bool wantsTaps() const {
     return _page == HomePage::BOT || _page == HomePage::SIGNAL
-        || _page == HomePage::BLUETOOTH || _page == HomePage::ADVERT  // their icon is a button
+        || iconHoldPage()  // a touch held anywhere else isn't a long press: only on the icon
         || (_page == HomePage::CLOCK && _task->getUnreadCount() > 0)  // the envelope opens messages
         || _page == HomePage::NODES  // a row: ask that node for its battery
 #if UI_DISCOVER_SCREEN
@@ -523,10 +527,6 @@ public:
       if (y < 27 || row >= shown) return false;
       if (!my_nodes.ask(fav[row])) _task->showAlert(my_nodes.waiting() ? "Still waiting for a reply" : "Wait a few seconds", 1200);
       return true;
-    }
-    if (_page == HomePage::BLUETOOTH || _page == HomePage::ADVERT) {  // the icon: what long press does
-      if (x < 32 || x >= 96 || y < 24 || y >= 86) return false;
-      return handleInput(KEY_ENTER);
     }
     if (_page == HomePage::BOT) {  // tap anywhere: bot on/off
       _task->menuAction(ACT_BOT_TOGGLE);
@@ -849,7 +849,7 @@ public:
       }
       display.setTextSize(1);
       display.setColor(UIColor::secondary_txt);
-      display.drawTextCentered(W / 2, 104, on ? "tap icon: turn off" : "tap icon: turn on");
+      display.drawTextCentered(W / 2, 104, on ? "hold icon: turn off" : "hold icon: turn on");
     } else if (_page == HomePage::ADVERT) {
       themeHeader(display, "Advert", mv);
       themeBigIcon(display, ICON_ADVERT, advert_icon, THEME_ACCENT);
@@ -858,7 +858,7 @@ public:
       display.drawTextCentered(W / 2, 83, "Send advert");
       display.setTextSize(1);
       display.setColor(UIColor::secondary_txt);
-      display.drawTextCentered(W / 2, 104, _task->uiPrefs().adv_page_mesh ? "tap icon: send to the mesh" : "tap icon: send nearby");
+      display.drawTextCentered(W / 2, 104, _task->uiPrefs().adv_page_mesh ? "hold icon: send to the mesh" : "hold icon: send nearby");
     } else if (_page == HomePage::BATTERY) {
       themeHeader(display, "Battery", mv);
       bool usb = board.isExternalPowered();
