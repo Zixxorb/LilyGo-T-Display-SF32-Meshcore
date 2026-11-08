@@ -59,6 +59,7 @@ void UITask::openMenu(MenuKind kind) {
       static const char* const BG_NAMES[] = {"Aurora", "Dunes", "Blend", "None"};
       m->add("Backdrop", ACT_THEME_BG, BG_NAMES[_ui_prefs.glass_bg % 4]);
     }
+    m->add("Battery colors", ACT_BATT_COLORS, _ui_prefs.batt_colors ? "On" : "Off");
     m->add("Back", ACT_SETTINGS);
   } else if (kind == MENU_DISPLAY) {
     m->begin("Display");
@@ -279,6 +280,12 @@ void UITask::menuAction(uint8_t action) {
     case ACT_THEME_MENU: openMenu(MENU_THEME); break;
     case ACT_THEME_BG:
       _ui_prefs.glass_bg = (_ui_prefs.glass_bg + 1) % 4;
+      applyStyle();
+      saveUIPrefs();
+      openMenu(_menu_kind);
+      break;
+    case ACT_BATT_COLORS:
+      _ui_prefs.batt_colors = !_ui_prefs.batt_colors;
       applyStyle();
       saveUIPrefs();
       openMenu(_menu_kind);

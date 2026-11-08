@@ -375,19 +375,20 @@ public:
     // top right: battery
     uint16_t mv = _task->getBattMilliVolts();
     int bx = W - 4 - 3 - 22, by = 6;
-    display.setColor(UIColor::primary_txt);
+    int bpct = mv > 0 ? batteryPercent(mv) : -1;
+    ColorVal outline = bpct >= 0 && g_batt_colors ? battColor(bpct, UIColor::primary_txt) : UIColor::primary_txt;
+    display.setColor(outline);
     display.drawRect(bx, by, 22, 11);
     display.fillRect(bx + 22, by + 3, 3, 5);
     display.setTextSize(SF32Display::TEXT_BATTERY);  // 1.5x: closer to the battery's size
-    if (mv > 0) {
-      int pct = batteryPercent(mv);
-      display.setColor(pct <= 15 ? UIColor::warning_txt : UIColor::primary_txt);
-      display.fillRect(bx + 2, by + 2, (18 * pct + 50) / 100, 7);
-      sprintf(tmp, "%d%%", pct);
+    if (bpct >= 0) {
+      display.setColor(battColor(bpct, UIColor::primary_txt));
+      display.fillRect(bx + 2, by + 2, (18 * bpct + 50) / 100, 7);
+      sprintf(tmp, "%d%%", bpct);
     } else {
       strcpy(tmp, "--");  // no battery
     }
-    display.setColor(UIColor::primary_txt);
+    display.setColor(outline);
     int tw = display.getTextWidth(tmp);
     display.setCursor(bx - 3 - tw, 6);  // centred on the battery
     display.print(tmp);
@@ -856,7 +857,8 @@ public:
       bool usb = board.isExternalPowered();
       int pct = mv ? sf32ShownPercent(mv) : 0;
       display.setTextSize(3);
-      display.setColor(usb ? THEME_GOOD : pct <= 15 ? UIColor::warning_txt : UIColor::primary_txt);
+      display.setColor(g_batt_colors && mv ? battColor(pct, UIColor::primary_txt)
+                       : usb ? THEME_GOOD : pct <= 15 ? UIColor::warning_txt : UIColor::primary_txt);
       sprintf(tmp, "%d%%", pct);
       display.setCursor(6, 28);
       display.print(tmp);

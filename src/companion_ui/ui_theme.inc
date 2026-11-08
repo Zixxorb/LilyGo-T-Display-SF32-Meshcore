@@ -23,6 +23,14 @@ static bool g_rainbow_theme = false;
 
 static const ColorVal THEME_GOOD = ((0x34 & 0xF8) << 8) | ((0xD3 & 0xFC) << 3) | (0x99 >> 3);  // charging, strong signal
 static const ColorVal THEME_RED = ((0xEF & 0xF8) << 8) | ((0x44 & 0xFC) << 3) | (0x44 >> 3);   // SOS
+static const ColorVal THEME_YELLOW = ((0xFA & 0xF8) << 8) | ((0xCC & 0xFC) << 3) | (0x15 >> 3);
+
+// Settings > Theme > Battery colors: the battery icon and % coloured by the charge left
+static bool g_batt_colors = false;
+static ColorVal battColor(int pct, ColorVal normal) {
+  if (!g_batt_colors) return pct <= 15 ? UIColor::warning_txt : normal;
+  return pct <= 20 ? THEME_RED : pct <= 50 ? THEME_YELLOW : THEME_GOOD;
+}
 
 // Li-ion open-circuit voltage -> charge, roughly (better than linear at the ends).
 // charge left from the battery voltage (resting LiPo curve), fractional (time-left estimates)
@@ -189,12 +197,13 @@ static void themeHeader(DisplayDriver& d, const char* title, uint16_t mv) {
   // compact battery: [icon] with % to its left, bolt on USB power
   int bx = 128 - 4 - 2 - 14, by = 7;
   char tmp[8];
-  d.setColor(UIColor::secondary_txt);
+  int pct = mv > 0 ? sf32ShownPercent(mv) : -1;
+  ColorVal outline = pct >= 0 && g_batt_colors ? battColor(pct, UIColor::secondary_txt) : UIColor::secondary_txt;
+  d.setColor(outline);
   d.drawRect(bx, by, 14, 8);
   d.fillRect(bx + 14, by + 2, 2, 4);
-  if (mv > 0) {
-    int pct = sf32ShownPercent(mv);
-    d.setColor(pct <= 15 ? UIColor::warning_txt : UIColor::secondary_txt);
+  if (pct >= 0) {
+    d.setColor(battColor(pct, UIColor::secondary_txt));
     d.fillRect(bx + 2, by + 2, (10 * pct + 50) / 100, 4);
     sprintf(tmp, "%d%%", pct);
   } else {
@@ -212,7 +221,7 @@ static void themeHeader(DisplayDriver& d, const char* title, uint16_t mv) {
     x = bx - (usb ? 10 : 0);
     if (x < title_end) return;  // icon only
   } else {
-    d.setColor(UIColor::secondary_txt);
+    d.setColor(outline);
     d.setCursor(bx - 3 - tw, by);
     d.print(tmp);
   }
