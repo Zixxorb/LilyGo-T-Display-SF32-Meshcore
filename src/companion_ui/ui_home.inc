@@ -374,13 +374,6 @@ public:
       dnd_x = 23 + display.getTextWidth(tmp) + 5;
     }
 
-    if (_task->dndNow()) {  // do not disturb (night hours), in the top bar
-      display.setTextSize(1);
-      display.setColor(THEME_ACCENT);
-      display.setCursor(dnd_x, 7);
-      display.print("DND");
-    }
-
     // top right: battery
     uint16_t mv = _task->getBattMilliVolts();
     int bx = W - 4 - 3 - 22, by = 6;
@@ -403,6 +396,16 @@ public:
     if (board.isExternalPowered()) {
       display.setColor(UIColor::warning_txt);
       themeBolt(display, bx - 3 - tw - 11, 6);
+    }
+    // do not disturb (night hours): in the top bar after the unread count, or, if the
+    // battery's % and bolt leave no room there, on the line below (opposite the voltage)
+    if (_task->dndNow()) {
+      int right_edge = bx - 3 - tw - (board.isExternalPowered() ? 11 : 0) - 4;
+      display.setTextSize(1);
+      display.setColor(THEME_ACCENT);
+      if (dnd_x + display.getTextWidth("DND") <= right_edge) display.setCursor(dnd_x, 7);
+      else display.setCursor(4, 20);
+      display.print("DND");
     }
     if (mv > 0) {  // voltage under the battery, small
       display.setTextSize(1);

@@ -20,7 +20,14 @@ extern SF32RTCClock rtc_clock;
 SF32TouchInput touch_input;
 
 static volatile int s_pending_reads = 0;
+#ifdef SF32_TOUCH_AB
+static volatile bool s_touch_low = false;
+extern "C" volatile uint32_t sf32_touch_ab[5];
+#endif
 static rt_err_t on_touch(rt_device_t, rt_size_t) {
+#ifdef SF32_TOUCH_AB
+  if (s_touch_low) sf32_touch_ab[4]++;
+#endif
   s_pending_reads++;
   return RT_EOK;
 }
@@ -45,8 +52,17 @@ bool SF32TouchInput::begin() {
 extern "C" volatile uint32_t sf32_remote_touch = 0;
 #endif
 
+#ifdef SF32_TOUCH_AB
+extern "C" bool sf32_touch_ab_low(void);
+// to low ok, to low failed, to normal ok, to normal failed, touch interrupts in low power
+extern "C" { volatile uint32_t sf32_touch_ab[5] = {0}; }
+#endif
+
 void SF32TouchInput::update() {
   if (!_dev && !_tried) begin();
+#ifdef SF32_TOUCH_AB
+  if (_dev) setLowPower(!display.isOn() && sf32_touch_ab_low());
+#endif
 #ifdef SF32_REMOTE_TOUCH
   uint32_t rc = sf32_remote_touch;
   if (rc) {
@@ -284,14 +300,31 @@ extern "C" uint32_t cst922_i2c_write(uint16_t reg, uint8_t* p_data, uint16_t len
 extern "C" void BSP_TP_Reset(uint8_t high1_low0);
 #define CST92XX_REG_LOWPOWER_MODE 0xD10F
 #define CST92XX_REG_MODE_NORMAL   0xD109
+#define CST92XX_REG_DEEP_SLEEP    0xD105
 
 void SF32TouchInput::setLowPower(bool low) {
   if (!_dev || low == _low_power) return;
   uint8_t dummy = 0;
+#ifdef SF32_TOUCH_AB
+  // Battery test: the most touch could save. Deep sleep answers nothing until reset, and no
+  // mode tried reports touches (0xD10F didn't wake the screen), so the button wakes it.
+  uint32_t r = RT_EOK;
+  if (low) {
+    r = cst922_i2c_write(CST92XX_REG_DEEP_SLEEP, &dummy, 0);
+  } else {
+    BSP_TP_Reset(0);
+    rt_thread_mdelay(3);
+    BSP_TP_Reset(1);
+    rt_thread_mdelay(50);
+    r = cst922_i2c_write(CST92XX_REG_MODE_NORMAL, &dummy, 0);
+  }
+#else
   uint32_t r = cst922_i2c_write(low ? CST92XX_REG_LOWPOWER_MODE : CST92XX_REG_MODE_NORMAL, &dummy, 0);
+#endif
 #ifdef SF32_SOUND_LOG
   rt_kprintf("touch: %s mode, write %s\n", low ? "low-power" : "normal", r == RT_EOK ? "ok" : "FAILED");
 #endif
+#ifndef SF32_TOUCH_AB
   if (r != RT_EOK && !low) {
     // didn't take the command while in low power: reset it (as the driver's init does)
     BSP_TP_Reset(0);
@@ -300,5 +333,10 @@ void SF32TouchInput::setLowPower(bool low) {
     rt_thread_mdelay(50);
     cst922_i2c_write(CST92XX_REG_MODE_NORMAL, &dummy, 0);
   }
+#endif
+#ifdef SF32_TOUCH_AB
+  sf32_touch_ab[(low ? 0 : 2) + (r == RT_EOK ? 0 : 1)]++;
+  s_touch_low = low;
+#endif
   _low_power = low;
 }
