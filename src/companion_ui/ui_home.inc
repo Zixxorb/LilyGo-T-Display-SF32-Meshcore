@@ -572,7 +572,7 @@ public:
         break;
       case HomePage::BATTERY:
         m.begin("Battery");
-        _task->addBatteryRows(m);
+        m.add("Battery menu", ACT_BATT_MENU);  // = Settings > Battery (short: longer rows scroll)
         break;
       case HomePage::BLUETOOTH:
         m.begin("Bluetooth");
