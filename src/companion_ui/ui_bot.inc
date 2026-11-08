@@ -7,14 +7,16 @@
 // on a received flood message is the sender's setting. Direct-routed packets follow a
 // stored path instead, so they are skipped.
 //
-// Etiquette: each sender gets the reminder at most once a day (RAM table, cleared at
-// boot), at most one reply a minute overall and 20 a day in all (channel sender names
+// Etiquette (Settings > Bot): each sender gets the reminder at most once a day (RAM table,
+// cleared at boot), at most one reply a minute overall and 20 a day in all (the defaults) (channel sender names
 // can be made up, so the per-sender table alone can't stop a flood of replies), and
 // messages that look like auto-replies are never answered (two bots can't ping-pong).
 
-#define BOT_SENDER_COOLDOWN_MS  (24UL * 60 * 60 * 1000)
-#define BOT_MIN_GAP_MS          60000UL
-#define BOT_MAX_PER_DAY         20
+// the limits are Settings > Bot (Daily max, Repeat, Gap); the daily count runs over 24 h
+#define BOT_DAY_MS              (24UL * 60 * 60 * 1000)
+#define BOT_SENDER_COOLDOWN_MS  (BOT_REPEAT_H[_ui_prefs.bot_repeat % 3] * 3600000UL)
+#define BOT_MIN_GAP_MS          (BOT_GAP_MIN[_ui_prefs.bot_gap % 3] * 60000UL)
+#define BOT_MAX_PER_DAY         (BOT_MAX_DAY[_ui_prefs.bot_max % 4])
 #define BOT_REPLY_DELAY_MS      3000UL  // let the incoming flood and its ACK clear first
 
 static const char BOT_DM_TEXT[] =
@@ -39,7 +41,7 @@ void UITask::botCheck(mesh::Packet* pkt, const ContactInfo* from, const ChannelD
   if (pkt->getPathHashSize() != 1) return;
   if (_bot_reply.pending) return;  // one at a time
   if (_bot_last_sent && millis() - _bot_last_sent < BOT_MIN_GAP_MS) return;
-  if (_bot_day_start && millis() - _bot_day_start >= BOT_SENDER_COOLDOWN_MS) _bot_day_start = 0;  // a new day
+  if (_bot_day_start && millis() - _bot_day_start >= BOT_DAY_MS) _bot_day_start = 0;  // a new day
   if (_bot_day_start && _bot_day_n >= BOT_MAX_PER_DAY) return;  // today's replies used up
 
   BotReply r = {};

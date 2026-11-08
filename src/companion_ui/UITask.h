@@ -90,6 +90,9 @@ struct SF32UIPrefs {
   uint8_t batt_graph = 3;      // Battery page graph: BATT_GRAPH_HOURS index (48 h)
   uint8_t batt_warn = 3;       // low battery alert: BATT_WARN_LEVELS index (20 %)
   uint8_t chg_limit = 0;       // charge to: CHG_LIMITS index (100 %)
+  uint8_t bot_max = 2;         // bot: BOT_MAX_DAY index (20 replies a day)
+  uint8_t bot_repeat = 1;      //   BOT_REPEAT_H index (once a day per sender)
+  uint8_t bot_gap = 0;         //   BOT_GAP_MIN index (1 min)
 };
 
 class UITask : public AbstractUITask {

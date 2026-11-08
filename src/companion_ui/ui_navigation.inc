@@ -76,6 +76,13 @@ void UITask::openMenu(MenuKind kind) {
     m->add("Auto-reply", ACT_BOT_TOGGLE, _ui_prefs.bot_on ? "On" : "Off");
     m->add("To DMs", ACT_BOT_DM, _ui_prefs.bot_dm ? "On" : "Off");
     m->add("Channels", ACT_BOT_CHAN, CHAN_NAMES[_ui_prefs.bot_chan % 3]);
+    sprintf(tmp, "%d", BOT_MAX_DAY[_ui_prefs.bot_max % 4]);
+    m->add("Daily max", ACT_BOT_MAX, tmp);  // replies a day in all
+    int rh = BOT_REPEAT_H[_ui_prefs.bot_repeat % 3];
+    if (rh < 48) sprintf(tmp, "%d h", rh); else sprintf(tmp, "%d d", rh / 24);
+    m->add("Repeat", ACT_BOT_REPEAT, tmp);  // how soon one sender can get another
+    sprintf(tmp, "%d min", BOT_GAP_MIN[_ui_prefs.bot_gap % 3]);
+    m->add("Gap", ACT_BOT_GAP, tmp);  // the least time between replies
     m->add("Back", ACT_MENU_BACK);
     m->setSelected(keep_sel);
     setCurrScreen(menu);
@@ -271,6 +278,15 @@ void UITask::menuAction(uint8_t action) {
       break;
     case ACT_ADVERTS_MENU: openMenu(MENU_ADVERTS); break;
     case ACT_BOT_MENU: openMenu(MENU_BOT); break;
+    case ACT_BOT_MAX:
+    case ACT_BOT_REPEAT:
+    case ACT_BOT_GAP:
+      if (action == ACT_BOT_MAX) _ui_prefs.bot_max = (_ui_prefs.bot_max + 1) % 4;
+      else if (action == ACT_BOT_REPEAT) _ui_prefs.bot_repeat = (_ui_prefs.bot_repeat + 1) % 3;
+      else _ui_prefs.bot_gap = (_ui_prefs.bot_gap + 1) % 3;
+      saveUIPrefs();
+      openMenu(_menu_kind);
+      break;
     case ACT_POWER_OFF_MENU: openMenu(MENU_POWER_OFF); break;
     case ACT_ROTATION: {  // Normal -> Auto -> Right -> Upside down -> Left -> Normal
       static const uint8_t NEXT[5] = {2, 4, 3, 1, 0};  // by stored value

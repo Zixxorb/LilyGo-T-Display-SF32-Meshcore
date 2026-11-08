@@ -210,7 +210,7 @@ Pages can be hidden in **Settings > Pages** (the clock always shows).
 | **Bluetooth** | On / off (remembered) |
 | **USB app** | The app protocol over USB as well (off by default) |
 | **Adverts** | Nearby every 1/3/6/12 h, mesh every 12/24/48 h (both off by default), what the Advert page's hold sends |
-| **Bot** | Auto-reply, to DMs, channels |
+| **Bot** | Auto-reply, to DMs, channels, daily max (5/10/20/50), repeat per sender (12 h / 24 h / 7 d), gap between replies (1/5/15 min) |
 | **SOS to** | The channel Mesh SOS goes to (#emergency by default) |
 | **Sleep** | Let the chip sleep with the screen off (on by default) |
 | **Logs** | The last 20 events; tap one for a board snapshot |
@@ -404,8 +404,9 @@ CH343 port; flashing still works. Nothing is written until an app sends a frame.
 Off by default; tap the Bot page to turn it on. It auto-replies to messages sent with
 **1-byte path hashes**, asking the sender to switch to 2-byte. Settings > Bot (or the
 page's menu > Bot menu): **Auto-reply**, **To DMs**, and **Channels** (off / DM / post in
-the channel). Each sender gets it at most once a day, at most one reply a minute and 20 a
-day in all, never to auto-replies.
+the channel), and its limits: by default each sender gets it at most once a day (**Repeat**),
+at most one reply a minute (**Gap**) and 20 a day in all (**Daily max**); never to
+auto-replies.
 
 </details>
 

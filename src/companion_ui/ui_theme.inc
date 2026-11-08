@@ -66,6 +66,11 @@ static const uint8_t CHG_LIMITS[] = {100, 90, 80};
 static const uint16_t CHG_LIMIT_MV[] = {4200, 4095, 3990};  // on the charger's 15 mV steps
 #define NUM_CHG_LIMITS 3
 static int g_chg_full_pct = 100;
+// Settings > Bot: replies a day in all, how soon one sender can get another, the least time
+// between any two replies (ui_bot.inc)
+static const uint8_t BOT_MAX_DAY[] = {5, 10, 20, 50};
+static const uint8_t BOT_REPEAT_H[] = {12, 24, 168};
+static const uint8_t BOT_GAP_MIN[] = {1, 5, 15};
 // Settings > Battery > Low alert: the warning level (0 off); the second, "charge soon"
 // alert comes at 10 % (5 % when the first is at 10 %)
 static const uint8_t BATT_WARN_LEVELS[] = {0, 10, 15, 20, 30};

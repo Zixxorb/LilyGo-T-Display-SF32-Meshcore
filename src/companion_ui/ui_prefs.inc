@@ -41,7 +41,8 @@ void UITask::resumeOrReset() {
 #define SF32_UI_PREFS_MAGIC_V19 0x53465543  // "SFUC": + battery colors
 #define SF32_UI_PREFS_MAGIC_V20 0x53465544  // "SFUD": + battery icon on/off
 #define SF32_UI_PREFS_MAGIC_V21 0x53465545  // "SFUE": + battery graph span, low alert, charge limit
-#define SF32_UI_PREFS_MAGIC     0x53465546  // "SFUF": SOS to #emergency by default (0xFF)
+#define SF32_UI_PREFS_MAGIC_V22 0x53465546  // "SFUF": SOS to #emergency by default (0xFF)
+#define SF32_UI_PREFS_MAGIC     0x53465547  // "SFUG": + bot limits (daily max, repeat, gap)
 
 static const uint8_t  BRIGHTNESS_STEPS[] = {25, 50, 80, 100};
 static const uint16_t TIMEOUT_SECS[] = {15, 30, 60, 300, 0};  // 0 = on while on USB power (else 60 s)
@@ -51,6 +52,8 @@ void UITask::loadUIPrefs() {
   SF32UIPrefs p;
   int n = f ? f.read((uint8_t*)&p, sizeof(p)) : 0;
   if (n == sizeof(p) && p.magic == SF32_UI_PREFS_MAGIC) {
+    _ui_prefs = p;
+  } else if (n >= 46 && p.magic == SF32_UI_PREFS_MAGIC_V22) {  // up to chg_limit
     _ui_prefs = p;
   } else if (n >= 46 && p.magic == SF32_UI_PREFS_MAGIC_V21) {  // same fields
     _ui_prefs = p;
@@ -161,8 +164,15 @@ void UITask::loadUIPrefs() {
     _ui_prefs.theme = p.theme;
   }
   // older files: SOS went to the first channel (usually Public) unless chosen: now #emergency
-  if (n > 0 && p.magic != SF32_UI_PREFS_MAGIC && _ui_prefs.sos_chan == 0) _ui_prefs.sos_chan = 0xFF;
-  if (n > 0 && p.magic != SF32_UI_PREFS_MAGIC && p.magic != SF32_UI_PREFS_MAGIC_V21) {  // older: these didn't exist (their bytes may be padding)
+  if (n > 0 && p.magic != SF32_UI_PREFS_MAGIC && p.magic != SF32_UI_PREFS_MAGIC_V22 && _ui_prefs.sos_chan == 0)
+    _ui_prefs.sos_chan = 0xFF;
+  if (n > 0 && p.magic != SF32_UI_PREFS_MAGIC) {  // older: no bot limits (their bytes were padding)
+    SF32UIPrefs defaults;
+    _ui_prefs.bot_max = defaults.bot_max;
+    _ui_prefs.bot_repeat = defaults.bot_repeat;
+    _ui_prefs.bot_gap = defaults.bot_gap;
+  }
+  if (n > 0 && p.magic != SF32_UI_PREFS_MAGIC && p.magic != SF32_UI_PREFS_MAGIC_V21 && p.magic != SF32_UI_PREFS_MAGIC_V22) {  // older: these didn't exist (their bytes may be padding)
     SF32UIPrefs defaults;
     _ui_prefs.batt_graph = defaults.batt_graph;
     _ui_prefs.batt_warn = defaults.batt_warn;
