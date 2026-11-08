@@ -238,7 +238,8 @@ void UITask::goBack() {
     MenuKind parent = parentOf(_menu_kind);
     // up a level; from the top of a stack (a page menu, Settings) close it. Battery opened
     // from the Battery page's menu goes back to that menu.
-    if (parent != MENU_PAGE || (_menu_kind == MENU_BATTERY && _batt_from == MENU_PAGE)) {
+    bool to_page_menu = parent == MENU_PAGE && (menuParent(_menu_kind) == MENU_SETTINGS || _menu_kind == MENU_POWER_OFF);
+    if (parent != MENU_PAGE || to_page_menu) {
       openMenu(parent);
       d->setTransition(SF32Display::TRANSITION_RIGHT);
     }

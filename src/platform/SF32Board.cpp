@@ -672,18 +672,18 @@ bool SF32Board::handleCommand(const char* command, uint32_t sender_timestamp, ch
   // "clock reset": MeshCore refuses to move the clock backwards, so a clock set
   // into the future can't otherwise be corrected. Serial only (sender_timestamp 0),
   // never over the mesh.
-  if (strcmp(command, "clock reset") == 0 && sender_timestamp == 0 && _rtc) {
+  if (strcmp(command, "clock reset") == 0 && sf32IsLocalConsole(sender_timestamp) && _rtc) {
     _rtc->reset();
     strcpy(reply, "OK - clock reset; set the time again (e.g. reconnect the configurator)");
     return true;
   }
   // "i2c scan": which addresses answer on the I2C buses (serial only)
-  if (strcmp(command, "i2c scan") == 0 && sender_timestamp == 0) {
+  if (strcmp(command, "i2c scan") == 0 && sf32IsLocalConsole(sender_timestamp)) {
     sf32_i2c_scan(reply, 150);
     return true;
   }
   // "wdt test": stall MeshCore's loop to check the watchdog reboots the board (~30 s).
-  if (strcmp(command, "wdt test") == 0 && sender_timestamp == 0) {
+  if (strcmp(command, "wdt test") == 0 && sf32IsLocalConsole(sender_timestamp)) {
     Serial.println("  -> stalling the main loop; the watchdog should reboot in ~30 s");
     while (1) rt_thread_mdelay(100);  // other threads (idle) keep running
   }
@@ -712,7 +712,7 @@ bool SF32Board::handleCommand(const char* command, uint32_t sender_timestamp, ch
   // "charger test" (USB serial only): pause charging (CEB, not HIZ: the board stays on
   // USB power) for 3 s and sample VBAT. With a cell attached, VBAT settles at the cell
   // voltage with little spread; with none, it collapses or wanders.
-  if (strcmp(command, "charger test") == 0 && sender_timestamp == 0) {
+  if (strcmp(command, "charger test") == 0 && sf32IsLocalConsole(sender_timestamp)) {
     rt_device_t chg = rt_device_find(SGM41562B_RT_DEVICE_NAME);
     if (!chg) { strcpy(reply, "charger n/a"); return true; }
     rt_bool_t off = RT_FALSE, on = RT_TRUE;

@@ -6,14 +6,14 @@
 // Settings > Battery, also in the Battery page's own menu (swipe up)
 void UITask::addBatteryRows(MenuScreen& m) {
   char v[8];
-  m.add("Show", ACT_BATT_ICON, _ui_prefs.batt_icon ? "Icon + %" : "% only");
+  m.add("Show", ACT_BATT_ICON, _ui_prefs.batt_icon ? "Icon+%" : "% only");  // (short: wider rows make every value small)
   sprintf(v, "%d h", BATT_GRAPH_HOURS[_ui_prefs.batt_graph % NUM_BATT_GRAPH]);
   m.add("Graph", ACT_BATT_GRAPH, v);
   int w = BATT_WARN_LEVELS[_ui_prefs.batt_warn % NUM_BATT_WARN];
   if (w) sprintf(v, "%d%%", w); else strcpy(v, "Off");
   m.add("Low alert", ACT_BATT_WARN, v);
   sprintf(v, "%d%%", CHG_LIMITS[_ui_prefs.chg_limit % NUM_CHG_LIMITS]);
-  m.add("Charge to", ACT_CHG_LIMIT, v);
+  m.add("Charge", ACT_CHG_LIMIT, v);  // charge to
 }
 
 void UITask::openMenu(MenuKind kind) {
@@ -26,7 +26,8 @@ void UITask::openMenu(MenuKind kind) {
       keep_sel = _back_sel;  // back up: on the row that opened the submenu
     } else {                 // down into a submenu: remember where from
       _back_sel = m->selected();
-      if (kind == MENU_BATTERY) _batt_from = _menu_kind == MENU_PAGE ? MENU_PAGE : MENU_SETTINGS;
+      if (menuParent(kind) == MENU_SETTINGS) _sub_from = _menu_kind == MENU_PAGE ? MENU_PAGE : MENU_SETTINGS;
+      if (kind == MENU_POWER_OFF) _poff_from = _menu_kind;
       if (kind == MENU_POWER) _power_from = MENU_SETTINGS;
     }
   } else if (curr != menu) {
@@ -53,15 +54,32 @@ void UITask::openMenu(MenuKind kind) {
     m->begin("Power");
     m->add("Flashlight", ACT_FLASHLIGHT);
     m->add("Screen off", ACT_SCREEN_OFF);
-    m->add("Reboot", ACT_REBOOT);
-    m->add("Power off", ACT_POWER_OFF);
     m->add("Send SOS", ACT_SOS);
+    m->add("Reboot / off", ACT_POWER_OFF_MENU);  // a step away from a stray tap
     if (_power_from == MENU_SETTINGS) {  // Settings > Power: a submenu like the others
       m->add("Back", ACT_MENU_BACK);
       m->setSelected(keep_sel);
       setCurrScreen(menu);
       return;
     }
+  } else if (kind == MENU_POWER_OFF) {
+    m->begin("Power");
+    m->add("Reboot", ACT_REBOOT);
+    m->add("Power off", ACT_POWER_OFF);
+    m->add("Back", ACT_MENU_BACK);
+    m->setSelected(keep_sel);
+    setCurrScreen(menu);
+    return;
+  } else if (kind == MENU_BOT) {
+    static const char* const CHAN_NAMES[] = {"Off", "DM", "Post"};
+    m->begin("Bot");
+    m->add("Auto-reply", ACT_BOT_TOGGLE, _ui_prefs.bot_on ? "On" : "Off");
+    m->add("To DMs", ACT_BOT_DM, _ui_prefs.bot_dm ? "On" : "Off");
+    m->add("Channels", ACT_BOT_CHAN, CHAN_NAMES[_ui_prefs.bot_chan % 3]);
+    m->add("Back", ACT_MENU_BACK);
+    m->setSelected(keep_sel);
+    setCurrScreen(menu);
+    return;
   } else if (kind == MENU_SETTINGS) {
     // what you see (screen, pages, clock), what you hear and when (sound, night), sensors,
     // the radio side (Bluetooth, SOS), then the system (power use, logs, power off)
@@ -76,10 +94,11 @@ void UITask::openMenu(MenuKind kind) {
     m->add("Motion", ACT_MOTION_MENU);
     m->add("Bluetooth", ACT_SET_BT, isBluetoothEnabled() ? "On" : "Off");
     m->add("USB app", ACT_USB_APP, _ui_prefs.usb_app ? "On" : "Off");  // the app protocol over USB
-    m->add("Auto advert", ACT_ADVERTS_MENU);  // scheduled adverts
+    m->add("Adverts", ACT_ADVERTS_MENU);  // scheduled adverts, what the Advert page's hold sends
+    m->add("Bot", ACT_BOT_MENU);
     {
       ChannelDetails ch;
-      m->add("SOS to", ACT_SOS_CHAN, sosChannel(_ui_prefs.sos_chan, ch) >= 0 ? ch.name : "none");
+      m->add("SOS to", ACT_SOS_CHAN, sosChannelName(_ui_prefs.sos_chan, ch));
     }
     if (board.sleepSupported()) m->add("Sleep", ACT_POWER_SAVE, _ui_prefs.power_save ? "On" : "Off");
     m->add("Logs", ACT_LOGS);
@@ -107,7 +126,6 @@ void UITask::openMenu(MenuKind kind) {
   } else if (kind == MENU_DISPLAY) {
     m->begin("Display");
     // how it looks, then how the screen behaves
-    m->add("Clock face", ACT_CLOCK_FACE, CLOCK_FACE_NAMES[_ui_prefs.clock_face % NUM_CLOCK_FACES]);
     sprintf(tmp, "%d%%", BRIGHTNESS_STEPS[_ui_prefs.brightness_idx]);
     m->add("Brightness", ACT_SET_BRIGHTNESS, tmp);
     timeoutLabel(tmp, _ui_prefs.timeout_idx);
@@ -133,6 +151,7 @@ void UITask::openMenu(MenuKind kind) {
     m->add("Nearby", ACT_ADV_NEARBY, tmp);
     advHoursLabel(tmp, ADV_MESH_HOURS[_ui_prefs.adv_mesh % NUM_ADV_MESH]);
     m->add("Mesh", ACT_ADV_MESH, tmp);
+    m->add("Hold", ACT_ADV_PAGE_MODE, _ui_prefs.adv_page_mesh ? "Mesh" : "Nearby");  // the Advert page's icon hold
     m->add("Back", ACT_MENU_BACK);
     m->setSelected(keep_sel);
     setCurrScreen(menu);
@@ -173,11 +192,12 @@ void UITask::openMenu(MenuKind kind) {
     return;
   } else if (kind == MENU_TIME) {
     m->begin("Clock");
+    m->add("Face", ACT_CLOCK_FACE, CLOCK_FACE_NAMES[_ui_prefs.clock_face % NUM_CLOCK_FACES]);
     int tz = _node_prefs->tz_offset;
     if (tz == 0) strcpy(tmp, "UTC"); else sprintf(tmp, "UTC%+d", tz);
     m->add("Zone", ACT_SET_TZ, tmp);  // time zone (short: "Time zone" + "UTC+10" scrolls)
     m->add("DST", ACT_SET_DST, DST_NAMES[_ui_prefs.dst_rule]);  // daylight saving
-    m->add("Format", ACT_SET_CLOCK, _ui_prefs.clock24 ? "24 hour" : "12 hour");
+    m->add("Format", ACT_SET_CLOCK, _ui_prefs.clock24 ? "24 h" : "12 h");  // (short: "24 hour" makes every value small)
     m->add("Mesh time", ACT_SET_MESH_TIME, _ui_prefs.mesh_time ? "On" : "Off");  // ui_meshtime.inc
     m->add("Reset clock", ACT_CLOCK_RESET);  // a wrong time ahead can't be set back otherwise
     m->add("Back", ACT_MENU_BACK);
@@ -242,14 +262,16 @@ void UITask::menuAction(uint8_t action) {
     case ACT_ADVERT:
       closeMenu();
       notify(UIEventType::ack);
-      showAlert(sendAdvert(false) ? "Advert sent nearby" : "Advert failed..", 1000);
+      if (!sendAdvert(false)) showAlert("Advert failed", 1000);
       break;
     case ACT_ADVERT_MESH:
       closeMenu();
       notify(UIEventType::ack);
-      showAlert(sendAdvert(true) ? "Advert sent to mesh" : "Advert failed..", 1000);
+      if (!sendAdvert(true)) showAlert("Advert failed", 1000);
       break;
     case ACT_ADVERTS_MENU: openMenu(MENU_ADVERTS); break;
+    case ACT_BOT_MENU: openMenu(MENU_BOT); break;
+    case ACT_POWER_OFF_MENU: openMenu(MENU_POWER_OFF); break;
     case ACT_ROTATION: {  // Normal -> Auto -> Right -> Upside down -> Left -> Normal
       static const uint8_t NEXT[5] = {2, 4, 3, 1, 0};  // by stored value
       _ui_prefs.rotation = NEXT[_ui_prefs.rotation % 5];
@@ -281,11 +303,15 @@ void UITask::menuAction(uint8_t action) {
       openMenu(_menu_kind);
       break;
     case ACT_BT_FORGET:
-      bluetooth_interface.forgetBonds();
       closeMenu();
-      showAlert("Paired phones forgotten", 1500);
+      showAlert(bluetooth_interface.forgetBonds() ? "Phones forgotten: pair again" : "Turn Bluetooth on first", 1500);
       break;
-    case ACT_DISC_NAMES: h->toggleDiscoveryNames(); closeMenu(); break;
+    case ACT_BT_PAIR:
+      if (!isBluetoothEnabled()) enableBluetooth();
+      bluetooth_interface.openPairing(2UL * 60 * 1000);
+      closeMenu();  // the page shows the PIN and the time left
+      break;
+    case ACT_DISC_NAMES: h->toggleDiscoveryNames(); openMenu(_menu_kind); break;  // toggles keep the menu open
     case ACT_MSG_CLEAR:
       ((MsgPreviewScreen*)msg_preview)->clearUnread();
       _menu_return = NULL;
@@ -407,7 +433,7 @@ void UITask::menuAction(uint8_t action) {
       _ui_prefs.clock_face = (_ui_prefs.clock_face + 1) % NUM_CLOCK_FACES;
       saveUIPrefs();
       if (curr == menu) openMenu(_menu_kind);
-      else { showAlert(CLOCK_FACE_NAMES[_ui_prefs.clock_face], 700); _next_refresh = 0; }
+      else _next_refresh = 0;  // (the face itself shows the change, as with a touch hold)
       break;
     case ACT_DISPLAY_MENU: openMenu(MENU_DISPLAY); break;
     case ACT_MOTION_MENU: openMenu(MENU_MOTION); break;
@@ -430,7 +456,8 @@ void UITask::menuAction(uint8_t action) {
     case ACT_SOS_CHAN: {
       ChannelDetails ch;
       int cur = sosChannel(_ui_prefs.sos_chan, ch);
-      _ui_prefs.sos_chan = nextSosChannel(cur < 0 ? 0 : cur);
+      bool on_emergency = cur < 0 || strcasecmp(ch.name, SOS_EMERGENCY_NAME) == 0;
+      _ui_prefs.sos_chan = nextSosChannel(on_emergency ? SOS_CHAN_EMERGENCY : cur);
       saveUIPrefs();
       openMenu(MENU_SETTINGS);
       break;

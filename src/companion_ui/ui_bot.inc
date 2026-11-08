@@ -8,11 +8,13 @@
 // stored path instead, so they are skipped.
 //
 // Etiquette: each sender gets the reminder at most once a day (RAM table, cleared at
-// boot), at most one reply a minute overall, and messages that look like auto-replies
-// are never answered (two bots can't ping-pong).
+// boot), at most one reply a minute overall and 20 a day in all (channel sender names
+// can be made up, so the per-sender table alone can't stop a flood of replies), and
+// messages that look like auto-replies are never answered (two bots can't ping-pong).
 
 #define BOT_SENDER_COOLDOWN_MS  (24UL * 60 * 60 * 1000)
 #define BOT_MIN_GAP_MS          60000UL
+#define BOT_MAX_PER_DAY         20
 #define BOT_REPLY_DELAY_MS      3000UL  // let the incoming flood and its ACK clear first
 
 static const char BOT_DM_TEXT[] =
@@ -37,6 +39,8 @@ void UITask::botCheck(mesh::Packet* pkt, const ContactInfo* from, const ChannelD
   if (pkt->getPathHashSize() != 1) return;
   if (_bot_reply.pending) return;  // one at a time
   if (_bot_last_sent && millis() - _bot_last_sent < BOT_MIN_GAP_MS) return;
+  if (_bot_day_start && millis() - _bot_day_start >= BOT_SENDER_COOLDOWN_MS) _bot_day_start = 0;  // a new day
+  if (_bot_day_start && _bot_day_n >= BOT_MAX_PER_DAY) return;  // today's replies used up
 
   BotReply r = {};
   const char* body = text;
@@ -104,6 +108,8 @@ void UITask::botLoop() {
     }
   }
   _bot_last_sent = millis();
+  if (!_bot_day_start) { _bot_day_start = millis() | 1; _bot_day_n = 0; }
+  _bot_day_n++;
   if (ok) {
     _bot_count++;
     StrHelper::strncpy(_bot_last, _bot_reply.name, sizeof(_bot_last));

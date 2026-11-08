@@ -126,6 +126,12 @@ void SF32SerialBLEInterface::setupOnPowerOn() {
   connection_manager_set_bond_ack(BOND_PENDING);
   connection_manager_bond_pin_code_set(_pin_code);
 
+  // nothing paired yet (first start, or after Forget phones): pairing open for 5 min
+  {
+    conn_manager_get_bonded_dev_t bonded;
+    if (connection_manager_get_bonded_devices((uint8_t*)&bonded) == 0) openPairing(5UL * 60 * 1000);
+  }
+
   // Bonds made by earlier test firmware may be unauthenticated: clear them once.
   if (!InternalFS.exists(BOND_RESET_MARKER)) {
     connection_manager_delete_all_bond();
@@ -185,14 +191,17 @@ void SF32SerialBLEInterface::startAdvertising() {
   LOG_I("advertising start: %d", r);
 }
 
-void SF32SerialBLEInterface::forgetBonds() {
+bool SF32SerialBLEInterface::forgetBonds() {
+  if (!_ready) return false;
   if (_link_up) {
     ble_gap_disconnect_t dis = {0};
     dis.conn_idx = _conn_idx;
     dis.reason = 0x13;  // remote user terminated connection
     ble_gap_disconnect(&dis);
   }
-  if (_ready) connection_manager_delete_all_bond();
+  connection_manager_delete_all_bond();
+  openPairing(2UL * 60 * 1000);  // to pair a phone again
+  return true;
 }
 
 void SF32SerialBLEInterface::enable() {
@@ -264,11 +273,18 @@ void SF32SerialBLEInterface::onStackEvent(uint16_t event_id, uint8_t* data, uint
     case CONNECTION_MANAGER_BOND_AUTH_INFOR: {
       connection_manager_bond_ack_infor_t* info = (connection_manager_bond_ack_infor_t*)data;
       _security_pending = false;  // pairing under way
-      LOG_I("pairing step %d", info->request);
+      // a new pairing only while pairing is open (paired phones don't come through here)
+      bool ok = info->request != GAPC_PAIRING_REQ || pairingOpen();
+      LOG_I("pairing step %d%s", info->request, ok ? "" : ": refused (pairing closed)");
       if (info->request == GAPC_TK_EXCH) connection_manager_bond_pin_code_set(_pin_code);
-      connection_manager_bond_ack_reply(info->conn_idx, info->request, true);
+      connection_manager_bond_ack_reply(info->conn_idx, info->request, ok);
       break;
     }
+    case CONNECTION_MANAGER_PAIRING_SUCCEED:
+    case CONNECTION_MANAGER_PAIRING_FAILED:  // a wrong PIN: no more tries until it's opened again
+      LOG_I("pairing %s", event_id == CONNECTION_MANAGER_PAIRING_SUCCEED ? "done" : "failed");
+      _pair_until = 0;
+      break;
     default:
       break;
   }

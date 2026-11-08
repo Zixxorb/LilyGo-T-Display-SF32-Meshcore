@@ -10,22 +10,48 @@
 
 enum SosState : uint8_t { SOS_OFF, SOS_COUNTDOWN, SOS_ACTIVE, SOS_DONE };
 
-// channel index for SOS: the chosen one if it still exists, else the first one
-static int sosChannel(uint8_t pref, ChannelDetails& ch) {
-  if (the_mesh.getChannel(pref, ch) && ch.name[0]) return pref;
+// Settings > SOS to: SOS_CHAN_EMERGENCY (the default) or a channel index. #emergency is the
+// shared hashtag channel (its key is the SHA-256 of its name, as the apps make it); it's
+// added to the channel list when an SOS needs it and isn't there. A chosen channel that's
+// gone falls back to #emergency, never to Public.
+#define SOS_CHAN_EMERGENCY 0xFF
+static const char SOS_EMERGENCY_NAME[] = "#emergency";
+extern DataStore store;  // (companion main.cpp)
+
+static int findEmergencyChannel(ChannelDetails& ch, bool add) {
   for (int i = 0; i < MAX_GROUP_CHANNELS; i++)
-    if (the_mesh.getChannel(i, ch) && ch.name[0]) return i;
-  return -1;
+    if (the_mesh.getChannel(i, ch) && strcasecmp(ch.name, SOS_EMERGENCY_NAME) == 0) return i;
+  if (!add) return -1;
+  for (int i = 0; i < MAX_GROUP_CHANNELS; i++) {
+    if (the_mesh.getChannel(i, ch) && ch.name[0]) continue;
+    memset(&ch, 0, sizeof(ch));
+    StrHelper::strncpy(ch.name, SOS_EMERGENCY_NAME, sizeof(ch.name));
+    mesh::Utils::sha256(ch.channel.secret, 16, (const uint8_t*)SOS_EMERGENCY_NAME, strlen(SOS_EMERGENCY_NAME));
+    if (!the_mesh.setChannel(i, ch)) return -1;
+    store.saveChannels(&the_mesh);
+    the_mesh.getChannel(i, ch);  // (with its hash)
+    board.logEvent("SOS: added #emergency");
+    return i;
+  }
+  return -1;  // no free channel slot
 }
 
-// next configured channel after `pref` (Settings > SOS to)
+// the SOS channel: `add` puts #emergency on the list if it's needed and missing
+static int sosChannel(uint8_t pref, ChannelDetails& ch, bool add = false) {
+  if (pref != SOS_CHAN_EMERGENCY && the_mesh.getChannel(pref, ch) && ch.name[0]) return pref;
+  return findEmergencyChannel(ch, add);
+}
+static const char* sosChannelName(uint8_t pref, ChannelDetails& ch) {
+  return sosChannel(pref, ch) >= 0 ? ch.name : SOS_EMERGENCY_NAME;  // (added when needed)
+}
+
+// the next choice after `pref`: #emergency, then each other configured channel
 static uint8_t nextSosChannel(uint8_t pref) {
   ChannelDetails ch;
-  for (int k = 1; k <= MAX_GROUP_CHANNELS; k++) {
-    int i = (pref + k) % MAX_GROUP_CHANNELS;
-    if (the_mesh.getChannel(i, ch) && ch.name[0]) return i;
-  }
-  return pref;
+  int from = pref == SOS_CHAN_EMERGENCY ? -1 : pref;
+  for (int i = from + 1; i < MAX_GROUP_CHANNELS; i++)
+    if (the_mesh.getChannel(i, ch) && ch.name[0] && strcasecmp(ch.name, SOS_EMERGENCY_NAME) != 0) return i;
+  return SOS_CHAN_EMERGENCY;
 }
 
 class SosScreen : public UIScreen {
@@ -36,7 +62,7 @@ public:
   int render(DisplayDriver& display) override {
     char tmp[48];
     ChannelDetails ch;
-    const char* chan = sosChannel(_task->uiPrefs().sos_chan, ch) >= 0 ? ch.name : "(no channel)";
+    const char* chan = sosChannelName(_task->uiPrefs().sos_chan, ch);
     // red frame, title
     display.setColor(THEME_RED);
     display.fillRect(0, 0, 128, 3);
@@ -125,8 +151,8 @@ int UITask::sosSecondsLeft() const {
 
 void UITask::sendSos() {
   ChannelDetails ch;
-  if (sosChannel(_ui_prefs.sos_chan, ch) < 0) {
-    board.logEvent("SOS failed: no channel");
+  if (sosChannel(_ui_prefs.sos_chan, ch, true) < 0) {
+    board.logEvent("SOS failed: no channel (list full)");
     _sos_state = SOS_DONE;
     return;
   }

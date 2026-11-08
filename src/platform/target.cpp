@@ -22,7 +22,7 @@ SensorManager sensors;
 static int noise_now(int* lo = nullptr, int* hi = nullptr) { return radio_driver.sampleNoise(60, lo, hi); }
 
 static bool platform_command(const char* command, uint32_t sender_timestamp, char* reply) {
-  if (sender_timestamp != 0) return false;
+  if (!sf32IsLocalConsole(sender_timestamp)) return false;  // USB console only (not the app or remote CLI)
   if (strcmp(command, "noise") == 0) {
     int lo, hi, avg = noise_now(&lo, &hi);
     sprintf(reply, "%d dBm (min %d, max %d) at %lu kHz", avg, lo, hi,

@@ -179,7 +179,7 @@ on the clock. Long lists follow your finger and glide after a flick.
 | **Battery** | Charge, voltage, chip temperature, time left, 48 h graph |
 | **Heard** | Recently heard nodes |
 | **Radio** | Frequency, BW, SF, CR, TX power, noise floor. Menu: edit radio, band scan |
-| **Bluetooth** | Connection; menu: turn off, forget paired phones |
+| **Bluetooth** | Connection; menu: on/off, **Pair phone** (a new phone can pair only for 2 min after this, or in the first 5 min after start while none is paired; one wrong PIN closes it), forget paired phones |
 | **Advert** | Send an advert (hold the icon or long press button A: nearby or whole mesh, your choice) |
 | **Bot** | Optional auto-reply to senders using 1-byte path hashes (off by default) |
 | **Discover** | Scan for nearby nodes |
@@ -195,24 +195,29 @@ Pages can be hidden in **Settings > Pages** (the clock always shows).
 ### Settings
 
 <details>
-<summary><b>All 14 menus</b></summary>
+<summary><b>All the menus</b></summary>
 
 | Menu | Contains |
 |---|---|
-| **Theme** | Style (Normal / Glass), Color (each style keeps its own), Backdrop for Glass (Aurora / Dunes / Blend / None) |
-| **Display** | Clock face, brightness, timeout, always-on, rotation (Normal / Auto / Right / Upside down / Left) |
+| **Theme** | Style (Normal / Glass), Color (each style keeps its own), Backdrop for Glass (Aurora / Dunes / Blend / None), Battery (Color: red / yellow / green by charge, or Plain) |
+| **Display** | Brightness, timeout, always-on, rotation (Normal / Auto / Right / Flipped / Left) |
 | **Pages** | Show or hide each home page |
-| **Clock** | Time zone, daylight saving (off/US/EU), 12/24 h, mesh time, reset clock |
-| **Sound** | Volume, new-message alerts (all / direct / off), tap sound (click / pop / tick / off) |
-| **Night mode** | From, until, dim and how far, do not disturb |
+| **Clock** | Face, zone, daylight saving (off/US/EU), 12/24 h, mesh time, reset clock |
+| **Battery** | Show (icon + % / % only), graph span (6/12/24/48 h), low alert (10/15/20/30 % / off), charge to (100/90/80 %) |
+| **Sound** | Volume, new-message alerts (all / direct / off), taps (click / pop / tick / off) |
+| **Night** | From, until, dim and how far, do not disturb |
 | **Motion** | Lift to wake, flip to quiet |
 | **Bluetooth** | On / off (remembered) |
 | **USB app** | The app protocol over USB as well (off by default) |
-| **Auto advert** | Nearby every 1/3/6/12 h, mesh every 12/24/48 h (both off by default) |
-| **SOS to** | The channel Mesh SOS goes to |
-| **Low power** | Let the chip sleep with the screen off (on by default) |
+| **Adverts** | Nearby every 1/3/6/12 h, mesh every 12/24/48 h (both off by default), what the Advert page's hold sends |
+| **Bot** | Auto-reply, to DMs, channels |
+| **SOS to** | The channel Mesh SOS goes to (#emergency by default) |
+| **Sleep** | Let the chip sleep with the screen off (on by default) |
 | **Logs** | The last 20 events; tap one for a board snapshot |
-| **Power** | Screen off, reboot, power off |
+| **Power** | Flashlight, screen off, Send SOS, Reboot / off (reboot, power off) |
+
+A page's swipe-up menu has that page's actions, and a "... menu" row for its settings
+(the same submenu as in Settings; Back returns to where you came from).
 
 Saved in `/sf32_ui` on the board.
 
@@ -234,7 +239,7 @@ Click a feature to expand it.
 - **Digital**, **Analog**, **Big** (stacked hours and minutes), **Info** (time plus unread,
   battery, phone and last-heard cards; also shows the next sunrise or sunset).
 
-Switch by holding the clock, from its swipe-up menu > Face, or Settings > Display > Clock face.
+Switch by holding the clock, or Settings > Clock > Face (also via the clock page's menu > Clock menu).
 The time comes from the phone app when it connects; until then the clock shows `--:--`.
 
 </details>
@@ -242,7 +247,7 @@ The time comes from the phone app when it connects; until then the clock shows `
 <details>
 <summary><b>Time zone</b></summary>
 
-Settings > Clock > Time zone: **-** / **+**, **Done** (button A: click = +1 h, double
+Settings > Clock > Zone: **-** / **+**, **Done** (button A: click = +1 h, double
 click = -1 h, long press = done). The phone can't set it: MeshCore's companion protocol only
 sends UTC. With **Daylight saving** set to US or EU, the zone is your standard time (e.g.
 UTC-5 for US Eastern) and summer time is added automatically. It's MeshCore's own
@@ -270,7 +275,7 @@ The device shows messages but doesn't send them: no typing or replies, by design
 message that alerts (Settings > Sound > Alerts) shows a banner at the top for 6 s with the
 sender and the start of the text. Tap the envelope on the clock to read; swipe left for the
 next, right to go back. Messages count as read once the phone app downloads them, or when
-viewed on the device. **Do not disturb** (Night mode) keeps them silent and dark.
+viewed on the device. **Do not disturb** (Settings > Night) keeps them silent and dark.
 
 </details>
 
@@ -279,7 +284,8 @@ viewed on the device. **Do not disturb** (Night mode) keeps them silent and dark
 
 Triple-press button A, or swipe down > Send SOS. After a 5 s countdown with beeps (Cancel,
 or press A), it sends "SOS! I need help. Location: lat,lon. Battery N%." to the channel in
-Settings > SOS to (default: the first channel, usually Public), and repeats every 5 min, 6
+Settings > SOS to (default: **#emergency**, the shared hashtag channel, added to the channel
+list when an SOS needs it; a chosen channel that has gone falls back to it), and repeats every 5 min, 6
 times in all, until you tap Stop. The location is the node's as set in the app.
 
 </details>
@@ -343,7 +349,7 @@ login for it ("no reply").
 Send adverts on a schedule, as repeaters do, so other nodes keep a fresh path: **Nearby**
 (zero hop) every 1, 3, 6 or 12 h and **Mesh** (flood) every 12, 24 or 48 h. The Advert,
 Heard and Radio page menus have **Send nearby** and **Send to mesh**; the Advert page's
-menu > **Long press** picks what its long press sends.
+menu > Advert menu > **Hold** picks what its icon hold sends.
 
 </details>
 
@@ -356,7 +362,7 @@ menu > **Long press** picks what its long press sends.
   scan (`meshcore://contact/add?...`).
 - **Flashlight** (power menu): the whole panel at full brightness, white or red (tap
   switches; red keeps night vision), 5 min unless touched.
-- **Rotation** (Settings > Display): Normal, Right, Upside down, Left, or **Auto** (the way
+- **Rotation** (Settings > Display): Normal, Right, Flipped, Left, or **Auto** (the way
   it's held, from the accelerometer; lying flat keeps the last). Touches turn with it.
 
 </details>
@@ -371,7 +377,7 @@ menu > **Long press** picks what its long press sends.
   Rainbow (every page in its own hue).
 - **Always-on**: instead of going dark, the time, date and an unread envelope on black at
   6 % brightness, moved each minute (burn-in care).
-- **Night mode**: a lower brightness between two hours and/or do not disturb. There's no
+- **Night** (Settings > Night): a lower brightness between two hours and/or do not disturb. There's no
   light sensor for auto brightness.
 - **Timeout**: 15 s, 30 s, 1 min, 5 min, or never while on USB (then it dims after a minute).
 - **Sound**: chime volume off / low / medium / high; tap sounds click / pop / tick plus a
@@ -396,9 +402,10 @@ CH343 port; flashing still works. Nothing is written until an app sends a frame.
 <summary><b>Bot (optional)</b></summary>
 
 Off by default; tap the Bot page to turn it on. It auto-replies to messages sent with
-**1-byte path hashes**, asking the sender to switch to 2-byte. Swipe up for options:
-**Auto-reply**, **To DMs**, and **Channels** (off / DM back / post in the channel). Each
-sender gets it at most once a day, at most one reply a minute, never to auto-replies.
+**1-byte path hashes**, asking the sender to switch to 2-byte. Settings > Bot (or the
+page's menu > Bot menu): **Auto-reply**, **To DMs**, and **Channels** (off / DM / post in
+the channel). Each sender gets it at most once a day, at most one reply a minute and 20 a
+day in all, never to auto-replies.
 
 </details>
 
@@ -407,7 +414,7 @@ sender gets it at most once a day, at most one reply a minute, never to auto-rep
 - **Battery life** (companion, screen mostly off): an estimated **22-25 hours** on the
   480 mAh battery, from about 4 % per hour overnight. Work on reducing the screen-off draw
   is ongoing.
-- **Low power** (on by default): the chip light-sleeps whenever the screen is off; the
+- **Sleep** (on by default): the chip light-sleeps whenever the screen is off; the
   radio keeps listening and Bluetooth stays up. It stays awake on USB (charging), which
   keeps flashing working.
 - **Charge shown**: from the battery voltage. While charging (which lifts the voltage) it
@@ -438,6 +445,8 @@ on the bottom edge, below the antenna) or plug in USB.
 <details>
 <summary><b>Board-specific CLI commands</b></summary>
 
+"USB only" means typed at the USB console: the phone app, the USB app and remote CLI can't run them.
+
 | Command | Does |
 |---|---|
 | `battery` | Battery voltage over 20 samples, USB, charger state and faults |
@@ -447,7 +456,7 @@ on the bottom edge, below the antenna) or plug in USB.
 | `buttons` | Levels and change counts for buttons C, A, B |
 | `display on` / `display off` | Screen |
 | `noise` / `noise test` / `noise scan FROM TO STEP` | Radio background level, tests and sweeps (kHz; USB only) |
-| `i2c scan` | Devices on the I2C buses |
+| `i2c scan` | (USB only) Devices on the I2C buses |
 | `wdt test` | (USB only) Stalls the main loop; the watchdog reboots in about a minute |
 </details>
 

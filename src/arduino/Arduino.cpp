@@ -157,8 +157,14 @@ int ConsoleSerial::available() {
   return peek() >= 0 ? 1 : 0;
 }
 
+// When a line was last ended on the USB console: CLI commands that are for whoever is at the
+// USB cable only (SF32Board::isLocalConsole) check it. The phone app and remote CLI also
+// pass sender timestamp 0, so the timestamp alone can't tell them apart.
+volatile unsigned long sf32_console_eol_ms = 0;
+
 int ConsoleSerial::read() {
   int c = peek();
   _peeked = -1;
+  if (c == '\r' || c == '\n') sf32_console_eol_ms = millis() | 1;
   return c;
 }

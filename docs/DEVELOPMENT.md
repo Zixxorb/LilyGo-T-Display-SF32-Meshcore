@@ -219,7 +219,7 @@ clock moves each minute.
 
 ## Power and sleep
 
-- **Light sleep** (companion; Settings > Low power, on by default): RT-Thread's power
+- **Light sleep** (companion; Settings > Sleep, on by default): RT-Thread's power
   manager (`CONFIG_BSP_USING_PM`) light-sleeps the chip whenever it's idle with the screen
   off (always-on counts as on), the audio off and the first minute after boot over. The
   policy is light sleep only (SF32Board.cpp overrides the SDK's weak `pm_policy[]`: the 52x
@@ -227,7 +227,7 @@ clock moves each minute.
   Bluetooth all wake it.
 - LilyGo's board support powers the LoRa radio off in sleep (`BSP_PowerDownCustom`):
   overridden, since a mesh node must keep listening.
-- It stays awake on USB power, which keeps flashing and screenshots working. Low power Off
+- It stays awake on USB power, which keeps flashing and screenshots working. Sleep Off
   holds it awake (the way back if something misbehaves). `SF32_PM_LOG` test builds sleep on
   USB too, after 8 minutes; to flash one, tap the screen on first.
 - **Sleep counters**: every companion build counts, from unplugging until USB comes back,
@@ -272,7 +272,7 @@ clock moves each minute.
 
 - **Sound**: `SF32Sound` generates tones and plays them AUDPRC -> AUDCODEC DAC -> NS4150B
   amplifier (PA20), in its own thread. The audio path takes 100+ ms to come up and pops
-  when it powers up, so while Volume or Tap sound is on it stays open (silent) while the
+  when it powers up, so while Volume or Taps is on it stays open (silent) while the
   screen is in use and for 2 min after, then powers down. A startup chime covers the boot
   pop. `rt_device_write` is called with interrupts off: the RT-Thread audio driver could
   otherwise block forever when the DMA interrupt won a race.

@@ -40,7 +40,8 @@ void UITask::resumeOrReset() {
 #define SF32_UI_PREFS_MAGIC_V18 0x53465542  // "SFUB": + glass background
 #define SF32_UI_PREFS_MAGIC_V19 0x53465543  // "SFUC": + battery colors
 #define SF32_UI_PREFS_MAGIC_V20 0x53465544  // "SFUD": + battery icon on/off
-#define SF32_UI_PREFS_MAGIC     0x53465545  // "SFUE": + battery graph span, low alert, charge limit
+#define SF32_UI_PREFS_MAGIC_V21 0x53465545  // "SFUE": + battery graph span, low alert, charge limit
+#define SF32_UI_PREFS_MAGIC     0x53465546  // "SFUF": SOS to #emergency by default (0xFF)
 
 static const uint8_t  BRIGHTNESS_STEPS[] = {25, 50, 80, 100};
 static const uint16_t TIMEOUT_SECS[] = {15, 30, 60, 300, 0};  // 0 = on while on USB power (else 60 s)
@@ -50,6 +51,8 @@ void UITask::loadUIPrefs() {
   SF32UIPrefs p;
   int n = f ? f.read((uint8_t*)&p, sizeof(p)) : 0;
   if (n == sizeof(p) && p.magic == SF32_UI_PREFS_MAGIC) {
+    _ui_prefs = p;
+  } else if (n >= 46 && p.magic == SF32_UI_PREFS_MAGIC_V21) {  // same fields
     _ui_prefs = p;
   } else if (n >= 43 && p.magic == SF32_UI_PREFS_MAGIC_V20) {  // up to batt_icon
     SF32UIPrefs defaults;
@@ -157,7 +160,9 @@ void UITask::loadUIPrefs() {
     _ui_prefs.dst_rule = p.dst_rule;
     _ui_prefs.theme = p.theme;
   }
-  if (n > 0 && p.magic != SF32_UI_PREFS_MAGIC) {  // older files: these didn't exist (their bytes may be padding)
+  // older files: SOS went to the first channel (usually Public) unless chosen: now #emergency
+  if (n > 0 && p.magic != SF32_UI_PREFS_MAGIC && _ui_prefs.sos_chan == 0) _ui_prefs.sos_chan = 0xFF;
+  if (n > 0 && p.magic != SF32_UI_PREFS_MAGIC && p.magic != SF32_UI_PREFS_MAGIC_V21) {  // older: these didn't exist (their bytes may be padding)
     SF32UIPrefs defaults;
     _ui_prefs.batt_graph = defaults.batt_graph;
     _ui_prefs.batt_warn = defaults.batt_warn;
@@ -182,7 +187,7 @@ void UITask::loadUIPrefs() {
   if (_ui_prefs.bot_chan > 2) _ui_prefs.bot_chan = 1;
   if (_ui_prefs.touch_snd > 3) _ui_prefs.touch_snd = 1;
   if (_ui_prefs.sig_interval >= NUM_SIG_INTERVALS) _ui_prefs.sig_interval = 1;
-  if (_ui_prefs.sos_chan >= MAX_GROUP_CHANNELS) _ui_prefs.sos_chan = 0;
+  if (_ui_prefs.sos_chan >= MAX_GROUP_CHANNELS && _ui_prefs.sos_chan != 0xFF) _ui_prefs.sos_chan = 0xFF;
   if (_ui_prefs.dst_rule >= DST_RULES) _ui_prefs.dst_rule = DST_OFF;
   if (_ui_prefs.rotation > 4) _ui_prefs.rotation = 0;
   applyBrightness();

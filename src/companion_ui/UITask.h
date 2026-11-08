@@ -71,7 +71,7 @@ struct SF32UIPrefs {
   uint8_t bot_chan = 1;        //   channel messages: 0 ignore, 1 DM the sender (if a contact), 2 reply in the channel (@[name])
   uint8_t touch_snd = 1;       // a sound on taps and swipes: 0 off, 1 click, 2 pop, 3 tick
   uint8_t sig_interval = 1;    // signal tester: SIG_INTERVALS index (15 s)
-  uint8_t sos_chan = 0;        // SOS: channel index
+  uint8_t sos_chan = 0xFF;     // SOS: channel index, 0xFF #emergency (SOS_CHAN_EMERGENCY)
   uint8_t mesh_time = 1;       // set the clock from mesh adverts while it isn't known
   uint8_t night_dnd = 0;       // do not disturb during the night hours (no alert chime / wake)
   uint8_t clock_face = 0;      // 0 digital, 1 analog, 2 big, 3 info
@@ -202,6 +202,8 @@ class UITask : public AbstractUITask {
   struct BotSeen { uint32_t key; unsigned long at; };
   BotSeen _bot_seen[16] = {};
   unsigned long _bot_last_sent = 0;
+  unsigned long _bot_day_start = 0;  // the 24 h the daily reply cap counts in (0: none yet)
+  uint8_t _bot_day_n = 0;
   uint16_t _bot_count = 0;  // replies sent since boot
   char _bot_last[32] = "";  // who got the last one
   void botCheck(mesh::Packet* pkt, const ContactInfo* from, const ChannelDetails* chan, const char* text);
@@ -233,11 +235,11 @@ public:
   bool showMessages();          // SF32: open the unread messages (false if none)
 
   // SF32: menus and settings
-  enum MenuKind { MENU_POWER, MENU_PAGE, MENU_SETTINGS, MENU_TIME, MENU_NIGHT, MENU_SOUND, MENU_DISPLAY, MENU_MOTION, MENU_PAGES, MENU_ADVERTS, MENU_THEME, MENU_BATTERY };
+  enum MenuKind { MENU_POWER, MENU_PAGE, MENU_SETTINGS, MENU_TIME, MENU_NIGHT, MENU_SOUND, MENU_DISPLAY, MENU_MOTION, MENU_PAGES, MENU_ADVERTS, MENU_THEME, MENU_BATTERY, MENU_BOT, MENU_POWER_OFF };
   // the menu a submenu goes back to (MENU_PAGE: not a submenu)
   static MenuKind menuParent(MenuKind k) {
     return (k == MENU_NIGHT || k == MENU_TIME || k == MENU_SOUND || k == MENU_DISPLAY || k == MENU_MOTION ||
-            k == MENU_PAGES || k == MENU_ADVERTS || k == MENU_THEME || k == MENU_BATTERY) ? MENU_SETTINGS : MENU_PAGE;
+            k == MENU_PAGES || k == MENU_ADVERTS || k == MENU_THEME || k == MENU_BATTERY || k == MENU_BOT) ? MENU_SETTINGS : MENU_PAGE;
   }
   void openMenu(MenuKind kind);
   void closeMenu();
@@ -294,14 +296,16 @@ public:
   const char* botLastName() const { return _bot_last; }
 private:
   MenuKind _menu_kind = MENU_PAGE;
-  // where Back goes: Battery and Power can be opened from a page menu or from Settings
-  MenuKind _batt_from = MENU_SETTINGS, _power_from = MENU_PAGE;
+  // where Back goes: a Settings submenu can also be opened from a page's menu (its "... menu"
+  // row), Power from a page (swipe down) or Settings, Reboot / off from Power or the Power page
+  MenuKind _sub_from = MENU_SETTINGS, _power_from = MENU_PAGE, _poff_from = MENU_POWER;
   int _back_sel = 0;                    // the parent's row that opened this submenu
   MenuKind _left_kind = MENU_PAGE;      // the menu a screen (Logs, Color, pickers) was opened from
   int _left_sel = 0;                    //   and its row, to come back to
   MenuKind parentOf(MenuKind k) const {
-    if (k == MENU_BATTERY) return _batt_from;
     if (k == MENU_POWER) return _power_from;
+    if (k == MENU_POWER_OFF) return _poff_from;
+    if (menuParent(k) == MENU_SETTINGS) return _sub_from;
     return menuParent(k);
   }
   int _menu_open_dir = 0;  // SF32Display::Transition the open menu came in with

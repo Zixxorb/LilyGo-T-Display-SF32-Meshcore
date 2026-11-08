@@ -4,6 +4,13 @@
 #include <Mesh.h>
 #include <helpers/KeyValueStore.h>
 
+extern volatile unsigned long sf32_console_eol_ms;  // Arduino.cpp: a line just ended on the USB console
+// A CLI command typed at the USB console (not from the phone app, the USB app or remote CLI,
+// which also pass timestamp 0): the console's line ended a moment ago.
+inline bool sf32IsLocalConsole(uint32_t sender_timestamp) {
+  return sender_timestamp == 0 && sf32_console_eol_ms && millis() - sf32_console_eol_ms < 200;
+}
+
 class SF32RTCClock;
 class DisplayDriver;
 

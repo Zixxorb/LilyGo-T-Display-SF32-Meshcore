@@ -468,7 +468,7 @@ public:
       display.setTextSize(1);
       display.setColor(UIColor::secondary_txt);
       display.drawTextCentered(W / 2, 104, "Bluetooth off");
-    } else if (!_task->hasConnection() && the_mesh.getBLEPin() != 0) {
+    } else if (!_task->hasConnection() && the_mesh.getBLEPin() != 0 && bluetooth_interface.pairingOpen()) {
       display.setTextSize(2);
       display.setColor(UIColor::warning_txt);
       sprintf(tmp, "Pin:%d", the_mesh.getBLEPin());
@@ -560,9 +560,8 @@ public:
       case HomePage::CLOCK:
         m.begin("Clock");
         if (_task->getUnreadCount() > 0) m.add("Messages", ACT_READ_MSGS);
-        m.add("Face", ACT_CLOCK_FACE, CLOCK_FACE_NAMES[_task->uiPrefs().clock_face % NUM_CLOCK_FACES]);
-        m.add("Time zone", ACT_GOTO_TZ);
         m.add("Share QR", ACT_SHARE_QR);
+        m.add("Clock menu", ACT_TIME_MENU);  // = Settings > Clock (face, zone, format)
         break;
       case HomePage::FIRST:
         m.begin("Status");
@@ -576,16 +575,16 @@ public:
         break;
       case HomePage::BLUETOOTH:
         m.begin("Bluetooth");
-        m.add(_task->isBluetoothEnabled() ? "Turn off" : "Turn on", ACT_PAGE_PRIMARY);
+        m.add("Bluetooth", ACT_SET_BT, _task->isBluetoothEnabled() ? "On" : "Off");  // as on the Status page
+        m.add("Pair phone", ACT_BT_PAIR);  // opens pairing for 2 min (shows the PIN)
         m.add("Forget phones", ACT_BT_FORGET);
         break;
       case HomePage::ADVERT:
       case HomePage::RECENT:
         m.begin(_page == HomePage::ADVERT ? "Advert" : "Heard");
-        if (_page == HomePage::ADVERT)  // what the page's long press sends
-          m.add("Hold", ACT_ADV_PAGE_MODE, _task->uiPrefs().adv_page_mesh ? "Mesh" : "Nearby");
         m.add("Send nearby", ACT_ADVERT);
         m.add("Send to mesh", ACT_ADVERT_MESH);
+        if (_page == HomePage::ADVERT) m.add("Advert menu", ACT_ADVERTS_MENU);  // = Settings > Adverts (hold, auto)
         break;
 #if UI_DISCOVER_SCREEN
       case HomePage::DISCOVERY:
@@ -595,13 +594,9 @@ public:
         break;
 #endif
       case HomePage::BOT: {
-        // channel messages: off, answer the sender by DM, or post the reply in the channel
-        static const char* const CHAN_NAMES[] = {"Off", "DM", "Post"};
-        const SF32UIPrefs& p = _task->uiPrefs();
         m.begin("Bot");
-        m.add("Auto-reply", ACT_BOT_TOGGLE, p.bot_on ? "On" : "Off");
-        m.add("To DMs", ACT_BOT_DM, p.bot_dm ? "Yes" : "No");
-        m.add("Channels", ACT_BOT_CHAN, CHAN_NAMES[p.bot_chan % 3]);
+        m.add("Auto-reply", ACT_BOT_TOGGLE, _task->uiPrefs().bot_on ? "On" : "Off");  // the page's own toggle
+        m.add("Bot menu", ACT_BOT_MENU);  // = Settings > Bot (DMs, channels)
         break;
       }
       case HomePage::SIGNAL: {
@@ -628,8 +623,7 @@ public:
 #ifndef UI_NO_HIBERNATE
       case HomePage::SHUTDOWN:
         m.begin("Power");
-        m.add("Reboot", ACT_REBOOT);
-        m.add("Power off", ACT_POWER_OFF);
+        m.add("Reboot / off", ACT_POWER_OFF_MENU);  // as in the swipe-down Power menu
         break;
 #endif
       default:
@@ -734,6 +728,7 @@ public:
     const int W = display.width();
     uint16_t mv = _task->getBattMilliVolts();
     int next_render = 5000;
+    if (_page == HomePage::BLUETOOTH && bluetooth_interface.pairingOpen()) next_render = 1000;  // the pairing countdown
 
     if (_page == HomePage::FIRST) {
       themeHeader(display, "Status", mv);
@@ -763,10 +758,21 @@ public:
       } else if (!_task->isBluetoothEnabled()) {
         display.setColor(UIColor::secondary_txt);
         display.print("Off");
-      } else if (the_mesh.getBLEPin() != 0) {
+      } else if (the_mesh.getBLEPin() != 0 && bluetooth_interface.pairingOpen()) {
         display.setColor(UIColor::warning_txt);
         sprintf(tmp, "Pin %d", the_mesh.getBLEPin());
         display.print(tmp);
+        unsigned long left = (bluetooth_interface.pairingLeftMs() + 999) / 1000;
+        sprintf(tmp, "pairing %lu:%02lu", left / 60, left % 60);
+        display.setTextSize(1);
+        display.setColor(UIColor::secondary_txt);
+        display.drawTextRightAlign(119, 76, tmp);
+      } else if (the_mesh.getBLEPin() != 0) {
+        display.setColor(UIColor::primary_txt);
+        display.print("Waiting");
+        display.setTextSize(1);
+        display.setColor(UIColor::secondary_txt);
+        display.drawTextRightAlign(119, 76, "new phone: Pair phone");
       } else {
         display.setColor(UIColor::primary_txt);
         display.print("Waiting");
@@ -1209,11 +1215,7 @@ public:
     if (c == KEY_ENTER && _page == HomePage::ADVERT) {
       _task->notify(UIEventType::ack);
       bool mesh_wide = _task->uiPrefs().adv_page_mesh;
-      if (_task->sendAdvert(mesh_wide)) {
-        _task->showAlert(mesh_wide ? "Advert sent to mesh" : "Advert sent nearby", 1000);
-      } else {
-        _task->showAlert("Advert failed..", 1000);
-      }
+      if (!_task->sendAdvert(mesh_wide)) _task->showAlert("Advert failed", 1000);  // (sent: the chime says it)
       return true;
     }
 #if ENV_INCLUDE_GPS == 1
@@ -1243,7 +1245,7 @@ public:
 #endif
 #ifndef UI_NO_HIBERNATE
     if (c == KEY_ENTER && _page == HomePage::SHUTDOWN) {
-      _shutdown_init = true;  // need to wait for button to be released
+      _task->openMenu(UITask::MENU_POWER);  // the button's long press as the icon's hold: the Power menu
       return true;
     }
 #endif

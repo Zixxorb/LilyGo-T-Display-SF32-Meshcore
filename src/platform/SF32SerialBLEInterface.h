@@ -19,7 +19,14 @@ public:
    */
   void begin(const char* prefix, char* name, uint32_t pin_code);
 
-  void forgetBonds();  // drop every paired phone (they must pair again with the PIN)
+  bool forgetBonds();  // drop every paired phone (they must pair again with the PIN); false: Bluetooth not up
+
+  // A new phone can pair only while pairing is open: Bluetooth page > Pair phone (2 min), or
+  // the first 5 min after start while no phone is paired. One failed pairing closes it, so
+  // the PIN can't be worked out by trying again and again. Paired phones reconnect anytime.
+  void openPairing(unsigned long ms) { _pair_until = (millis() + ms) | 1; }
+  bool pairingOpen() const { return _pair_until && (long)(_pair_until - millis()) > 0; }
+  unsigned long pairingLeftMs() const { return pairingOpen() ? _pair_until - millis() : 0; }
 
   void enable() override;
   void disable() override;
@@ -57,6 +64,7 @@ private:
   volatile bool _security_pending = false;  // send a security request (main thread)
   volatile rt_tick_t _security_due = 0;     // ...from this tick on
   volatile uint8_t _conn_idx = 0;
+  volatile unsigned long _pair_until = 0;  // pairing open until (millis; 0 closed)
   volatile uint16_t _mtu = 23;
 
   void* _srv_handle = nullptr;  // sibles_hdl
