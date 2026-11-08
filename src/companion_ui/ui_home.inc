@@ -570,6 +570,10 @@ public:
         m.add("Share QR", ACT_SHARE_QR);
         m.add("Bluetooth", ACT_SET_BT, _task->isBluetoothEnabled() ? "On" : "Off");
         break;
+      case HomePage::BATTERY:
+        m.begin("Battery");
+        _task->addBatteryRows(m);
+        break;
       case HomePage::BLUETOOTH:
         m.begin("Bluetooth");
         m.add(_task->isBluetoothEnabled() ? "Turn off" : "Turn on", ACT_PAGE_PRIMARY);
@@ -614,9 +618,6 @@ public:
         m.add("Clear results", ACT_SIG_CLEAR);
         break;
       }
-      case HomePage::BATTERY:
-        m.begin("Battery");
-        break;
       case HomePage::RADIO:
         m.begin("Radio");
         m.add("Edit radio", ACT_RADIO_EDIT);

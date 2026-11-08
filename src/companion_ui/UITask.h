@@ -257,6 +257,7 @@ public:
   int themeIndex() const { return _ui_prefs.glass ? _ui_prefs.glass_theme : _ui_prefs.theme; }
   void applyStyle();     // the saved style and its colour
   void applyBattery();   // Settings > Battery: how the % shows, the charge limit
+  void addBatteryRows(class MenuScreen& m);  // its rows (Settings > Battery and the Battery page menu)
   void openTheme();
   void closeTheme();
   void closeToMenu(MenuKind kind);  // from a screen opened from a menu, back to that menu

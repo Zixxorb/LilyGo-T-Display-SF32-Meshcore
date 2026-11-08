@@ -3,6 +3,19 @@
 
 // ---- SF32: menus ----
 
+// Settings > Battery, also in the Battery page's own menu (swipe up)
+void UITask::addBatteryRows(MenuScreen& m) {
+  char v[8];
+  m.add("Show", ACT_BATT_ICON, _ui_prefs.batt_icon ? "Icon + %" : "% only");
+  sprintf(v, "%d h", BATT_GRAPH_HOURS[_ui_prefs.batt_graph % NUM_BATT_GRAPH]);
+  m.add("Graph", ACT_BATT_GRAPH, v);
+  int w = BATT_WARN_LEVELS[_ui_prefs.batt_warn % NUM_BATT_WARN];
+  if (w) sprintf(v, "%d%%", w); else strcpy(v, "Off");
+  m.add("Low alert", ACT_BATT_WARN, v);
+  sprintf(v, "%d%%", CHG_LIMITS[_ui_prefs.chg_limit % NUM_CHG_LIMITS]);
+  m.add("Charge to", ACT_CHG_LIMIT, v);
+}
+
 void UITask::openMenu(MenuKind kind) {
   MenuScreen* m = (MenuScreen*)menu;
   ((SF32Display*)_display)->cancelListFrame();  // the next frame is a whole new one
@@ -64,15 +77,7 @@ void UITask::openMenu(MenuKind kind) {
     m->add("Back", ACT_SETTINGS);
   } else if (kind == MENU_BATTERY) {
     m->begin("Battery");
-    char v[8];
-    m->add("Show", ACT_BATT_ICON, _ui_prefs.batt_icon ? "Icon + %" : "% only");
-    sprintf(v, "%d h", BATT_GRAPH_HOURS[_ui_prefs.batt_graph % NUM_BATT_GRAPH]);
-    m->add("Graph", ACT_BATT_GRAPH, v);
-    int w = BATT_WARN_LEVELS[_ui_prefs.batt_warn % NUM_BATT_WARN];
-    if (w) sprintf(v, "%d%%", w); else strcpy(v, "Off");
-    m->add("Low alert", ACT_BATT_WARN, v);
-    sprintf(v, "%d%%", CHG_LIMITS[_ui_prefs.chg_limit % NUM_CHG_LIMITS]);
-    m->add("Charge to", ACT_CHG_LIMIT, v);
+    addBatteryRows(*m);
     m->add("Back", ACT_SETTINGS);
   } else if (kind == MENU_DISPLAY) {
     m->begin("Display");
