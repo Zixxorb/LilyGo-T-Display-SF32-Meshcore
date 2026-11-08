@@ -123,17 +123,22 @@ public:
 static BatteryHistory batt_history;
 
 // The graph: 48 h across, newest at the right; plugged-in stretches in the "good" colour.
-static void drawBatteryGraph(DisplayDriver& d, int x, int y, int w, int h) {
+// Settings > Battery > Graph: how far back the Battery page's graph goes
+static const uint8_t BATT_GRAPH_HOURS[] = {6, 12, 24, 48};
+#define NUM_BATT_GRAPH 4
+
+static void drawBatteryGraph(DisplayDriver& d, int x, int y, int w, int h, int hours) {
+  const int S = hours * 3600 / BATT_LOG_PERIOD_S;  // slots shown (the newest)
   d.setColor(THEME_DIM);
   d.fillRect(x, y, w, 1);              // 100 %
   d.fillRect(x, y + h / 2, w, 1);      // 50 %
   d.fillRect(x, y + h, w, 1);          // 0 %
-  for (int k = 1; k < 4; k++) d.fillRect(x + w * k / 4, y + h + 1, 1, 2);  // 12 h ticks
+  for (int k = 1; k < 4; k++) d.fillRect(x + w * k / 4, y + h + 1, 1, 2);  // quarter ticks
   int n = batt_history.count();
   for (int c = 0; c < w; c++) {
     // the slot this column shows (slots fill from the right)
-    int slot = (c * BATT_LOG_N + BATT_LOG_N / 2) / w;
-    int i = slot - (BATT_LOG_N - n);
+    int slot = (c * S + S / 2) / w;
+    int i = n - S + slot;
     if (i < 0) continue;
     uint8_t v = batt_history.at(i);
     if (v == BATT_NO_DATA) continue;
@@ -146,7 +151,10 @@ static void drawBatteryGraph(DisplayDriver& d, int x, int y, int w, int h) {
   d.setTextSize(1);
   d.setColor(UIColor::secondary_txt);
   d.setCursor(x, y + h + 4);
-  d.print("48h");
-  d.drawTextCentered(x + w / 2, y + h + 4, "24h");
+  char lbl[8];
+  sprintf(lbl, "%dh", hours);
+  d.print(lbl);
+  sprintf(lbl, "%dh", hours / 2);
+  d.drawTextCentered(x + w / 2, y + h + 4, lbl);
   d.drawTextRightAlign(x + w, y + h + 4, "now");
 }

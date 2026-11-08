@@ -28,7 +28,7 @@ static const ColorVal THEME_GREEN = ((0x30 & 0xF8) << 8) | ((0xD1 & 0xFC) << 3) 
 
 // Settings > Theme > Battery colors: the battery icon and % coloured by the charge left
 static bool g_batt_colors = false;
-static bool g_batt_icon = true;  // Settings > Theme > Batt icon: off = the % only
+static bool g_batt_icon = true;  // Settings > Battery > Show: false = the % only
 static ColorVal battColor(int pct, ColorVal normal) {
   if (!g_batt_colors) return pct <= 15 ? UIColor::warning_txt : normal;
   return pct <= 20 ? THEME_RED : pct <= 50 ? THEME_YELLOW : THEME_GREEN;
@@ -61,6 +61,15 @@ static int sf32BatteryPercent(uint16_t mv) { return (int)sf32BatteryPercentF(mv)
 #define CHG_RATE_PCT_H     35.0f   // below 80 %
 #define CHG_RATE_TOP_PCT_H 15.0f   // 80 % and up (the charger tapers)
 #define CHG_SETTLE_MS      (30UL * 60 * 1000)
+// Settings > Battery > Charge to: the limits, their charger voltage, and the % shown when done
+static const uint8_t CHG_LIMITS[] = {100, 90, 80};
+static const uint16_t CHG_LIMIT_MV[] = {4200, 4100, 4000};
+#define NUM_CHG_LIMITS 3
+static int g_chg_full_pct = 100;
+// Settings > Battery > Low alert: the warning level (0 off); the second, "charge soon"
+// alert comes at 10 % (5 % when the first is at 10 %)
+static const uint8_t BATT_WARN_LEVELS[] = {0, 10, 15, 20, 30};
+#define NUM_BATT_WARN 5
 static int sf32ShownPercent(uint16_t mv) {
   static float est = -1;  // -1: none yet
   static unsigned long last = 0, unplugged_at = 0;
@@ -74,10 +83,10 @@ static int sf32ShownPercent(uint16_t mv) {
     float floor = sf32BatteryPercentF(mv > CHG_LIFT_MV ? mv - CHG_LIFT_MV : 0);
     if (est < 0) est = floor;  // started on USB: nothing better to go on
     uint8_t st = board.chargeState();
-    if (st == 3) est = 100;    // charge done
+    if (st == 3) est = g_chg_full_pct;  // charge done (to the limit)
     else if (st == 1 || st == 2) {
-      // after a full charge the charger tops up now and then: stay at 100 through it
-      float cap = est >= 100 ? 100 : 99;
+      // after a full charge the charger tops up now and then: stay at the top through it
+      float cap = est >= g_chg_full_pct ? g_chg_full_pct : g_chg_full_pct - 1;
       while (dt_h > 0) {       // (in steps: the pace changes at 80 %)
         float step = dt_h > 0.05f ? 0.05f : dt_h;
         est += step * (est < 80 ? CHG_RATE_PCT_H : CHG_RATE_TOP_PCT_H);

@@ -87,6 +87,9 @@ struct SF32UIPrefs {
   uint8_t glass_bg = 0;        // glass background: 0 aurora, 1 dunes, 2 gradient, 3 none
   uint8_t batt_colors = 0;     // battery icon and % in red / yellow / green by charge
   uint8_t batt_icon = 1;       // battery icon beside the %: 0 = the % only
+  uint8_t batt_graph = 3;      // Battery page graph: BATT_GRAPH_HOURS index (48 h)
+  uint8_t batt_warn = 3;       // low battery alert: BATT_WARN_LEVELS index (20 %)
+  uint8_t chg_limit = 0;       // charge to: CHG_LIMITS index (100 %)
 };
 
 class UITask : public AbstractUITask {
@@ -230,11 +233,11 @@ public:
   bool showMessages();          // SF32: open the unread messages (false if none)
 
   // SF32: menus and settings
-  enum MenuKind { MENU_POWER, MENU_PAGE, MENU_SETTINGS, MENU_TIME, MENU_NIGHT, MENU_SOUND, MENU_DISPLAY, MENU_MOTION, MENU_PAGES, MENU_ADVERTS, MENU_THEME };
+  enum MenuKind { MENU_POWER, MENU_PAGE, MENU_SETTINGS, MENU_TIME, MENU_NIGHT, MENU_SOUND, MENU_DISPLAY, MENU_MOTION, MENU_PAGES, MENU_ADVERTS, MENU_THEME, MENU_BATTERY };
   // the menu a submenu goes back to (MENU_PAGE: not a submenu)
   static MenuKind menuParent(MenuKind k) {
     return (k == MENU_NIGHT || k == MENU_TIME || k == MENU_SOUND || k == MENU_DISPLAY || k == MENU_MOTION ||
-            k == MENU_PAGES || k == MENU_ADVERTS || k == MENU_THEME) ? MENU_SETTINGS : MENU_PAGE;
+            k == MENU_PAGES || k == MENU_ADVERTS || k == MENU_THEME || k == MENU_BATTERY) ? MENU_SETTINGS : MENU_PAGE;
   }
   void openMenu(MenuKind kind);
   void closeMenu();
@@ -253,6 +256,7 @@ public:
   void setTheme(int i);  // the colour of the current style
   int themeIndex() const { return _ui_prefs.glass ? _ui_prefs.glass_theme : _ui_prefs.theme; }
   void applyStyle();     // the saved style and its colour
+  void applyBattery();   // Settings > Battery: how the % shows, the charge limit
   void openTheme();
   void closeTheme();
   void closeToMenu(MenuKind kind);  // from a screen opened from a menu, back to that menu

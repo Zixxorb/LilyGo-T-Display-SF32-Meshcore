@@ -903,7 +903,7 @@ public:
         display.drawTextCentered(W / 2, 74, "history starts a minute");
         display.drawTextCentered(W / 2, 84, "after power on");
       } else {
-        drawBatteryGraph(display, 10, 60, 108, 40);
+        drawBatteryGraph(display, 10, 60, 108, 40, BATT_GRAPH_HOURS[_task->uiPrefs().batt_graph % NUM_BATT_GRAPH]);
       }
     } else if (_page == HomePage::NODES) {
       themeHeader(display, "Nodes", mv);

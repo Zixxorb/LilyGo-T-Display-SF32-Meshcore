@@ -55,6 +55,8 @@ public:
     }
     return _ext;
   }
+  // charge limit: the charger's target voltage (4200 = full); set again on every plug-in
+  void setChargeLimit(uint16_t mv) { _chg_limit_mv = mv; _chg_limit_ok = false; }
   uint8_t chargeState() const { return _chg_state; }  // last polled (1 s): 0 not charging, 1 pre, 2 fast, 3 done
   bool isChargerActive() override { return readCharger() && (_chg_state == 1 || _chg_state == 2); }
   bool hasUsbPowerDetect() const override { return true; }
@@ -94,6 +96,8 @@ private:
   uint8_t _low_batt_count = 0;
   uint8_t _btn_level[3] = {0, 0, 0};
   uint16_t _btn_edges[3] = {0, 0, 0};
+  uint16_t _chg_limit_mv = 4200;
+  bool _chg_limit_ok = false, _chg_pg_before = false;
   uint8_t _chg_state = 0;  // 0 not charging, 1 pre-charge, 2 fast charge, 3 done
   bool _chg_power_good = false;
   bool _ext = false;

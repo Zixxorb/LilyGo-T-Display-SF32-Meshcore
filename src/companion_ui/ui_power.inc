@@ -3,8 +3,6 @@
 
 // ---- SF32: battery warnings and burn-in care (called from loop()) ----
 
-#define BATT_WARN_PCT      20
-#define BATT_CRITICAL_PCT  10
 #define DIM_AFTER_MS       60000UL   // "always on while on USB": dim after 1 min idle
 #define DIM_BRIGHTNESS     10
 #define SHIFT_PERIOD_MS    180000UL  // move the layout every 3 min
@@ -61,7 +59,11 @@ void UITask::powerCare() {
       _batt_warn_level = 0;
     } else {
       int pct = sf32ShownPercent(mv);
-      if (pct <= BATT_CRITICAL_PCT && _batt_warn_level < 2) {
+      int warn_pct = BATT_WARN_LEVELS[_ui_prefs.batt_warn % NUM_BATT_WARN];
+      int crit_pct = warn_pct > 10 ? 10 : 5;
+      if (warn_pct == 0) {
+        // alerts off (the board still powers itself off when the battery is empty)
+      } else if (pct <= crit_pct && _batt_warn_level < 2) {
         _batt_warn_level = 2;
         if (_aod) exitAOD();  // important enough to wake the screen, fully
         if (_display && !_display->isOn()) {
@@ -74,7 +76,7 @@ void UITask::powerCare() {
         showAlert(tmp, 4000);
         board.logEvent(tmp);
         _next_refresh = 0;
-      } else if (pct <= BATT_WARN_PCT && _batt_warn_level < 1) {
+      } else if (pct <= warn_pct && _batt_warn_level < 1) {
         _batt_warn_level = 1;
         _batt_warn_pending = true;  // shown next time the screen is on
         char tmp[40];

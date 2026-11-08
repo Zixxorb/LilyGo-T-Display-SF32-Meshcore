@@ -38,6 +38,7 @@ void UITask::openMenu(MenuKind kind) {
     m->add("Display", ACT_DISPLAY_MENU);
     m->add("Pages", ACT_PAGES_MENU);  // which pages to show
     m->add("Clock", ACT_TIME_MENU);
+    m->add("Battery", ACT_BATT_MENU);
     m->add("Sound", ACT_SOUND_MENU);
     m->add("Night mode", ACT_NIGHT_MENU);  // hours, dim, do not disturb
     m->add("Motion", ACT_MOTION_MENU);
@@ -60,7 +61,18 @@ void UITask::openMenu(MenuKind kind) {
       m->add("Backdrop", ACT_THEME_BG, BG_NAMES[_ui_prefs.glass_bg % 4]);
     }
     m->add("Battery", ACT_BATT_COLORS, _ui_prefs.batt_colors ? "Color" : "Plain");  // short: longer rows scroll
-    m->add("Batt icon", ACT_BATT_ICON, _ui_prefs.batt_icon ? "On" : "Off");
+    m->add("Back", ACT_SETTINGS);
+  } else if (kind == MENU_BATTERY) {
+    m->begin("Battery");
+    char v[8];
+    m->add("Show", ACT_BATT_ICON, _ui_prefs.batt_icon ? "Icon + %" : "% only");
+    sprintf(v, "%d h", BATT_GRAPH_HOURS[_ui_prefs.batt_graph % NUM_BATT_GRAPH]);
+    m->add("Graph", ACT_BATT_GRAPH, v);
+    int w = BATT_WARN_LEVELS[_ui_prefs.batt_warn % NUM_BATT_WARN];
+    if (w) sprintf(v, "%d%%", w); else strcpy(v, "Off");
+    m->add("Low alert", ACT_BATT_WARN, v);
+    sprintf(v, "%d%%", CHG_LIMITS[_ui_prefs.chg_limit % NUM_CHG_LIMITS]);
+    m->add("Charge to", ACT_CHG_LIMIT, v);
     m->add("Back", ACT_SETTINGS);
   } else if (kind == MENU_DISPLAY) {
     m->begin("Display");
@@ -285,9 +297,16 @@ void UITask::menuAction(uint8_t action) {
       saveUIPrefs();
       openMenu(_menu_kind);
       break;
+    case ACT_BATT_MENU: openMenu(MENU_BATTERY); break;
     case ACT_BATT_ICON:
-      _ui_prefs.batt_icon = !_ui_prefs.batt_icon;
-      applyStyle();
+    case ACT_BATT_GRAPH:
+    case ACT_BATT_WARN:
+    case ACT_CHG_LIMIT:
+      if (action == ACT_BATT_ICON) _ui_prefs.batt_icon = !_ui_prefs.batt_icon;
+      else if (action == ACT_BATT_GRAPH) _ui_prefs.batt_graph = (_ui_prefs.batt_graph + 1) % NUM_BATT_GRAPH;
+      else if (action == ACT_BATT_WARN) { _ui_prefs.batt_warn = (_ui_prefs.batt_warn + 1) % NUM_BATT_WARN; _batt_warn_level = 0; }
+      else _ui_prefs.chg_limit = (_ui_prefs.chg_limit + 1) % NUM_CHG_LIMITS;
+      applyBattery();
       saveUIPrefs();
       openMenu(_menu_kind);
       break;

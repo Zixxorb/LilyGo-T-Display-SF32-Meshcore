@@ -369,6 +369,13 @@ void SF32Board::loop() {
 
 void SF32Board::trackChargerState() {
   if (!readCharger()) return;
+  // the charge limit: (re)written at start, when changed, and on each plug-in
+  if (!_chg_limit_ok || (_chg_power_good && !_chg_pg_before)) {
+    static rt_device_t chg = rt_device_find(SGM41562B_RT_DEVICE_NAME);
+    rt_uint16_t mv = _chg_limit_mv;
+    _chg_limit_ok = chg && rt_device_control(chg, SGM41562B_RT_CTRL_SET_CHARGE_VOLTAGE, &mv) == RT_EOK;
+  }
+  _chg_pg_before = _chg_power_good;
   unsigned long now = millis();
   if (!_chg_power_good) {
     // Running without USB: there must be a battery.

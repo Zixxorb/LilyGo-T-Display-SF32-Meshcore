@@ -93,9 +93,13 @@ void UITask::setTheme(int i) {
   applyStyle();
   saveUIPrefs();
 }
+void UITask::applyBattery() {
+  g_batt_icon = _ui_prefs.batt_icon;
+  g_chg_full_pct = CHG_LIMITS[_ui_prefs.chg_limit % NUM_CHG_LIMITS];
+  board.setChargeLimit(CHG_LIMIT_MV[_ui_prefs.chg_limit % NUM_CHG_LIMITS]);
+}
 void UITask::applyStyle() {
   g_batt_colors = _ui_prefs.batt_colors;
-  g_batt_icon = _ui_prefs.batt_icon;
   int i = themeIndex();
   applyTheme(i);
   if (_display) ((SF32Display*)_display)->setGlass(_ui_prefs.glass, THEMES[i].accent, THEMES[i].rainbow, _ui_prefs.glass_bg);
