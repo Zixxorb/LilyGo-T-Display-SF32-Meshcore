@@ -28,6 +28,7 @@ static const ColorVal THEME_GREEN = ((0x30 & 0xF8) << 8) | ((0xD1 & 0xFC) << 3) 
 
 // Settings > Theme > Battery colors: the battery icon and % coloured by the charge left
 static bool g_batt_colors = false;
+static bool g_batt_icon = true;  // Settings > Theme > Batt icon: off = the % only
 static ColorVal battColor(int pct, ColorVal normal) {
   if (!g_batt_colors) return pct <= 15 ? UIColor::warning_txt : normal;
   return pct <= 20 ? THEME_RED : pct <= 50 ? THEME_YELLOW : THEME_GREEN;
@@ -196,16 +197,18 @@ static void themeHeader(DisplayDriver& d, const char* title, uint16_t mv) {
   d.fillRect(4, 21, 12, 2);
 
   // compact battery: [icon] with % to its left, bolt on USB power
-  int bx = 128 - 4 - 2 - 14, by = 7;
+  int bx = g_batt_icon ? 128 - 4 - 2 - 14 : 128 - 4 + 3, by = 7;  // no icon: the % ends at the right margin
   char tmp[8];
   int pct = mv > 0 ? sf32ShownPercent(mv) : -1;
   ColorVal outline = pct >= 0 && g_batt_colors ? battColor(pct, UIColor::secondary_txt) : UIColor::secondary_txt;
   d.setColor(outline);
-  d.drawRect(bx, by, 14, 8);
-  d.fillRect(bx + 14, by + 2, 2, 4);
+  if (g_batt_icon) {
+    d.drawRect(bx, by, 14, 8);
+    d.fillRect(bx + 14, by + 2, 2, 4);
+  }
   if (pct >= 0) {
     d.setColor(battColor(pct, UIColor::secondary_txt));
-    d.fillRect(bx + 2, by + 2, (10 * pct + 50) / 100, 4);
+    if (g_batt_icon) d.fillRect(bx + 2, by + 2, (10 * pct + 50) / 100, 4);
     sprintf(tmp, "%d%%", pct);
   } else {
     strcpy(tmp, "--");

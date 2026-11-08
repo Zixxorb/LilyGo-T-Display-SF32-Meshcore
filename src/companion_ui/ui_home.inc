@@ -374,16 +374,18 @@ public:
 
     // top right: battery
     uint16_t mv = _task->getBattMilliVolts();
-    int bx = W - 4 - 3 - 22, by = 6;
+    int bx = g_batt_icon ? W - 4 - 3 - 22 : W - 4 + 3, by = 6;  // no icon: the % ends at the right margin
     int bpct = mv > 0 ? batteryPercent(mv) : -1;
     ColorVal outline = bpct >= 0 && g_batt_colors ? battColor(bpct, UIColor::primary_txt) : UIColor::primary_txt;
     display.setColor(outline);
-    display.drawRect(bx, by, 22, 11);
-    display.fillRect(bx + 22, by + 3, 3, 5);
+    if (g_batt_icon) {
+      display.drawRect(bx, by, 22, 11);
+      display.fillRect(bx + 22, by + 3, 3, 5);
+    }
     display.setTextSize(SF32Display::TEXT_BATTERY);  // 1.5x: closer to the battery's size
     if (bpct >= 0) {
       display.setColor(battColor(bpct, UIColor::primary_txt));
-      display.fillRect(bx + 2, by + 2, (18 * bpct + 50) / 100, 7);
+      if (g_batt_icon) display.fillRect(bx + 2, by + 2, (18 * bpct + 50) / 100, 7);
       sprintf(tmp, "%d%%", bpct);
     } else {
       strcpy(tmp, "--");  // no battery

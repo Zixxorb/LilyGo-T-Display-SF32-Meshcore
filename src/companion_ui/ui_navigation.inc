@@ -60,6 +60,7 @@ void UITask::openMenu(MenuKind kind) {
       m->add("Backdrop", ACT_THEME_BG, BG_NAMES[_ui_prefs.glass_bg % 4]);
     }
     m->add("Battery", ACT_BATT_COLORS, _ui_prefs.batt_colors ? "Color" : "Plain");  // short: longer rows scroll
+    m->add("Batt icon", ACT_BATT_ICON, _ui_prefs.batt_icon ? "On" : "Off");
     m->add("Back", ACT_SETTINGS);
   } else if (kind == MENU_DISPLAY) {
     m->begin("Display");
@@ -280,6 +281,12 @@ void UITask::menuAction(uint8_t action) {
     case ACT_THEME_MENU: openMenu(MENU_THEME); break;
     case ACT_THEME_BG:
       _ui_prefs.glass_bg = (_ui_prefs.glass_bg + 1) % 4;
+      applyStyle();
+      saveUIPrefs();
+      openMenu(_menu_kind);
+      break;
+    case ACT_BATT_ICON:
+      _ui_prefs.batt_icon = !_ui_prefs.batt_icon;
       applyStyle();
       saveUIPrefs();
       openMenu(_menu_kind);

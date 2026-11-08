@@ -86,6 +86,7 @@ struct SF32UIPrefs {
   uint8_t glass_theme = 0;     // THEMES[] index used by the glass style (`theme`: the normal style's)
   uint8_t glass_bg = 0;        // glass background: 0 aurora, 1 dunes, 2 gradient, 3 none
   uint8_t batt_colors = 0;     // battery icon and % in red / yellow / green by charge
+  uint8_t batt_icon = 1;       // battery icon beside the %: 0 = the % only
 };
 
 class UITask : public AbstractUITask {

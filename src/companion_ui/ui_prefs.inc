@@ -38,7 +38,8 @@ void UITask::resumeOrReset() {
 #define SF32_UI_PREFS_MAGIC_V16 0x53465540  // "SFU@": + rotation
 #define SF32_UI_PREFS_MAGIC_V17 0x53465541  // "SFUA": + glass style and its colour
 #define SF32_UI_PREFS_MAGIC_V18 0x53465542  // "SFUB": + glass background
-#define SF32_UI_PREFS_MAGIC     0x53465543  // "SFUC": + battery colors
+#define SF32_UI_PREFS_MAGIC_V19 0x53465543  // "SFUC": + battery colors
+#define SF32_UI_PREFS_MAGIC     0x53465544  // "SFUD": + battery icon on/off
 
 static const uint8_t  BRIGHTNESS_STEPS[] = {25, 50, 80, 100};
 static const uint16_t TIMEOUT_SECS[] = {15, 30, 60, 300, 0};  // 0 = on while on USB power (else 60 s)
@@ -49,13 +50,18 @@ void UITask::loadUIPrefs() {
   int n = f ? f.read((uint8_t*)&p, sizeof(p)) : 0;
   if (n == sizeof(p) && p.magic == SF32_UI_PREFS_MAGIC) {
     _ui_prefs = p;
+  } else if (n >= 42 && p.magic == SF32_UI_PREFS_MAGIC_V19) {  // up to batt_colors
+    _ui_prefs = p;
+    _ui_prefs.batt_icon = SF32UIPrefs().batt_icon;
   } else if (n >= 41 && p.magic == SF32_UI_PREFS_MAGIC_V18) {  // up to glass_bg
     _ui_prefs = p;
     _ui_prefs.batt_colors = SF32UIPrefs().batt_colors;
+    _ui_prefs.batt_icon = SF32UIPrefs().batt_icon;
   } else if (n >= 40 && p.magic == SF32_UI_PREFS_MAGIC_V17) {  // up to glass_theme
     _ui_prefs = p;
     _ui_prefs.glass_bg = SF32UIPrefs().glass_bg;
     _ui_prefs.batt_colors = SF32UIPrefs().batt_colors;
+    _ui_prefs.batt_icon = SF32UIPrefs().batt_icon;
   } else if (n >= 39 && p.magic == SF32_UI_PREFS_MAGIC_V16) {  // up to rotation
     _ui_prefs = p;
     _ui_prefs.glass = SF32UIPrefs().glass;
@@ -143,6 +149,7 @@ void UITask::loadUIPrefs() {
   _ui_prefs.glass = _ui_prefs.glass ? 1 : 0;
   if (_ui_prefs.glass_bg >= 4) _ui_prefs.glass_bg = 0;
   _ui_prefs.batt_colors = _ui_prefs.batt_colors ? 1 : 0;
+  _ui_prefs.batt_icon = _ui_prefs.batt_icon ? 1 : 0;
   applyStyle();
 #ifdef SF32_RAINBOW_TEST
   applyTheme(NUM_THEMES - 1);  // test builds: show Rainbow without saving it

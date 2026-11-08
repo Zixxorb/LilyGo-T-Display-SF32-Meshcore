@@ -95,6 +95,7 @@ void UITask::setTheme(int i) {
 }
 void UITask::applyStyle() {
   g_batt_colors = _ui_prefs.batt_colors;
+  g_batt_icon = _ui_prefs.batt_icon;
   int i = themeIndex();
   applyTheme(i);
   if (_display) ((SF32Display*)_display)->setGlass(_ui_prefs.glass, THEMES[i].accent, THEMES[i].rainbow, _ui_prefs.glass_bg);
