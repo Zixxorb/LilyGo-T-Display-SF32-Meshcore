@@ -19,8 +19,10 @@ import sys
 from PIL import Image, ImageDraw, ImageFont
 
 SCALE = 3.5  # must match SF32Display::SCALE
-# text size -> characters (None = all printable ASCII). Size 5 is the clock's digits.
-SIZES = {1: None, 2: None, 3: None, 5: "0123456789:- "}
+# text size -> characters (None = all printable ASCII), or (characters, scale) for a set drawn
+# at another scale than its number. Size 5 is the clock's digits; "size" 9 is the clock
+# page's battery % at 1.5x (SF32Display::TEXT_BATTERY), between sizes 1 and 2.
+SIZES = {1: None, 2: None, 3: None, 5: "0123456789:- ", 9: ("0123456789%- ", 1.5)}
 FIRST, LAST = 32, 126
 FONT = "/usr/share/fonts/noto/NotoSans-Medium.ttf"
 OUT = os.path.join(os.path.dirname(__file__), "..", "src", "platform", "SF32Font.h")
@@ -81,7 +83,10 @@ def main():
                "  uint8_t w, h;  // ink size\n  uint16_t adv;  // advance, 1/16 px\n  uint32_t data; // offset into the size's bitmap (4bpp, rows padded to bytes)\n};\n\n")
     out.append("#define SF32_FONT_FIRST %d\n#define SF32_FONT_LAST %d\n#define SF32_FONT_SIZES %d\n\n" % (FIRST, LAST, len(SIZES)))
     for n, charset in SIZES.items():
-        glyphs, px = render_size(font_path, n, charset)
+        scale = n
+        if isinstance(charset, tuple):
+            charset, scale = charset
+        glyphs, px = render_size(font_path, scale, charset)
         blob = bytearray()
         out.append("// text size %d: %d px font\n" % (n, px))
         out.append("static const SF32Glyph sf32_glyphs_%d[] = {\n" % n)

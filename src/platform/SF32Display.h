@@ -100,6 +100,7 @@ public:
   void turnOff() override;
   void clear() override;
   void startFrame(ColorVal bkg = UIColor::window_bkg) override;
+  static constexpr int TEXT_BATTERY = 9;  // text size: the clock page's battery % (1.5x; digits, %, - only)
   void setTextSize(int sz) override { _text_size = sz < 1 ? 1 : sz; }
   void setColor(ColorVal c) override { _color = c; }
   void setCursor(int x, int y) override { _cx = x; _cy = y; _pen_valid = false; }

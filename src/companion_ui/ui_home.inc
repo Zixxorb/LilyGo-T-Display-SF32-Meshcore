@@ -378,7 +378,7 @@ public:
     display.setColor(UIColor::primary_txt);
     display.drawRect(bx, by, 22, 11);
     display.fillRect(bx + 22, by + 3, 3, 5);
-    display.setTextSize(2);
+    display.setTextSize(SF32Display::TEXT_BATTERY);  // 1.5x: closer to the battery's size
     if (mv > 0) {
       int pct = batteryPercent(mv);
       display.setColor(pct <= 15 ? UIColor::warning_txt : UIColor::primary_txt);
@@ -389,7 +389,7 @@ public:
     }
     display.setColor(UIColor::primary_txt);
     int tw = display.getTextWidth(tmp);
-    display.setCursor(bx - 3 - tw, 3);
+    display.setCursor(bx - 3 - tw, 6);  // centred on the battery
     display.print(tmp);
     if (board.isExternalPowered()) {
       display.setColor(UIColor::warning_txt);
