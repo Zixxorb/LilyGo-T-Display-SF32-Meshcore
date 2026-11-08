@@ -24,12 +24,13 @@ static bool g_rainbow_theme = false;
 static const ColorVal THEME_GOOD = ((0x34 & 0xF8) << 8) | ((0xD3 & 0xFC) << 3) | (0x99 >> 3);  // charging, strong signal
 static const ColorVal THEME_RED = ((0xEF & 0xF8) << 8) | ((0x44 & 0xFC) << 3) | (0x44 >> 3);   // SOS
 static const ColorVal THEME_YELLOW = ((0xFA & 0xF8) << 8) | ((0xCC & 0xFC) << 3) | (0x15 >> 3);
+static const ColorVal THEME_GREEN = ((0x30 & 0xF8) << 8) | ((0xD1 & 0xFC) << 3) | (0x58 >> 3);  // true green (THEME_GOOD is teal)
 
 // Settings > Theme > Battery colors: the battery icon and % coloured by the charge left
 static bool g_batt_colors = false;
 static ColorVal battColor(int pct, ColorVal normal) {
   if (!g_batt_colors) return pct <= 15 ? UIColor::warning_txt : normal;
-  return pct <= 20 ? THEME_RED : pct <= 50 ? THEME_YELLOW : THEME_GOOD;
+  return pct <= 20 ? THEME_RED : pct <= 50 ? THEME_YELLOW : THEME_GREEN;
 }
 
 // Li-ion open-circuit voltage -> charge, roughly (better than linear at the ends).

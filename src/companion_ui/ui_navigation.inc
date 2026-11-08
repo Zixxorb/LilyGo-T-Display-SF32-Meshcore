@@ -59,7 +59,7 @@ void UITask::openMenu(MenuKind kind) {
       static const char* const BG_NAMES[] = {"Aurora", "Dunes", "Blend", "None"};
       m->add("Backdrop", ACT_THEME_BG, BG_NAMES[_ui_prefs.glass_bg % 4]);
     }
-    m->add("Battery colors", ACT_BATT_COLORS, _ui_prefs.batt_colors ? "On" : "Off");
+    m->add("Battery", ACT_BATT_COLORS, _ui_prefs.batt_colors ? "Color" : "Plain");  // short: longer rows scroll
     m->add("Back", ACT_SETTINGS);
   } else if (kind == MENU_DISPLAY) {
     m->begin("Display");
