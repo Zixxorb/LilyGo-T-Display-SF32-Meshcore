@@ -359,9 +359,8 @@ public:
     char tmp[40];
     const int W = display.width();
 
-    // top left: unread messages, then DND (do not disturb) on the same line
+    // top left: unread messages
     int unread = _task->getUnreadCount();
-    int dnd_x = 4;
     if (unread > 0) {
       static const uint8_t envelope[] = {0xFF, 0xFF, 0x7F, 0xFE, 0xBF, 0xFD, 0xDF, 0xFB, 0xEF, 0xF7, 0xF7, 0xEF,
                                          0xFB, 0xDF, 0xFD, 0xBF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
@@ -371,7 +370,6 @@ public:
       sprintf(tmp, "%d", unread);
       display.setCursor(23, 3);
       display.print(tmp);
-      dnd_x = 23 + display.getTextWidth(tmp) + 5;
     }
 
     // top right: battery
@@ -397,14 +395,12 @@ public:
       display.setColor(UIColor::warning_txt);
       themeBolt(display, bx - 3 - tw - 11, 6);
     }
-    // do not disturb (night hours): in the top bar after the unread count, or, if the
-    // battery's % and bolt leave no room there, on the line below (opposite the voltage)
+    // do not disturb (night hours): always on the line under the top bar, at the left
+    // (opposite the voltage), so it doesn't move when messages or charging change the bar
     if (_task->dndNow()) {
-      int right_edge = bx - 3 - tw - (board.isExternalPowered() ? 11 : 0) - 4;
       display.setTextSize(1);
       display.setColor(THEME_ACCENT);
-      if (dnd_x + display.getTextWidth("DND") <= right_edge) display.setCursor(dnd_x, 7);
-      else display.setCursor(4, 20);
+      display.setCursor(4, 20);
       display.print("DND");
     }
     if (mv > 0) {  // voltage under the battery, small
