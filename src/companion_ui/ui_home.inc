@@ -390,7 +390,7 @@ public:
     } else {
       strcpy(tmp, "--");  // no battery
     }
-    display.setColor(outline);
+    display.setColor(bpct >= 0 ? battColor(bpct, UIColor::primary_txt) : outline);  // low shows even without the icon
     int tw = display.getTextWidth(tmp);
     display.setCursor(bx - 3 - tw, 6);  // centred on the battery
     display.print(tmp);
@@ -583,7 +583,7 @@ public:
       case HomePage::RECENT:
         m.begin(_page == HomePage::ADVERT ? "Advert" : "Heard");
         if (_page == HomePage::ADVERT)  // what the page's long press sends
-          m.add("Long press", ACT_ADV_PAGE_MODE, _task->uiPrefs().adv_page_mesh ? "Mesh" : "Nearby");
+          m.add("Hold", ACT_ADV_PAGE_MODE, _task->uiPrefs().adv_page_mesh ? "Mesh" : "Nearby");
         m.add("Send nearby", ACT_ADVERT);
         m.add("Send to mesh", ACT_ADVERT_MESH);
         break;
@@ -596,7 +596,7 @@ public:
 #endif
       case HomePage::BOT: {
         // channel messages: off, answer the sender by DM, or post the reply in the channel
-        static const char* const CHAN_NAMES[] = {"Off", "DM back", "Post"};
+        static const char* const CHAN_NAMES[] = {"Off", "DM", "Post"};
         const SF32UIPrefs& p = _task->uiPrefs();
         m.begin("Bot");
         m.add("Auto-reply", ACT_BOT_TOGGLE, p.bot_on ? "On" : "Off");
@@ -633,7 +633,7 @@ public:
         break;
 #endif
       default:
-        m.begin("Menu");
+        m.begin(pageName(_page));
         break;
     }
   }
@@ -878,16 +878,16 @@ public:
       display.print(num);
       SF32Display& sdd = (SF32Display&)display;
       float rx = tx + nw + 1.5f;
-      sdd.drawLineAA(rx, 31.5f, rx, 31.5f, 2.2f);  // the degree ring: a dot, then its middle cleared
-      display.setColor(UIColor::window_bkg);
-      sdd.drawLineAA(rx, 31.5f, rx, 31.5f, 0.9f);
-      display.setColor(UIColor::secondary_txt);
+      for (int k = 0; k < 8; k++) {  // the degree ring, as a stroke (a cleared middle shows as a dot on Glass backdrops)
+        float a0 = k * 0.785398f, a1 = (k + 1) * 0.785398f;
+        sdd.drawLineAA(rx + 0.8f * cosf(a0), 31.5f + 0.8f * sinf(a0), rx + 0.8f * cosf(a1), 31.5f + 0.8f * sinf(a1), 0.45f);
+      }
       display.setCursor(tx + nw + 3, 30);
       display.print("F");
       sprintf(tmp, "%d.%02d V", mv / 1000, (mv % 1000) / 10);
       display.drawTextRightAlign(tx - 5, 30, tmp);
       float rate = batt_history.drainPerHour();
-      if (usb) strcpy(tmp, pct >= 100 ? "charged" : "charging");
+      if (usb) strcpy(tmp, board.chargeState() == 3 || pct >= g_chg_full_pct ? "charged" : "charging");
       else if (rate > 0) {  // until the low-battery power-off (3.55 V, SF32Board.cpp)
         float left = (sf32BatteryPercentF(mv) - sf32BatteryPercentF(3550)) / rate;
         if (left < 0) left = 0;

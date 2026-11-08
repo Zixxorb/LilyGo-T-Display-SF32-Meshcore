@@ -21,6 +21,19 @@ void UITask::openMenu(MenuKind kind) {
   ((SF32Display*)_display)->cancelListFrame();  // the next frame is a whole new one
   bool same = curr == menu && kind == _menu_kind;
   int keep_sel = same ? m->selected() : 0;
+  if (curr == menu && !same) {
+    if (kind == parentOf(_menu_kind)) {
+      keep_sel = _back_sel;  // back up: on the row that opened the submenu
+    } else {                 // down into a submenu: remember where from
+      _back_sel = m->selected();
+      if (kind == MENU_BATTERY) _batt_from = _menu_kind == MENU_PAGE ? MENU_PAGE : MENU_SETTINGS;
+      if (kind == MENU_POWER) _power_from = MENU_SETTINGS;
+    }
+  } else if (curr != menu) {
+    if (kind == MENU_POWER) _power_from = MENU_PAGE;  // swiped down from a page
+    // back from a screen opened from this menu (Logs, Color, a picker): on its row again
+    if (kind == _left_kind && kind != MENU_PAGE && kind != MENU_POWER) keep_sel = _left_sel;
+  }
   if (!same) m->resetScroll();
   SF32Display* d = (SF32Display*)_display;
   if (curr != menu) {
@@ -34,7 +47,7 @@ void UITask::openMenu(MenuKind kind) {
     m->startEnter();
   }
   _menu_kind = kind;
-  m->setHandle(kind == MENU_POWER);  // came down from the top: swipe up to close
+  m->setHandle(kind == MENU_POWER && _power_from == MENU_PAGE);  // came down from the top: swipe up to close
   char tmp[16];
   if (kind == MENU_POWER) {
     m->begin("Power");
@@ -43,6 +56,12 @@ void UITask::openMenu(MenuKind kind) {
     m->add("Reboot", ACT_REBOOT);
     m->add("Power off", ACT_POWER_OFF);
     m->add("Send SOS", ACT_SOS);
+    if (_power_from == MENU_SETTINGS) {  // Settings > Power: a submenu like the others
+      m->add("Back", ACT_MENU_BACK);
+      m->setSelected(keep_sel);
+      setCurrScreen(menu);
+      return;
+    }
   } else if (kind == MENU_SETTINGS) {
     // what you see (screen, pages, clock), what you hear and when (sound, night), sensors,
     // the radio side (Bluetooth, SOS), then the system (power use, logs, power off)
@@ -62,7 +81,7 @@ void UITask::openMenu(MenuKind kind) {
       ChannelDetails ch;
       m->add("SOS to", ACT_SOS_CHAN, sosChannel(_ui_prefs.sos_chan, ch) >= 0 ? ch.name : "none");
     }
-    if (board.sleepSupported()) m->add("Low power", ACT_POWER_SAVE, _ui_prefs.power_save ? "On" : "Off");
+    if (board.sleepSupported()) m->add("Sleep", ACT_POWER_SAVE, _ui_prefs.power_save ? "On" : "Off");
     m->add("Logs", ACT_LOGS);
     m->add("Power", ACT_POWER_MENU);  // screen off / reboot / power off
   } else if (kind == MENU_THEME) {
@@ -74,11 +93,17 @@ void UITask::openMenu(MenuKind kind) {
       m->add("Backdrop", ACT_THEME_BG, BG_NAMES[_ui_prefs.glass_bg % 4]);
     }
     m->add("Battery", ACT_BATT_COLORS, _ui_prefs.batt_colors ? "Color" : "Plain");  // short: longer rows scroll
-    m->add("Back", ACT_SETTINGS);
+    m->add("Back", ACT_MENU_BACK);
+    m->setSelected(keep_sel);
+    setCurrScreen(menu);
+    return;
   } else if (kind == MENU_BATTERY) {
     m->begin("Battery");
     addBatteryRows(*m);
-    m->add("Back", ACT_SETTINGS);
+    m->add("Back", ACT_MENU_BACK);
+    m->setSelected(keep_sel);
+    setCurrScreen(menu);
+    return;
   } else if (kind == MENU_DISPLAY) {
     m->begin("Display");
     // how it looks, then how the screen behaves
@@ -88,9 +113,9 @@ void UITask::openMenu(MenuKind kind) {
     timeoutLabel(tmp, _ui_prefs.timeout_idx);
     m->add("Timeout", ACT_SET_TIMEOUT, tmp);
     m->add("Always-on", ACT_SET_AOD, _ui_prefs.aod ? "On" : "Off");
-    static const char* const ROT_NAMES[] = {"Normal", "Upside down", "Auto", "Right", "Left"};  // by stored value
+    static const char* const ROT_NAMES[] = {"Normal", "Flipped", "Auto", "Right", "Left"};  // by stored value
     m->add("Rotation", ACT_ROTATION, ROT_NAMES[_ui_prefs.rotation % 5]);
-    m->add("Back", ACT_SETTINGS);
+    m->add("Back", ACT_MENU_BACK);
     m->setSelected(keep_sel);
     setCurrScreen(menu);
     return;
@@ -98,17 +123,17 @@ void UITask::openMenu(MenuKind kind) {
     m->begin("Pages");  // swipe through only the shown ones (the clock always is)
     for (int p = 1; p < HomeScreen::pageCount(); p++)
       m->add(HomeScreen::pageName(p), ACT_PAGE_TOGGLE + p, (_ui_prefs.hidden_pages & (1u << p)) ? "Hide" : "Show");
-    m->add("Back", ACT_SETTINGS);
+    m->add("Back", ACT_MENU_BACK);
     m->setSelected(keep_sel);
     setCurrScreen(menu);
     return;
   } else if (kind == MENU_ADVERTS) {
-    m->begin("Auto advert");  // like repeaters: nearby (zero hop) and to the whole mesh (flood)
+    m->begin("Adverts");  // like repeaters: nearby (zero hop) and to the whole mesh (flood)
     advHoursLabel(tmp, ADV_NEARBY_HOURS[_ui_prefs.adv_nearby % NUM_ADV_NEARBY]);
     m->add("Nearby", ACT_ADV_NEARBY, tmp);
     advHoursLabel(tmp, ADV_MESH_HOURS[_ui_prefs.adv_mesh % NUM_ADV_MESH]);
     m->add("Mesh", ACT_ADV_MESH, tmp);
-    m->add("Back", ACT_SETTINGS);
+    m->add("Back", ACT_MENU_BACK);
     m->setSelected(keep_sel);
     setCurrScreen(menu);
     return;
@@ -116,12 +141,12 @@ void UITask::openMenu(MenuKind kind) {
     m->begin("Motion");
     m->add("Lift to wake", ACT_SET_LIFT, _ui_prefs.lift_wake ? "On" : "Off");
     m->add("Flip to quiet", ACT_SET_FLIP, _ui_prefs.flip_quiet ? "On" : "Off");
-    m->add("Back", ACT_SETTINGS);
+    m->add("Back", ACT_MENU_BACK);
     m->setSelected(keep_sel);
     setCurrScreen(menu);
     return;
   } else if (kind == MENU_NIGHT) {
-    m->begin("Night mode");  // the hours, then what happens in them: dim (and how much), do not disturb
+    m->begin("Night");  // the hours, then what happens in them: dim (and how much), do not disturb
     fmtHour(tmp, _ui_prefs.night_from, _ui_prefs.clock24);
     m->add("From", ACT_NIGHT_FROM, tmp);
     fmtHour(tmp, _ui_prefs.night_until, _ui_prefs.clock24);
@@ -130,19 +155,19 @@ void UITask::openMenu(MenuKind kind) {
     sprintf(tmp, "%d%%", NIGHT_LEVELS[_ui_prefs.night_level % NUM_NIGHT_LEVELS]);
     m->add("Dim to", ACT_NIGHT_LEVEL, tmp);
     m->add("DND", ACT_NIGHT_DND, _ui_prefs.night_dnd ? "On" : "Off");  // do not disturb
-    m->add("Back", ACT_SETTINGS);
+    m->add("Back", ACT_MENU_BACK);
     m->setSelected(keep_sel);
     setCurrScreen(menu);
     return;
   } else if (kind == MENU_SOUND) {
-    static const char* const SOUND_NAMES[] = {"Off", "Low", "High", "Medium"};  // by stored value
+    static const char* const SOUND_NAMES[] = {"Off", "Low", "High", "Mid"};  // by stored value
     static const char* const TAP_NAMES[] = {"Off", "Click", "Pop", "Tick"};
     static const char* const ALERT_NAMES[] = {"All", "Direct", "Off"};
     m->begin("Sound");
     m->add("Volume", ACT_SET_SOUND, SOUND_NAMES[_ui_prefs.sound % 4]);
     m->add("Alerts", ACT_SET_ALERTS, ALERT_NAMES[_ui_prefs.alerts % 3]);  // which messages chime
-    m->add("Tap sound", ACT_SET_TOUCH_SND, TAP_NAMES[_ui_prefs.touch_snd % 4]);
-    m->add("Back", ACT_SETTINGS);
+    m->add("Taps", ACT_SET_TOUCH_SND, TAP_NAMES[_ui_prefs.touch_snd % 4]);
+    m->add("Back", ACT_MENU_BACK);
     m->setSelected(keep_sel);
     setCurrScreen(menu);
     return;
@@ -150,12 +175,12 @@ void UITask::openMenu(MenuKind kind) {
     m->begin("Clock");
     int tz = _node_prefs->tz_offset;
     if (tz == 0) strcpy(tmp, "UTC"); else sprintf(tmp, "UTC%+d", tz);
-    m->add("Time zone", ACT_SET_TZ, tmp);
+    m->add("Zone", ACT_SET_TZ, tmp);  // time zone (short: "Time zone" + "UTC+10" scrolls)
     m->add("DST", ACT_SET_DST, DST_NAMES[_ui_prefs.dst_rule]);  // daylight saving
     m->add("Format", ACT_SET_CLOCK, _ui_prefs.clock24 ? "24 hour" : "12 hour");
     m->add("Mesh time", ACT_SET_MESH_TIME, _ui_prefs.mesh_time ? "On" : "Off");  // ui_meshtime.inc
     m->add("Reset clock", ACT_CLOCK_RESET);  // a wrong time ahead can't be set back otherwise
-    m->add("Back", ACT_SETTINGS);
+    m->add("Back", ACT_MENU_BACK);
     m->setSelected(keep_sel);
     setCurrScreen(menu);
     return;
@@ -182,6 +207,7 @@ void UITask::closeMenu() {
   if (back == msg_preview && getUnreadCount() == 0) back = home;
   _menu_return = NULL;
   setCurrScreen(back);
+  _left_kind = MENU_PAGE;  // closed: next time menus start at the top
 }
 
 void UITask::screenOff() {
@@ -201,6 +227,7 @@ void UITask::menuAction(uint8_t action) {
   }
   switch (action) {
     case ACT_CLOSE: closeMenu(); break;
+    case ACT_MENU_BACK: goBack(); break;
     case ACT_SCREEN_OFF: screenOff(); break;
 #ifdef SF32_UI_TEST  // scripted test builds (SF32_UI_DEMO): never power off / reboot by a stray tap
     case ACT_REBOOT: case ACT_POWER_OFF: showAlert("(test build: skipped)", 1500); break;
@@ -578,6 +605,7 @@ void UITask::handleTouchMenus() {
   touch_input.setDirectTaps(curr == menu || editor || page_taps);
   if (_drag_on && (curr != home || _display == NULL || !_display->isOn())) {
     _drag_on = false;  // something else took over mid-drag: the next frame draws what's current
+    if (_drag_dir) { h->dragStep(-_drag_dir); _drag_dir = 0; }  // and back on the page it started from
     _next_refresh = 0;
   }
   if (_display == NULL || !_display->isOn()) return;

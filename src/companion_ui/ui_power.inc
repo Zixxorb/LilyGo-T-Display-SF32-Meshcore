@@ -60,7 +60,9 @@ void UITask::powerCare() {
     } else {
       int pct = sf32ShownPercent(mv);
       int warn_pct = BATT_WARN_LEVELS[_ui_prefs.batt_warn % NUM_BATT_WARN];
-      int crit_pct = warn_pct > 10 ? 10 : 5;
+      // the second alert (it wakes the screen) well before the power-off at 3550 mV (~9.5 %);
+      // with the first set at 10 %, that one is the waking alert
+      int crit_pct = warn_pct > 12 ? 12 : warn_pct;
       if (warn_pct == 0) {
         // alerts off (the board still powers itself off when the battery is empty)
       } else if (pct <= crit_pct && _batt_warn_level < 2) {
@@ -233,8 +235,11 @@ extern "C" void sf32_before_poweroff(int reason) {
 void UITask::goBack() {
   SF32Display* d = (SF32Display*)_display;
   if (curr == menu) {
-    if (menuParent(_menu_kind) != MENU_PAGE) {
-      openMenu(menuParent(_menu_kind));
+    MenuKind parent = parentOf(_menu_kind);
+    // up a level; from the top of a stack (a page menu, Settings) close it. Battery opened
+    // from the Battery page's menu goes back to that menu.
+    if (parent != MENU_PAGE || (_menu_kind == MENU_BATTERY && _batt_from == MENU_PAGE)) {
+      openMenu(parent);
       d->setTransition(SF32Display::TRANSITION_RIGHT);
     }
     else { closeMenu(); d->setTransition(SF32Display::TRANSITION_RIGHT); }

@@ -63,7 +63,7 @@ static int sf32BatteryPercent(uint16_t mv) { return (int)sf32BatteryPercentF(mv)
 #define CHG_SETTLE_MS      (30UL * 60 * 1000)
 // Settings > Battery > Charge to: the limits, their charger voltage, and the % shown when done
 static const uint8_t CHG_LIMITS[] = {100, 90, 80};
-static const uint16_t CHG_LIMIT_MV[] = {4200, 4100, 4000};
+static const uint16_t CHG_LIMIT_MV[] = {4200, 4095, 3990};  // on the charger's 15 mV steps
 #define NUM_CHG_LIMITS 3
 static int g_chg_full_pct = 100;
 // Settings > Battery > Low alert: the warning level (0 off); the second, "charge soon"
@@ -83,7 +83,7 @@ static int sf32ShownPercent(uint16_t mv) {
     float floor = sf32BatteryPercentF(mv > CHG_LIFT_MV ? mv - CHG_LIFT_MV : 0);
     if (est < 0) est = floor;  // started on USB: nothing better to go on
     uint8_t st = board.chargeState();
-    if (st == 3) est = g_chg_full_pct;  // charge done (to the limit)
+    if (st == 3) est = floor > g_chg_full_pct ? floor : g_chg_full_pct;  // charge done (to the limit, or above it if lowered since)
     else if (st == 1 || st == 2) {
       // after a full charge the charger tops up now and then: stay at the top through it
       float cap = est >= g_chg_full_pct ? g_chg_full_pct : g_chg_full_pct - 1;
@@ -234,7 +234,7 @@ static void themeHeader(DisplayDriver& d, const char* title, uint16_t mv) {
     x = bx - (usb ? 10 : 0);
     if (x < title_end) return;  // icon only
   } else {
-    d.setColor(outline);
+    d.setColor(pct >= 0 ? battColor(pct, UIColor::secondary_txt) : outline);  // low shows even without the icon
     d.setCursor(bx - 3 - tw, by);
     d.print(tmp);
   }

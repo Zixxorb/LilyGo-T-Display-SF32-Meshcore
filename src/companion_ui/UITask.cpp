@@ -523,6 +523,10 @@ void UITask::userLedHandler() {
 }
 
 void UITask::setCurrScreen(UIScreen* c) {
+  if (curr == menu && c != menu) {  // leaving a menu for a screen: its row, for coming back
+    _left_kind = _menu_kind;
+    _left_sel = ((MenuScreen*)menu)->selected();
+  }
   curr = c;
   _next_refresh = 100;
 }
@@ -893,7 +897,9 @@ void UITask::loop() {
       rt_tick_t f0 = rt_tick_get();
 #endif
       ((SF32Display *) _display)->setGlassPaused(_aod);  // the always-on clock stays on black
-      if (curr != menu) ((SF32Display *) _display)->cancelListFrame();  // left the list meanwhile
+      // left the list meanwhile, or a popup is up: a list frame sends only the list, and the
+      // popup's band would replace it (stale header area, the list not sent)
+      if (curr != menu || millis() < _banner_expiry || millis() < _alert_expiry) ((SF32Display *) _display)->cancelListFrame();
       _display->startFrame();
       ((SF32Display *) _display)->setSquareLayout(true);  // SF32: all screens are full-panel
       int delay_millis = curr->render(*_display);
@@ -970,7 +976,10 @@ void UITask::loop() {
           _display->setColor((ColorVal)((((txt >> 11) * f / 31) << 11) | ((((txt >> 5) & 0x3F) * f / 31) << 5) | ((txt & 0x1F) * f / 31)));
           _display->drawTextCentered(_display->width() / 2, 59, _alert);
         }
-        _next_refresh = _alert_expiry;   // will need refresh when alert is dismissed
+        // will need refresh when alert is dismissed, or sooner if the screen under it animates
+        // (a menu's rows gliding in, a scroll)
+        unsigned long anim_next = (delay_millis <= 20 ? frame_start : millis()) + delay_millis;
+        _next_refresh = (long)(anim_next - _alert_expiry) < 0 ? anim_next : _alert_expiry;
       } else {
         // SF32: animating (scrolling, gliding): the next frame starts as soon as this one's
         // time is up, counted from when it started, not after drawing it as well

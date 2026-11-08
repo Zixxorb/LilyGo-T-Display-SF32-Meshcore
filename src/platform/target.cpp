@@ -39,7 +39,10 @@ static bool platform_command(const char* command, uint32_t sender_timestamp, cha
     delay(200);
 #endif
     Serial.print("scan (kHz:dBm):");
+    static rt_device_t wdt = rt_device_find("wdt");
     for (unsigned long k = a; k <= b; k += st) {
+      // a long scan (up to ~50 s) mustn't trip the 30 s watchdog: feed it as we go
+      if (wdt) rt_device_control(wdt, RT_DEVICE_CTRL_WDT_KEEPALIVE, RT_NULL);
       radio_driver.setFrequencyHz(k * 1000UL);
       Serial.printf(" %lu:%d", k, radio_driver.sampleNoise(60));
     }

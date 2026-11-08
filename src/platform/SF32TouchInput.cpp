@@ -160,6 +160,8 @@ void SF32TouchInput::update() {
         _pending = dx < 0 ? RotaryInputEvent::Next : RotaryInputEvent::Prev;  // swipe left = next
       } else if (abs(dy) >= SWIPE_MIN_PX && abs(dy) > 2 * abs(dx) && display.isOn()) {
         _gesture = dy > 0 ? Gesture::SwipeDown : Gesture::SwipeUp;
+      } else if (_direct && display.isOn() && abs(dx) <= TAP_MAX_PX && abs(dy) <= TAP_MAX_PX && held >= 800) {
+        // held still, not on anything that takes a hold: not a tap either
       } else if (_direct && display.isOn() && abs(dx) <= TAP_MAX_PX && abs(dy) <= TAP_MAX_PX) {
         _tap_pending = true;
         _tap_x = _x0;

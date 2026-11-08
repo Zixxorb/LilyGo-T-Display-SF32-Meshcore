@@ -76,18 +76,18 @@ elif firmware == 'companion':
                         CPPDEFINES=['SF32_COMPANION'],
                         # scripted UI test builds (SF32_UI_DEMO, see src/platform/SConscript)
                         LOCAL_CPPDEFINES=['RP2040_PLATFORM'] + (['SF32_UI_TEST'] if os.getenv('SF32_UI_DEMO') else []) +
-                                         (['SF32_FRAME_LOG'] if os.getenv('SF32_FRAME_LOG') else []) +
-                                         (['SF32_SOUND_LOG'] if os.getenv('SF32_SOUND_LOG') else []) +
-                                         (['SF32_SOUND_STRESS'] if os.getenv('SF32_SOUND_STRESS') else []) +
-                                         (['SF32_NOISE_TEST'] if os.getenv('SF32_NOISE_TEST') else []) +
-                                         (['SF32_RAINBOW_TEST'] if os.getenv('SF32_RAINBOW_TEST') else []) +
-                                         (['SF32_REMOTE_TOUCH'] if os.getenv('SF32_REMOTE_TOUCH') else []) +
-                                         (['SF32_LOOP_AB'] if os.getenv('SF32_LOOP_AB') else []) +
-                                         (['SF32_TOUCH_AB'] if os.getenv('SF32_TOUCH_AB') else []) +
-                                         (['SF32_CPU_TEST'] if os.getenv('SF32_CPU_TEST') else []) +
-                                         (['SF32_CPU_TOGGLE_TEST'] if os.getenv('SF32_CPU_TOGGLE_TEST') else []) +
-                                         (['SF32_PM_LOG'] if os.getenv('SF32_PM_LOG') else []) +
-                                         (['SF32_SUN_TEST'] if os.getenv('SF32_SUN_TEST') else []),  # Sun face at a test place
+                                         (['SF32_FRAME_LOG'] if os.getenv('SF32_FRAME_LOG') == '1' else []) +
+                                         (['SF32_SOUND_LOG'] if os.getenv('SF32_SOUND_LOG') == '1' else []) +
+                                         (['SF32_SOUND_STRESS'] if os.getenv('SF32_SOUND_STRESS') == '1' else []) +
+                                         (['SF32_NOISE_TEST'] if os.getenv('SF32_NOISE_TEST') == '1' else []) +
+                                         (['SF32_RAINBOW_TEST'] if os.getenv('SF32_RAINBOW_TEST') == '1' else []) +
+                                         (['SF32_REMOTE_TOUCH'] if os.getenv('SF32_REMOTE_TOUCH') == '1' else []) +
+                                         (['SF32_LOOP_AB'] if os.getenv('SF32_LOOP_AB') == '1' else []) +
+                                         (['SF32_TOUCH_AB'] if os.getenv('SF32_TOUCH_AB') == '1' else []) +
+                                         (['SF32_CPU_TEST'] if os.getenv('SF32_CPU_TEST') == '1' else []) +
+                                         (['SF32_CPU_TOGGLE_TEST'] if os.getenv('SF32_CPU_TOGGLE_TEST') == '1' else []) +
+                                         (['SF32_PM_LOG'] if os.getenv('SF32_PM_LOG') == '1' else []) +
+                                         (['SF32_SUN_TEST'] if os.getenv('SF32_SUN_TEST') == '1' else []),  # Sun face at a test place
                         # compat/ first: provides <helpers/rp2040/SerialBLEInterface.h> (the SF32 one)
                         LOCAL_CCFLAGS=' "-I' + os.path.join(cwd, '..', 'src', 'platform', 'compat') + '"'
                                       ' -include sf32_companion.h -include sf32_platform.h -include variant.h',

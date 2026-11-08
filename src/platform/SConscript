@@ -17,31 +17,31 @@ if os.getenv('SF32_FIRMWARE', 'repeater') != 'companion':
 # '_' separates.
 # SF32_UI_DEMO_TIME=<epoch>: set the RTC to this at boot, even backwards.
 defs = []
-if os.getenv('SF32_MOTION_LOG'):  # SF32_MOTION_LOG=1: print the accelerometer every second
+if os.getenv('SF32_MOTION_LOG') == '1':  # SF32_MOTION_LOG=1: print the accelerometer every second
     defs.append('SF32_MOTION_LOG')
-if os.getenv('SF32_I2C_SCAN'):  # SF32_I2C_SCAN=1: log an I2C bus scan 5 s after boot
+if os.getenv('SF32_I2C_SCAN') == '1':  # SF32_I2C_SCAN=1: log an I2C bus scan 5 s after boot
     defs.append('SF32_I2C_SCAN_AT_BOOT')
-if os.getenv('SF32_PM_LOG'):  # SF32_PM_LOG=1: count time asleep (power manager)
+if os.getenv('SF32_PM_LOG') == '1':  # SF32_PM_LOG=1: count time asleep (power manager)
     defs.append('SF32_PM_LOG')
-if os.getenv('SF32_RADIO_AB'):  # SF32_RADIO_AB=1: battery test: radio on 2 h / asleep 2 h, alternating (sf32_ab_log)
+if os.getenv('SF32_RADIO_AB') == '1':  # SF32_RADIO_AB=1: battery test: radio on 2 h / asleep 2 h, alternating (sf32_ab_log)
     defs.append('SF32_RADIO_AB')
-if os.getenv('SF32_SLEEP_AB'):  # SF32_SLEEP_AB=1: battery test: light sleep 2 h / deep sleep 2 h, alternating (sf32_ab_log)
+if os.getenv('SF32_SLEEP_AB') == '1':  # SF32_SLEEP_AB=1: battery test: light sleep 2 h / deep sleep 2 h, alternating (sf32_ab_log)
     defs.append('SF32_SLEEP_AB')
-if os.getenv('SF32_LOOP_AB'):  # SF32_LOOP_AB=1: battery test: screen-off main loop 25 ms 2 h / 250 ms 2 h, no message alerts
+if os.getenv('SF32_LOOP_AB') == '1':  # SF32_LOOP_AB=1: battery test: screen-off main loop 25 ms 2 h / 250 ms 2 h, no message alerts
     defs.append('SF32_LOOP_AB')
-if os.getenv('SF32_TOUCH_AB'):  # SF32_TOUCH_AB=1: battery test: touch controller normal 45 min / deep sleep 45 min with the screen off (button wakes it then), no message alerts
+if os.getenv('SF32_TOUCH_AB') == '1':  # SF32_TOUCH_AB=1: battery test: touch controller normal 45 min / deep sleep 45 min with the screen off (button wakes it then), no message alerts
     defs.append('SF32_TOUCH_AB')
-if os.getenv('SF32_AB_DESK'):  # with SF32_SLEEP_AB: bench version: on USB, sleeps for the first 8 min, 1 min per stretch
+if os.getenv('SF32_AB_DESK') == '1':  # with SF32_SLEEP_AB: bench version: on USB, sleeps for the first 8 min, 1 min per stretch
     defs.append('SF32_AB_DESK')
-if os.getenv('SF32_SENSOR_PROBE'):  # SF32_SENSOR_PROBE=1: list the motion hub's sensors at boot
+if os.getenv('SF32_SENSOR_PROBE') == '1':  # SF32_SENSOR_PROBE=1: list the motion hub's sensors at boot
     defs.append('SF32_SENSOR_PROBE')
-if os.getenv('SF32_SOUND_LOG'):  # SF32_SOUND_LOG=1: print each sound played
+if os.getenv('SF32_SOUND_LOG') == '1':  # SF32_SOUND_LOG=1: print each sound played
     defs.append('SF32_SOUND_LOG')
-if os.getenv('SF32_FRAME_LOG'):  # SF32_FRAME_LOG=1: print frame / transition times
+if os.getenv('SF32_FRAME_LOG') == '1':  # SF32_FRAME_LOG=1: print frame / transition times
     defs.append('SF32_FRAME_LOG')
-if os.getenv('SF32_REMOTE_TOUCH'):  # SF32_REMOTE_TOUCH=1: debug builds only: tools/touch.sh taps/swipes over USB
+if os.getenv('SF32_REMOTE_TOUCH') == '1':  # SF32_REMOTE_TOUCH=1: debug builds only: tools/touch.sh taps/swipes over USB
     defs.append('SF32_REMOTE_TOUCH')
-if os.getenv('SF32_UI_DEMO'):
+if os.getenv('SF32_UI_DEMO'):  # (a value: the touch script)
     defs.append(('SF32_UI_DEMO_SEQ', '\\"' + os.getenv('SF32_UI_DEMO') + '\\"'))
     if os.getenv('SF32_UI_DEMO_TIME'):
         defs.append(('SF32_UI_DEMO_TIME', os.getenv('SF32_UI_DEMO_TIME')))

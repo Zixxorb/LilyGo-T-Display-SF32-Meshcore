@@ -611,8 +611,12 @@ bool SF32Board::readCharger() {
 }
 
 bool SF32Board::setAdcMultiplier(float multiplier) {
-  // 0 means "not set" in MeshCore's prefs.
-  _adc_multiplier = (multiplier > 0.0f) ? multiplier : 1.0f;
+  // 0 means "not set" in MeshCore's prefs. Anything far from 1 is refused: a remote admin
+  // could otherwise make the low-battery cutoff fire at once (powering off into shipping
+  // mode) or never (over-discharging the cell).
+  if (multiplier <= 0.0f) { _adc_multiplier = 1.0f; return true; }
+  if (multiplier < 0.8f || multiplier > 1.25f) return false;
+  _adc_multiplier = multiplier;
   return true;
 }
 

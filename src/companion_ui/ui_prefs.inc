@@ -74,10 +74,12 @@ void UITask::loadUIPrefs() {
     _ui_prefs = p;
     _ui_prefs.glass = SF32UIPrefs().glass;
     _ui_prefs.glass_theme = SF32UIPrefs().glass_theme;
-  } else if (n >= 38 && p.magic == SF32_UI_PREFS_MAGIC_V15) {  // up to usb_app
+  } else if (n >= 37 && p.magic == SF32_UI_PREFS_MAGIC_V15) {  // up to usb_app (37..39 were padding)
     _ui_prefs = p;
     _ui_prefs.rotation = SF32UIPrefs().rotation;
-  } else if (n >= 37 && p.magic == SF32_UI_PREFS_MAGIC_V14) {  // up to adv_page_mesh
+    _ui_prefs.glass = SF32UIPrefs().glass;
+    _ui_prefs.glass_theme = SF32UIPrefs().glass_theme;
+  } else if (n >= 36 && p.magic == SF32_UI_PREFS_MAGIC_V14) {  // up to adv_page_mesh
     _ui_prefs = p;
     _ui_prefs.usb_app = SF32UIPrefs().usb_app;
     _ui_prefs.rotation = SF32UIPrefs().rotation;
@@ -100,7 +102,7 @@ void UITask::loadUIPrefs() {
     _ui_prefs.power_save = defaults.power_save;
     _ui_prefs.adv_nearby = defaults.adv_nearby;
     _ui_prefs.adv_mesh = defaults.adv_mesh;
-  } else if (n >= 29 && p.magic == SF32_UI_PREFS_MAGIC_V10) {  // up to night_dnd (the rest was padding)
+  } else if (n >= 28 && p.magic == SF32_UI_PREFS_MAGIC_V10) {  // up to night_dnd (the rest was padding)
     SF32UIPrefs defaults;
     _ui_prefs = p;
     _ui_prefs.clock_face = defaults.clock_face;
@@ -111,9 +113,11 @@ void UITask::loadUIPrefs() {
   } else if (n >= 27 && p.magic == SF32_UI_PREFS_MAGIC_V8) {  // up to sos_chan (the rest was padding)
     _ui_prefs = p;
     _ui_prefs.mesh_time = SF32UIPrefs().mesh_time;
+    _ui_prefs.night_dnd = SF32UIPrefs().night_dnd;  // (byte 27 was padding)
   } else if (n >= 24 && p.magic == SF32_UI_PREFS_MAGIC_V7) {  // up to bot (the rest: defaults)
     _ui_prefs = p;
-  } else if (n >= 21 && p.magic == SF32_UI_PREFS_MAGIC_V6) {  // up to aod (the rest was padding)
+    _ui_prefs.touch_snd = SF32UIPrefs().touch_snd;  // (byte 23 was padding)
+  } else if (n >= 20 && p.magic == SF32_UI_PREFS_MAGIC_V6) {  // up to aod (the rest was padding)
     SF32UIPrefs defaults;
     _ui_prefs = p;
     _ui_prefs.bot_on = defaults.bot_on;
@@ -136,6 +140,7 @@ void UITask::loadUIPrefs() {
     _ui_prefs = p;
     _ui_prefs.magic = keep;
     _ui_prefs.steps_on = steps;
+    _ui_prefs.night_on = SF32UIPrefs().night_on;  // (byte 15 was padding)
   } else if (n >= 12 && p.magic == SF32_UI_PREFS_MAGIC_V2) {  // up to bt_off: keep it all
     _ui_prefs.brightness_idx = p.brightness_idx;
     _ui_prefs.timeout_idx = p.timeout_idx;

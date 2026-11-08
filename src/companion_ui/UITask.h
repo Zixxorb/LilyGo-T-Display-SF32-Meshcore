@@ -294,6 +294,16 @@ public:
   const char* botLastName() const { return _bot_last; }
 private:
   MenuKind _menu_kind = MENU_PAGE;
+  // where Back goes: Battery and Power can be opened from a page menu or from Settings
+  MenuKind _batt_from = MENU_SETTINGS, _power_from = MENU_PAGE;
+  int _back_sel = 0;                    // the parent's row that opened this submenu
+  MenuKind _left_kind = MENU_PAGE;      // the menu a screen (Logs, Color, pickers) was opened from
+  int _left_sel = 0;                    //   and its row, to come back to
+  MenuKind parentOf(MenuKind k) const {
+    if (k == MENU_BATTERY) return _batt_from;
+    if (k == MENU_POWER) return _power_from;
+    return menuParent(k);
+  }
   int _menu_open_dir = 0;  // SF32Display::Transition the open menu came in with
 public:
   bool hasDisplay() const { return _display != NULL; }
