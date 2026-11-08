@@ -395,12 +395,11 @@ public:
       display.setColor(UIColor::warning_txt);
       themeBolt(display, bx - 3 - tw - 11, 6);
     }
-    // do not disturb (night hours): always on the line under the top bar, at the left
-    // (opposite the voltage), so it doesn't move when messages or charging change the bar
+    // do not disturb (night hours): always in the bottom left corner, just above the page dots
     if (_task->dndNow()) {
       display.setTextSize(1);
       display.setColor(THEME_ACCENT);
-      display.setCursor(4, 20);
+      display.setCursor(4, 106);
       display.print("DND");
     }
     if (mv > 0) {  // voltage under the battery, small
