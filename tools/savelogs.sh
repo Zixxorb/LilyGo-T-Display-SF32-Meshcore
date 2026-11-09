@@ -38,6 +38,7 @@ sf32_ab_alerts
 sf32_ab_turnons
 sf32_ab_turnon_n
 sf32_touch_ab
+sf32_audio_ab
 _ZL12batt_history
 ui_task
 EOF

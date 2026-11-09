@@ -29,6 +29,8 @@ if os.getenv('SF32_SLEEP_AB') == '1':  # SF32_SLEEP_AB=1: battery test: light sl
     defs.append('SF32_SLEEP_AB')
 if os.getenv('SF32_LOOP_AB') == '1':  # SF32_LOOP_AB=1: battery test: screen-off main loop 25 ms 2 h / 250 ms 2 h, no message alerts
     defs.append('SF32_LOOP_AB')
+if os.getenv('SF32_AUDIO_AB') == '1':  # SF32_AUDIO_AB=1: battery test: audio codec PLL/bandgap/crystal buffer normal 45 min / off 45 min with the screen off, no message alerts
+    defs.append('SF32_AUDIO_AB')
 if os.getenv('SF32_TOUCH_AB') == '1':  # SF32_TOUCH_AB=1: battery test: touch controller normal 45 min / deep sleep 45 min with the screen off (button wakes it then), no message alerts
     defs.append('SF32_TOUCH_AB')
 if os.getenv('SF32_AB_DESK') == '1':  # with SF32_SLEEP_AB: bench version: on USB, sleeps for the first 8 min, 1 min per stretch

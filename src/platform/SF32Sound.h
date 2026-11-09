@@ -17,6 +17,10 @@ public:
   // Keep the audio path open (silent) so short sounds play at once at full level: the
   // path takes 100+ ms to come up when it starts. Costs a few mA while on.
   void keepOpen(bool on, Volume vol);
+#ifdef SF32_AUDIO_AB
+  // battery test: codec PLL, bandgap and the crystal's audio buffer off while the path is closed
+  void abPowerOff(bool off);
+#endif
   bool ready();
   bool running();  // the audio path is open  // the path is open and up to full level (a short sound plays properly)
   // touch feedback (skipped while something else plays): style 1 click, 2 pop, 3 tick

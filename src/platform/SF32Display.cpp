@@ -127,14 +127,14 @@ bool SF32Display::begin() {
   return true;
 }
 
-#if defined(SF32_LOOP_AB) || defined(SF32_TOUCH_AB)
+#if defined(SF32_LOOP_AB) || defined(SF32_TOUCH_AB) || defined(SF32_AUDIO_AB)
 // Battery test: what turned the screen on, and how often (return addresses, for addr2line).
 extern "C" { volatile uint32_t sf32_ab_turnons[16] = {0}, sf32_ab_turnon_n = 0; }
 #endif
 
 void SF32Display::turnOn() {
   if (!_lcd) return;
-#if defined(SF32_LOOP_AB) || defined(SF32_TOUCH_AB)
+#if defined(SF32_LOOP_AB) || defined(SF32_TOUCH_AB) || defined(SF32_AUDIO_AB)
   if (!_on) sf32_ab_turnons[sf32_ab_turnon_n++ & 15] = (uint32_t)__builtin_return_address(0);
 #endif
   sf32_cpu_full_speed();  // the display controller is timed from the CPU clock
