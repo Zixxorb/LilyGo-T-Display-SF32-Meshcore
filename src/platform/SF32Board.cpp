@@ -284,10 +284,40 @@ int sf32_i2c_scan(char* out, int out_size);  // below
 // Weak default; the companion UI shows a message (src/companion_ui/UITask.cpp).
 extern "C" __attribute__((weak)) void sf32_before_poweroff(int reason) { (void)reason; }
 
+#ifndef SF32_COMPANION
+// Repeater and room server: nothing reads the touchscreen, but the CST9220 scans from power-on
+// (most of the screen-off drain in the 2026-11-08 test). Reset it and send deep sleep straight
+// over I2C (as SF32TouchInput does with the screen dark): the SDK's touch device can't be used
+// for this, its open probes the bus later from a thread. It answers nothing until reset, so
+// it stays asleep until the next boot.
+extern "C" void BSP_TP_PowerUp(void);
+extern "C" void BSP_TP_Reset(uint8_t high1_low0);
+static void touchSleep() {
+  struct rt_i2c_bus_device* bus = (struct rt_i2c_bus_device*)rt_device_find("i2c1");
+  if (!bus) return;
+  BSP_TP_PowerUp();  // its pins, out of reset
+  BSP_TP_Reset(0);
+  rt_thread_mdelay(3);
+  BSP_TP_Reset(1);
+  rt_thread_mdelay(50);
+  uint8_t cmd[2] = {0xD1, 0x05};  // CST92XX deep sleep (SF32TouchInput.cpp)
+  struct rt_i2c_msg msg;
+  msg.addr = 0x5A;  // the CST9220
+  msg.flags = RT_I2C_WR;
+  msg.buf = cmd;
+  msg.len = 2;
+  bool ok = rt_i2c_transfer(bus, &msg, 1) == 1;
+  rt_kprintf("touch: %s\n", ok ? "asleep (not used)" : "sleep FAILED");
+}
+#endif
+
 void SF32Board::begin() {
   // The SDK feeds the watchdog from the idle thread, which keeps it fed even if
   // MeshCore's loop is stuck. Feed it from loop() instead.
   if (rt_device_find("wdt")) rt_hw_watchdog_hook(0);
+#ifndef SF32_COMPANION
+  touchSleep();
+#endif
 #ifdef RT_USING_PM
   (void)idle_sleep;  // the power manager owns the idle thread (and sleeps the chip)
   rt_pm_notify_set(pm_notify, RT_NULL);

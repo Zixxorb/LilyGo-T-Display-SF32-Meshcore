@@ -444,7 +444,8 @@ Remote Management in the MeshCore app.
 
 The screen shows MeshCore's repeater/room screen and turns off after 20 s. Button **A**
 turns it on; holding A for 1 s powers off. To power on, press **D** (the charger's button
-on the bottom edge, below the antenna) or plug in USB.
+on the bottom edge, below the antenna) or plug in USB. The touchscreen isn't used here: its
+controller is put to sleep at boot, which saves battery.
 
 <details>
 <summary><b>Board-specific CLI commands</b></summary>
