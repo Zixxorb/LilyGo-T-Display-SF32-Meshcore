@@ -164,7 +164,7 @@ uses LE Secure Connections with bonding, so later connections need no PIN.
 | **Hold** the clock | Next clock face (a ring fills; at 0.6 s it changes with a pop) |
 | **Triple-press A** | Mesh SOS |
 
-Any touch wakes a dark screen. Woken within 10 s, it comes back where it was; after that,
+Button **A** wakes a dark screen (taps too, with Settings > Display > **Tap to wake** on). Woken within 10 s, it comes back where it was; after that,
 on the clock. Long lists follow your finger and glide after a flick.
 
 ### Pages
@@ -200,7 +200,7 @@ Pages can be hidden in **Settings > Pages** (the clock always shows).
 | Menu | Contains |
 |---|---|
 | **Theme** | Style (Normal / Glass), Color (each style keeps its own), Backdrop for Glass (Aurora / Dunes / Blend / None), Battery (Color: red / yellow / green by charge, or Plain) |
-| **Display** | Brightness, timeout, always-on, rotation (Normal / Auto / Right / Flipped / Left) |
+| **Display** | Brightness, timeout, always-on, tap to wake, rotation (Normal / Auto / Right / Flipped / Left) |
 | **Pages** | Show or hide each home page |
 | **Clock** | Face, zone, daylight saving (off/US/EU), 12/24 h, mesh time, reset clock |
 | **Battery** | Show (icon + % / % only), graph span (6/12/24/48 h), low alert (10/15/20/30 % / off), charge to (100/90/80 %) |
@@ -375,6 +375,9 @@ menu > Advert menu > **Hold** picks what its icon hold sends.
   screen is on. The always-on clock stays on black.
 - **Themes**: MeshCore blue, cyan, teal, green, purple, pink, red, orange, mono, and
   Rainbow (every page in its own hue).
+- **Tap to wake** (Settings > Display, Off by default): taps wake a dark screen. Off, the
+  touch controller sleeps while the screen is dark and only button A wakes it: in a night
+  test that cut the screen-off battery drain by about 60%.
 - **Always-on**: instead of going dark, the time, date and an unread envelope on black at
   6 % brightness, moved each minute (burn-in care).
 - **Night** (Settings > Night): a lower brightness between two hours and/or do not disturb. There's no

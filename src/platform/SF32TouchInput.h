@@ -33,9 +33,11 @@ public:
   // true once after each lift while the screen is on (touch feedback)
   uint8_t takeClick() { uint8_t c = _click; _click = 0; return c; }  // 0 none, 1 tap, 2 swipe
 
-  // Touch controller (CST9220) scan mode: low power while the screen is off (a slower scan
-  // that still reports a touch, which wakes the screen), normal while it's on.
+  // Touch controller (CST9220): deep sleep while the screen is off, unless taps should wake
+  // it. Its low-power scan mode (0xD10F) reports no touches, so it's sleep or full scanning;
+  // scanning was ~60% of the screen-off drain (2026-11-08 test). Button A always wakes it.
   void setLowPower(bool low);
+  void setTapWake(bool on) { _tap_wake = on; }
 
   // Live finger (drag scrolling): panel coordinates while touching.
   bool fingerDown() { update(); return _down; }
@@ -57,6 +59,7 @@ public:
 
 private:
   void update();
+  bool _tap_wake = false;
 
   void* _dev = nullptr;
   bool _tried = false;

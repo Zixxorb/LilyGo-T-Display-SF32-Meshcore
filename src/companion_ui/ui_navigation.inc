@@ -138,6 +138,7 @@ void UITask::openMenu(MenuKind kind) {
     timeoutLabel(tmp, _ui_prefs.timeout_idx);
     m->add("Timeout", ACT_SET_TIMEOUT, tmp);
     m->add("Always-on", ACT_SET_AOD, _ui_prefs.aod ? "On" : "Off");
+    m->add("Tap to wake", ACT_TAP_WAKE, _ui_prefs.tap_wake ? "On" : "Off");  // off: button A wakes it (saves battery)
     static const char* const ROT_NAMES[] = {"Normal", "Flipped", "Auto", "Right", "Left"};  // by stored value
     m->add("Rotation", ACT_ROTATION, ROT_NAMES[_ui_prefs.rotation % 5]);
     m->add("Back", ACT_MENU_BACK);
@@ -521,6 +522,12 @@ void UITask::menuAction(uint8_t action) {
     case ACT_SET_LIFT:
       _ui_prefs.lift_wake = !_ui_prefs.lift_wake;
       motion.setActive(_ui_prefs.lift_wake || _ui_prefs.flip_quiet || _ui_prefs.rotation == 2);
+      saveUIPrefs();
+      openMenu(_menu_kind);
+      break;
+    case ACT_TAP_WAKE:
+      _ui_prefs.tap_wake = !_ui_prefs.tap_wake;
+      touch_input.setTapWake(_ui_prefs.tap_wake);
       saveUIPrefs();
       openMenu(_menu_kind);
       break;

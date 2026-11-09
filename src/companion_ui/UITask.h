@@ -93,6 +93,7 @@ struct SF32UIPrefs {
   uint8_t bot_max = 2;         // bot: BOT_MAX_DAY index (20 replies a day)
   uint8_t bot_repeat = 1;      //   BOT_REPEAT_H index (once a day per sender)
   uint8_t bot_gap = 0;         //   BOT_GAP_MIN index (1 min)
+  uint8_t tap_wake = 0;        // taps wake the dark screen (touch keeps scanning: ~60% more drain)
 };
 
 class UITask : public AbstractUITask {

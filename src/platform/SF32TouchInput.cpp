@@ -62,6 +62,8 @@ void SF32TouchInput::update() {
   if (!_dev && !_tried) begin();
 #ifdef SF32_TOUCH_AB
   if (_dev) setLowPower(!display.isOn() && sf32_touch_ab_low());
+#else
+  if (_dev) setLowPower(!display.isOn() && !_tap_wake);
 #endif
 #ifdef SF32_REMOTE_TOUCH
   uint32_t rc = sf32_remote_touch;
@@ -300,18 +302,15 @@ int sf32_analog_read_hook(int pin, bool* handled) {
 // ---- CST9220 scan modes (registers from the SDK's cst922 driver) ----
 extern "C" uint32_t cst922_i2c_write(uint16_t reg, uint8_t* p_data, uint16_t len);
 extern "C" void BSP_TP_Reset(uint8_t high1_low0);
-#define CST92XX_REG_LOWPOWER_MODE 0xD10F
 #define CST92XX_REG_MODE_NORMAL   0xD109
 #define CST92XX_REG_DEEP_SLEEP    0xD105
 
 void SF32TouchInput::setLowPower(bool low) {
   if (!_dev || low == _low_power) return;
   uint8_t dummy = 0;
-#ifdef SF32_TOUCH_AB
-  // Battery test: the most touch could save. Deep sleep answers nothing until reset, and no
-  // mode tried reports touches (0xD10F didn't wake the screen), so the button wakes it.
   uint32_t r = RT_EOK;
   if (low) {
+    // deep sleep: answers nothing until it's reset (sends no touches, so the button wakes it)
     r = cst922_i2c_write(CST92XX_REG_DEEP_SLEEP, &dummy, 0);
   } else {
     BSP_TP_Reset(0);
@@ -319,22 +318,15 @@ void SF32TouchInput::setLowPower(bool low) {
     BSP_TP_Reset(1);
     rt_thread_mdelay(50);
     r = cst922_i2c_write(CST92XX_REG_MODE_NORMAL, &dummy, 0);
+    // a touch cut off by the sleep never lifts: start clean
+    rt_base_t level = rt_hw_interrupt_disable();
+    s_pending_reads = 0;
+    rt_hw_interrupt_enable(level);
+    _down = false;
+    _consumed = false;
   }
-#else
-  uint32_t r = cst922_i2c_write(low ? CST92XX_REG_LOWPOWER_MODE : CST92XX_REG_MODE_NORMAL, &dummy, 0);
-#endif
 #ifdef SF32_SOUND_LOG
-  rt_kprintf("touch: %s mode, write %s\n", low ? "low-power" : "normal", r == RT_EOK ? "ok" : "FAILED");
-#endif
-#ifndef SF32_TOUCH_AB
-  if (r != RT_EOK && !low) {
-    // didn't take the command while in low power: reset it (as the driver's init does)
-    BSP_TP_Reset(0);
-    rt_thread_mdelay(3);
-    BSP_TP_Reset(1);
-    rt_thread_mdelay(50);
-    cst922_i2c_write(CST92XX_REG_MODE_NORMAL, &dummy, 0);
-  }
+  rt_kprintf("touch: %s, write %s\n", low ? "deep sleep" : "normal", r == RT_EOK ? "ok" : "FAILED");
 #endif
 #ifdef SF32_TOUCH_AB
   sf32_touch_ab[(low ? 0 : 2) + (r == RT_EOK ? 0 : 1)]++;
