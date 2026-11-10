@@ -68,7 +68,7 @@ extern "C" void BSP_PowerDownCustom(int coreid, bool is_deep_sleep) { (void)core
 extern "C" void BSP_PowerUpCustom(bool is_deep_sleep) { (void)is_deep_sleep; }
 
 static uint8_t s_awake_mask = 0;  // AwakeReason bits; non-zero: one IDLE request held
-#if defined(SF32_LOOP_AB) || defined(SF32_TOUCH_AB) || defined(SF32_AUDIO_AB)
+#if defined(SF32_LOOP_AB) || defined(SF32_TOUCH_AB) || defined(SF32_UART_AB)
 static bool ab_second_stretch();
 #endif
 
@@ -114,7 +114,7 @@ struct SF32PmStats {
 volatile SF32PmStats sf32_pm_stats;
 }
 static volatile bool s_pm_counting = false;
-#if defined(SF32_RADIO_AB) || defined(SF32_SLEEP_AB) || defined(SF32_LOOP_AB) || defined(SF32_TOUCH_AB) || defined(SF32_AUDIO_AB)
+#if defined(SF32_RADIO_AB) || defined(SF32_SLEEP_AB) || defined(SF32_LOOP_AB) || defined(SF32_TOUCH_AB) || defined(SF32_UART_AB)
 extern "C" {
 struct SF32AbLog {
   uint32_t magic, n;
@@ -141,8 +141,8 @@ static void pm_notify(uint8_t event, uint8_t mode, void*) {
   s_sleeps++;
 #endif
   if (!s_pm_counting) return;
-#if defined(SF32_RADIO_AB) || defined(SF32_SLEEP_AB) || defined(SF32_LOOP_AB) || defined(SF32_TOUCH_AB) || defined(SF32_AUDIO_AB)
-#if defined(SF32_LOOP_AB) || defined(SF32_TOUCH_AB) || defined(SF32_AUDIO_AB)
+#if defined(SF32_RADIO_AB) || defined(SF32_SLEEP_AB) || defined(SF32_LOOP_AB) || defined(SF32_TOUCH_AB) || defined(SF32_UART_AB)
+#if defined(SF32_LOOP_AB) || defined(SF32_TOUCH_AB) || defined(SF32_UART_AB)
   if (ab_second_stretch()) { sf32_ab_log.deep_ms += ms; sf32_ab_log.deep_n++; }  // (the stretches under test)
 #else
   if (mode == PM_SLEEP_MODE_DEEP) { sf32_ab_log.deep_ms += ms; sf32_ab_log.deep_n++; }
@@ -160,7 +160,7 @@ static void pm_notify(uint8_t event, uint8_t mode, void*) {
 // board.loop(): start counting at the unplug (afresh), freeze at the replug
 #define PM_STATS_MIN_MS (5UL * 60 * 1000)
 
-#if defined(SF32_RADIO_AB) || defined(SF32_SLEEP_AB) || defined(SF32_LOOP_AB) || defined(SF32_TOUCH_AB) || defined(SF32_AUDIO_AB)
+#if defined(SF32_RADIO_AB) || defined(SF32_SLEEP_AB) || defined(SF32_LOOP_AB) || defined(SF32_TOUCH_AB) || defined(SF32_UART_AB)
 // Battery test builds: from the unplug, 2 h of the normal way, 2 h of the thing under test
 // (SF32_RADIO_AB: the radio asleep, SF32SX1262Radio asks sf32_radio_ab_off(); SF32_SLEEP_AB:
 // deep sleep instead of light), and so on. The battery voltage every 15 min, to the
@@ -168,7 +168,7 @@ static void pm_notify(uint8_t event, uint8_t mode, void*) {
 #ifdef SF32_AB_DESK
 #define AB_PHASE_MS  (60UL * 1000)  // bench version: on USB
 #define AB_DESK_MS   (8UL * 60 * 1000)
-#elif defined(SF32_TOUCH_AB) || defined(SF32_AUDIO_AB)
+#elif defined(SF32_TOUCH_AB) || defined(SF32_UART_AB)
 #define AB_PHASE_MS  (45UL * 60 * 1000)  // short: 2 h stretches get confused with the discharge curve
 #else
 #define AB_PHASE_MS  (2UL * 3600 * 1000)
@@ -184,12 +184,31 @@ extern "C" bool sf32_radio_ab_off(void) { return ab_second_stretch(); }
 // touch controller asleep (screen off): in the second stretch of each pair on battery
 extern "C" bool sf32_touch_ab_low(void) { return ab_second_stretch(); }
 #endif
-#ifdef SF32_AUDIO_AB
-// audio codec PLL, bandgap and its crystal buffer off (screen off): the second stretch of each pair
-extern "C" bool sf32_audio_ab_off(void) { return ab_second_stretch(); }
-#endif
 #ifdef SF32_LOOP_AB
 extern "C" bool sf32_loop_ab_slow(void) { return ab_second_stretch(); }  // SF32_LOOP_AB: the screen-off main loop at 250 ms
+#endif
+#ifdef SF32_UART_AB
+// Battery test: the console UART's pins idle high (TX driven, RX pulled up) into the CH343,
+// which has no power without USB and may draw it through them. In the second stretch of
+// each pair on battery, both become GPIO inputs pulled down; back to the UART on USB.
+extern "C" { volatile uint32_t sf32_uart_ab[2] = {0}; }  // released, restored
+extern "C" bool sf32_uart_ab_off(void) { return ab_second_stretch(); }
+static void uart_ab_loop() {
+  static bool off = false;
+  bool want = ab_second_stretch();
+  if (want == off) return;
+  off = want;
+  if (want) {
+    HAL_PIN_Set(PAD_PA19, GPIO_A19, PIN_PULLDOWN, 1);
+    HAL_PIN_Set(PAD_PA18, GPIO_A18, PIN_PULLDOWN, 1);
+    rt_pin_mode(19, PIN_MODE_INPUT_PULLDOWN);
+    rt_pin_mode(18, PIN_MODE_INPUT_PULLDOWN);
+  } else {  // as the board's pinmux sets them
+    HAL_PIN_Set(PAD_PA18, USART1_RXD, PIN_PULLUP, 1);
+    HAL_PIN_Set(PAD_PA19, USART1_TXD, PIN_PULLUP, 1);
+  }
+  sf32_uart_ab[want ? 0 : 1]++;
+}
 #endif
 static void ab_log_loop(uint16_t mv) {
   static bool started = false;
@@ -378,8 +397,11 @@ void SF32Board::loop() {
 #else
   pm_stats_loop(isExternalPowered());
 #endif
-#if defined(SF32_RADIO_AB) || defined(SF32_SLEEP_AB) || defined(SF32_LOOP_AB) || defined(SF32_TOUCH_AB) || defined(SF32_AUDIO_AB)
+#if defined(SF32_RADIO_AB) || defined(SF32_SLEEP_AB) || defined(SF32_LOOP_AB) || defined(SF32_TOUCH_AB) || defined(SF32_UART_AB)
   ab_log_loop(getBattMilliVolts());
+#endif
+#ifdef SF32_UART_AB
+  uart_ab_loop();
 #endif
 #endif
   if ((long)(now - _next_wdt_feed) >= 0) {

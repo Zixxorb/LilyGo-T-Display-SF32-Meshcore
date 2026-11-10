@@ -1,6 +1,6 @@
 #!/bin/bash
 # Battery on/off tests (SF32_RADIO_AB=1: radio asleep; SF32_SLEEP_AB=1: deep sleep instead of
-# light; SF32_LOOP_AB=1: screen-off main loop at 250 ms; SF32_TOUCH_AB=1: touch low power, 45 min stretches; SF32_AUDIO_AB=1: audio codec PLL off, 45 min): after a night on battery, plug USB back in and run this. From the unplug: 2 h the
+# light; SF32_LOOP_AB=1: screen-off main loop at 250 ms; SF32_TOUCH_AB=1: touch low power, 45 min stretches; SF32_UART_AB=1: console UART pins released, 45 min): after a night on battery, plug USB back in and run this. From the unplug: 2 h the
 # normal way, 2 h of the test, and so on; this reads the battery voltage logged every 15 min
 # (sf32_ab_log, SF32Board.cpp) and compares the drain in the two kinds of stretch. The ELF
 # must be the flashed build.
@@ -10,7 +10,7 @@ elf="${ELF:-project_companion/build_t-display-sf32_hcpu/main.elf}"
 addr=$(arm-none-eabi-nm "$elf" | awk '/ sf32_ab_log$/{print $1}')
 [ -n "$addr" ] || { echo "no sf32_ab_log in this build (build with SF32_RADIO_AB=1 or SF32_SLEEP_AB=1)"; exit 1; }
 export AB_STRETCH=8  # samples (15 min each) per stretch
-if arm-none-eabi-nm "$elf" | grep -q sf32_audio_ab_off; then export AB_A="audio on" AB_B="audio OFF" AB_STRETCH=3
+if arm-none-eabi-nm "$elf" | grep -q " sf32_uart_ab$"; then export AB_A="uart pins on" AB_B="uart pins OFF" AB_STRETCH=3
 elif arm-none-eabi-nm "$elf" | grep -q sf32_touch_ab_low; then export AB_A="touch normal" AB_B="touch LOW" AB_STRETCH=3
 elif arm-none-eabi-nm "$elf" | grep -q sf32_radio_ab_off; then export AB_A="radio on" AB_B="radio OFF"
 elif arm-none-eabi-nm "$elf" | grep -q sf32_loop_ab_slow; then export AB_A="25 ms loop" AB_B="250 ms loop"

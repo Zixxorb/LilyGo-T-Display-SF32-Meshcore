@@ -135,27 +135,21 @@ static bool fill(int16_t* buf, const Note* notes, uint32_t n) {
 // sound starts at once at full level. Otherwise it opens for a sound and closes after.
 #define MSG_OPEN   0xFE  // keep-open request: start the path without a sound
 #define MSG_NONE   0xFFFF
-#ifdef SF32_AUDIO_AB
-// Battery test: the SDK leaves the codec's PLL, reference and bandgap on after the first
-// sound, and the crystal's audio buffer on from boot. Off between sounds in the test stretch;
-// back on before the next sound (or at the stretch's end: the normal state again).
-#define MSG_POWER_DOWN 0xFD
-#define MSG_POWER_UP   0xFC  // power up, then open and close the path (the PLL on, as normal)
+// Power: the SDK leaves the codec's PLL, reference and bandgap on after the first sound,
+// and the crystal's audio buffer on from boot (~2 mA, 2026-11-09 night test). With the
+// screen off, they go off whenever the path closes; the next sound turns them on first.
+#define MSG_POWER_DOWN 0xFD  // a nudge: power down now if the path is closed
 extern "C" void bf0_disable_pll(void);
-extern "C" { volatile uint32_t sf32_audio_ab[4] = {0}; }  // powered down, powered up, down requests, up requests
-static volatile bool s_down_pending = false, s_down = false;
+static volatile bool s_power_save = false, s_down = false;
 static void audio_power_down() {
-  bf0_disable_pll();       // PLL, refgen, bandgap off; the next start turns them on again
+  bf0_disable_pll();       // PLL, refgen, bandgap off; the next stream start turns them on again
   HAL_PMU_EnableAudio(0);  // the crystal's buffer to the codec
   s_down = true;
-  sf32_audio_ab[0]++;
 }
 static void audio_power_up() {
   HAL_PMU_EnableAudio(1);
   s_down = false;
-  sf32_audio_ab[1]++;
 }
-#endif
 static volatile bool s_keep_open = false, s_running = false;
 static volatile int s_step = 0;  // diagnostics: where the sound thread is
 static volatile uint32_t s_open_samples = 0;  // samples played since the path last opened (unmuted)
@@ -226,22 +220,16 @@ static void sound_thread(void*) {
   while (1) {
     rt_ubase_t msg = MSG_NONE;
     s_step = 1;
-#ifdef SF32_AUDIO_AB
-    if (!s_running && s_down_pending) { s_down_pending = false; if (!s_down) audio_power_down(); }
-#endif
+    if (!s_running && s_power_save && !s_down) audio_power_down();
     if (!s_running) {
       if (rt_mb_recv(&s_mb, &msg, RT_WAITING_FOREVER) != RT_EOK) continue;
     } else {
       rt_mb_recv(&s_mb, &msg, 0);
     }
-#ifdef SF32_AUDIO_AB
     if (msg != MSG_NONE && (msg & 0xFF) == MSG_POWER_DOWN) {
-      s_down_pending = true;
       if (!s_running) continue;  // closed: power down at the top (not the stream's tx-done wait)
-      msg = MSG_NONE;            // open: once it closes
+      msg = MSG_NONE;            // open: at the top again once it closes
     }
-    if (msg != MSG_NONE && (msg & 0xFF) == MSG_POWER_UP) { s_down_pending = false; msg = (msg & ~0xFFu) | MSG_OPEN; }
-#endif
     if (msg != MSG_NONE) {
       int kind = msg & 0xFF, volume = (int8_t)((msg >> 8) & 0xFF);
       if (!s_running) {
@@ -249,9 +237,7 @@ static void sound_thread(void*) {
 #ifdef RT_USING_PM
         rt_pm_request(PM_SLEEP_MODE_IDLE);  // no light sleep while the audio path is open
 #endif                                       // (its start-up waits included)
-#ifdef SF32_AUDIO_AB
         if (s_down) audio_power_up();
-#endif
         if (!open_devices()) {
           s_busy = false;
 #ifdef RT_USING_PM
@@ -384,17 +370,11 @@ bool SF32Sound::ready() {
   return s_running && s_open_samples >= SAMPLE_RATE * 750 / 1000;  // 350 ms still clipped a click
 }
 
-#ifdef SF32_AUDIO_AB
-void SF32Sound::abPowerOff(bool off) {
-  static bool asked_off = false;
-  if (off == asked_off || !start_thread()) return;
-  rt_ubase_t msg = off ? MSG_POWER_DOWN : (MSG_POWER_UP | ((rt_ubase_t)(uint8_t)volume_half_db(VOL_LOW) << 8));
-  if (rt_mb_send(&s_mb, msg) == RT_EOK) {  // (full: asked again next loop)
-    asked_off = off;
-    sf32_audio_ab[off ? 2 : 3]++;
-  }
+void SF32Sound::powerSave(bool on) {
+  if (on == s_power_save) return;
+  s_power_save = on;
+  if (on && s_started) rt_mb_send(&s_mb, MSG_POWER_DOWN);  // wake the thread if it's idle (full: it's busy, and powers down when the path closes)
 }
-#endif
 
 void SF32Sound::keepOpen(bool on, Volume vol) {
   s_keep_open = on && vol != VOL_OFF;

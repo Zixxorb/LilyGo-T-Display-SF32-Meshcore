@@ -80,10 +80,7 @@ extern volatile uint8_t sf32_loop_sleep_ms;  // main.cpp: main-loop sleep
 #ifdef SF32_LOOP_AB
 extern "C" bool sf32_loop_ab_slow(void);
 #endif
-#ifdef SF32_AUDIO_AB
-extern "C" bool sf32_audio_ab_off(void);
-#endif
-#if defined(SF32_LOOP_AB) || defined(SF32_TOUCH_AB) || defined(SF32_AUDIO_AB)
+#if defined(SF32_LOOP_AB) || defined(SF32_TOUCH_AB) || defined(SF32_UART_AB)
 extern "C" { volatile uint32_t sf32_ab_alerts = 0; }
 #endif
 
@@ -315,7 +312,7 @@ void UITask::showNewMessage(bool direct) {
   bool alert = _ui_prefs.alerts == 0 || (_ui_prefs.alerts == 1 && direct);
   if (_ui_prefs.flip_quiet && motion.faceDown()) alert = false;  // lying face down: quiet
   if (dndNow()) alert = false;  // do not disturb (night hours): no chime, no wake; still unread
-#if defined(SF32_LOOP_AB) || defined(SF32_TOUCH_AB) || defined(SF32_AUDIO_AB)
+#if defined(SF32_LOOP_AB) || defined(SF32_TOUCH_AB) || defined(SF32_UART_AB)
   if (alert) sf32_ab_alerts++;  // battery test: counted, not shown, so the screen stays dark
   alert = false;
 #endif
@@ -438,7 +435,7 @@ void UITask::onChannelMessageRecv(mesh::Packet *pkt, ChannelDetails& channel_det
   botCheck(pkt, NULL, &channel_details, text);  // SF32
 
   if (_display != NULL) {
-#if !defined(SF32_TOUCH_AB) && !defined(SF32_AUDIO_AB)  // battery test: messages leave the screen dark, so the stretches stay comparable
+#if !defined(SF32_TOUCH_AB) && !defined(SF32_UART_AB)  // battery test: messages leave the screen dark, so the stretches stay comparable
     if (!_display->isOn() && !hasConnection()) {
       _display->turnOn();
     }
@@ -674,9 +671,7 @@ void UITask::loop() {
      // voltage) and a 25 ms main loop; full speed again as the screen turns on (the
      // display driver asks for it) or for audio (the sound thread does)
     bool screen_on = _display != NULL && _display->isOn();
-#ifdef SF32_AUDIO_AB
-    sound.abPowerOff(!screen_on && sf32_audio_ab_off());  // battery test
-#endif
+    sound.powerSave(!screen_on);
     bool idle = !screen_on && !sound.running();
     if (!idle) _cpu_idle_since = 0;
     else if (!_cpu_idle_since) _cpu_idle_since = millis() | 1;
