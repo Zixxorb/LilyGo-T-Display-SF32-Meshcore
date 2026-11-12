@@ -1,4 +1,5 @@
 #include "SF32TouchInput.h"
+#include "SF32Board.h"
 
 #include <Arduino.h>
 #include <rtthread.h>
@@ -29,6 +30,7 @@ static rt_err_t on_touch(rt_device_t, rt_size_t) {
   if (s_touch_low) sf32_touch_ab[4]++;
 #endif
   s_pending_reads++;
+  sf32_pm_event(SF32_PM_EV_TOUCH_IRQ);
   return RT_EOK;
 }
 

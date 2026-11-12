@@ -7,7 +7,7 @@ addr=$(arm-none-eabi-nm "${ELF:-project_companion/build_t-display-sf32_hcpu/main
 [ -n "$addr" ] || { echo "no sf32_pm_stats in this build"; exit 1; }
 port=$(readlink -f $(ls /dev/serial/by-id/*1a86* 2>/dev/null | head -1) 2>/dev/null)
 [ -n "$port" ] || { echo "board not found"; exit 1; }
-python3 tools/sf32_debug_uart.py "$port" mem "$addr" 24 | python3 -I -c '
+python3 tools/sf32_debug_uart.py "$port" mem "$addr" 28 | python3 -I -c '
 import sys, struct
 w = [int(l.split()[1], 16) for l in sys.stdin if ":" in l]
 if len(w) < 24 or w[0] != 0x5346504D: sys.exit("no counts yet (has it run on battery?)")
@@ -19,4 +19,6 @@ print(f"on battery {batt/60000:.1f} min, asleep {100*slept/max(batt,1):.1f}%, "
 print(f"wakes {sleeps} ({sleeps/max(batt/1000,1):.1f}/s), main loop {loops/max(batt/1000,1):.1f}/s")
 names = ["RTC", "GPIO1", "LPTIM1", "PMUC", "b4", "b5", "LP2HP req", "LP2HP irq"] + [f"PIN{i}" for i in range(8)] + ["other"]
 print("wake sources: " + ", ".join(f"{n} {c}" for n, c in zip(names, wsr) if c))
+if len(w) >= 28:  # newer builds: events on battery
+    print(f"radio interrupts {w[24]}, touch interrupts {w[25]}, audio powered down {w[26]} / up {w[27]}")
 '

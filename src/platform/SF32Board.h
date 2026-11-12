@@ -129,3 +129,10 @@ private:
 
 // Back to full speed before anything that needs it (the display turning on, audio).
 extern "C" void sf32_cpu_full_speed();
+
+// Battery stats (tools/pmstats.sh): events counted while on battery
+#define SF32_PM_EV_RADIO_IRQ  0
+#define SF32_PM_EV_TOUCH_IRQ  1
+#define SF32_PM_EV_AUDIO_DOWN 2
+#define SF32_PM_EV_AUDIO_UP   3
+extern "C" void sf32_pm_event(int k);

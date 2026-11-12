@@ -1,4 +1,5 @@
 #include "SF32SX1262Radio.h"
+#include "SF32Board.h"
 #include "SX126x_commands.h"
 
 #include <rtthread.h>
@@ -88,6 +89,7 @@ int16_t SF32SX1262Radio::init(float freq_mhz, float bw_khz, uint8_t sf, uint8_t 
 void SF32SX1262Radio::onDio1(void* ctx) {
   // Interrupt context: just flag it. All SPI work happens in thread context.
   static_cast<SF32SX1262Radio*>(ctx)->_state |= STATE_INT_READY;
+  sf32_pm_event(SF32_PM_EV_RADIO_IRQ);
 }
 
 void SF32SX1262Radio::begin() {

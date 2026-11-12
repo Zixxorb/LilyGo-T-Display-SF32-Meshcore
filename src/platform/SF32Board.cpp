@@ -110,10 +110,15 @@ struct SF32PmStats {
   uint32_t loops;          // main loop passes
   uint32_t held_mask_seen; // every awake reason that was held at some point (OR)
   uint32_t wsr[17];        // wakes per wake source bit 0..15 (RTC, GPIO1, LPTIM1, PMUC, -, -, LP2HP req, LP2HP irq, PIN0..7), [16] other
+  uint32_t ev[4];          // SF32_PM_EV_*: radio DIO1 interrupts, touch interrupts, audio powered down, powered up
 };
 volatile SF32PmStats sf32_pm_stats;
 }
 static volatile bool s_pm_counting = false;
+// on battery: count an event (interrupt-safe; see SF32_PM_EV_* in SF32Board.h)
+extern "C" void sf32_pm_event(int k) {
+  if (s_pm_counting && k >= 0 && k < 4) sf32_pm_stats.ev[k]++;
+}
 #if defined(SF32_RADIO_AB) || defined(SF32_SLEEP_AB) || defined(SF32_LOOP_AB) || defined(SF32_TOUCH_AB) || defined(SF32_UART_AB)
 extern "C" {
 struct SF32AbLog {
@@ -864,3 +869,7 @@ int SF32Board::chipTempC() {
   if (t > -40 && t < 125) last = t;
   return last;
 }
+
+#ifndef RT_USING_PM
+extern "C" void sf32_pm_event(int) {}  // no battery stats without the power manager
+#endif

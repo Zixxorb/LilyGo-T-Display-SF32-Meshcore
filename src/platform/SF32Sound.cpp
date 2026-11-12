@@ -1,4 +1,5 @@
 #include "SF32Sound.h"
+#include "SF32Board.h"
 
 #include <rtthread.h>
 #include <rthw.h>
@@ -145,10 +146,12 @@ static void audio_power_down() {
   bf0_disable_pll();       // PLL, refgen, bandgap off; the next stream start turns them on again
   HAL_PMU_EnableAudio(0);  // the crystal's buffer to the codec
   s_down = true;
+  sf32_pm_event(SF32_PM_EV_AUDIO_DOWN);
 }
 static void audio_power_up() {
   HAL_PMU_EnableAudio(1);
   s_down = false;
+  sf32_pm_event(SF32_PM_EV_AUDIO_UP);
 }
 static volatile bool s_keep_open = false, s_running = false;
 static volatile int s_step = 0;  // diagnostics: where the sound thread is
@@ -373,7 +376,8 @@ bool SF32Sound::ready() {
 void SF32Sound::powerSave(bool on) {
   if (on == s_power_save) return;
   s_power_save = on;
-  if (on && s_started) rt_mb_send(&s_mb, MSG_POWER_DOWN);  // wake the thread if it's idle (full: it's busy, and powers down when the path closes)
+  // (started now if no sound has played yet: the crystal's audio buffer is on from boot)
+  if (on && start_thread()) rt_mb_send(&s_mb, MSG_POWER_DOWN);  // wake the thread if it's idle (full: it's busy, and powers down when the path closes)
 }
 
 void SF32Sound::keepOpen(bool on, Volume vol) {
