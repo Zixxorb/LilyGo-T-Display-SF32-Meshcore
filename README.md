@@ -94,8 +94,7 @@ No SDK or compiler needed: Python 3 and a USB cable.
 1. Install pyserial: `python3 -m pip install pyserial` (Windows: `py -m pip install pyserial`).
 2. Download [`flasher/sf32-flash.py`](flasher/sf32-flash.py) and a firmware zip
    (`companion.zip`, `repeater.zip` or `room_server.zip`) from the
-   [Releases](../../releases) page. (No releases yet: they'll come once battery life is
-   sorted out. Until then, [build it yourself](#building-from-source).)
+   [Releases](../../releases) page (or let the flasher download the latest release).
 3. Plug in the board and run:
    ```sh
    python3 sf32-flash.py companion.zip

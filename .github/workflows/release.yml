@@ -1,0 +1,40 @@
+name: Release
+
+# Push a version tag (git tag v1.0.0 && git push origin v1.0.0): builds all three firmwares
+# on CI (local builds embed the builder's paths, so releases always come from here) and
+# publishes them, with the flasher, as a GitHub release for that tag.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write  # create the release
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.3.3
+
+      - uses: actions/cache@v6
+        with:
+          path: |
+            .ci
+            ~/.sifli
+          key: sdk-${{ hashFiles('ci/pins.sh') }}
+
+      - name: Build companion, repeater, room server
+        run: ci/build-all.sh
+
+      - name: Checksums
+        run: cd dist && sha256sum *.zip sf32-flash.py > SHA256SUMS.txt
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" dist/*.zip dist/sf32-flash.py dist/SHA256SUMS.txt \
+            --title "$TAG" --notes-file docs/RELEASE_NOTES.md --verify-tag
