@@ -65,8 +65,6 @@ public:
 
 private:
   static void onDio1(void* ctx);
-  bool abAsleep();          // SF32_RADIO_AB test builds: asleep for the radio-off stretches
-  bool _ab_asleep = false;
   int16_t startReceive();
   void startRecv();
   void idle();

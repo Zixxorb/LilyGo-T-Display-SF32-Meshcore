@@ -77,12 +77,6 @@ extern volatile uint8_t sf32_loop_sleep_ms;  // main.cpp: main-loop sleep
 #endif
 
 #include "icons.h"
-#ifdef SF32_LOOP_AB
-extern "C" bool sf32_loop_ab_slow(void);
-#endif
-#if defined(SF32_LOOP_AB) || defined(SF32_TOUCH_AB) || defined(SF32_UART_AB)
-extern "C" { volatile uint32_t sf32_ab_alerts = 0; }
-#endif
 
 #include "ui_theme.inc"  // the "MeshCore" theme: colours, cards, header, values, scrolling labels, page dots
 
@@ -312,10 +306,6 @@ void UITask::showNewMessage(bool direct) {
   bool alert = _ui_prefs.alerts == 0 || (_ui_prefs.alerts == 1 && direct);
   if (_ui_prefs.flip_quiet && motion.faceDown()) alert = false;  // lying face down: quiet
   if (dndNow()) alert = false;  // do not disturb (night hours): no chime, no wake; still unread
-#if defined(SF32_LOOP_AB) || defined(SF32_TOUCH_AB) || defined(SF32_UART_AB)
-  if (alert) sf32_ab_alerts++;  // battery test: counted, not shown, so the screen stays dark
-  alert = false;
-#endif
   if (_aod) {
     if (!alert) { _next_refresh = 0; return; }  // quiet: the envelope on the AOD updates
     exitAOD();
@@ -435,11 +425,9 @@ void UITask::onChannelMessageRecv(mesh::Packet *pkt, ChannelDetails& channel_det
   botCheck(pkt, NULL, &channel_details, text);  // SF32
 
   if (_display != NULL) {
-#if !defined(SF32_TOUCH_AB) && !defined(SF32_UART_AB)  // battery test: messages leave the screen dark, so the stretches stay comparable
     if (!_display->isOn() && !hasConnection()) {
       _display->turnOn();
     }
-#endif
     if (_display->isOn()) {
     _auto_off = millis() + autoOffMillis();  // extend the auto-off timer
     _next_refresh = 100;  // trigger refresh
@@ -686,11 +674,7 @@ void UITask::loop() {
     if (idle && millis() - _cpu_idle_since > 5000) board.setCpuLow(true);
     else if (!idle) board.setCpuLow(false);
 #endif
-#ifdef SF32_LOOP_AB
-    sf32_loop_sleep_ms = screen_on && !_aod ? 4 : (sf32_loop_ab_slow() ? 250 : 25);
-#else
     sf32_loop_sleep_ms = screen_on && !_aod ? 4 : 25;
-#endif
     // sleep (power manager): awake while the screen (always-on too) or audio is on, the
     // first minute after boot, or with Power saving off
     board.holdAwake(SF32Board::AWAKE_SCREEN, screen_on);

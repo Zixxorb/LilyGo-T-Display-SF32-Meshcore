@@ -231,36 +231,6 @@ int16_t SF32SX1262Radio::wakeFromSleep() {
 
 // ---- RadioLibWrapper logic ----
 
-// Battery test builds (SF32_RADIO_AB): the radio sleeps (warm, settings kept) for every
-// other 2 h on battery; checked from recvRaw(), which the mesh calls every loop. Nothing
-// touches the SPI bus meanwhile (that would wake the chip).
-#ifdef SF32_RADIO_AB
-extern "C" bool sf32_radio_ab_off(void);
-bool SF32SX1262Radio::abAsleep() {
-  bool off = sf32_radio_ab_off();
-  if (off && !_ab_asleep && _state != STATE_TX_WAIT) {  // (a send finishes first)
-    SX126x_sleep(&_radio, true);
-    _state = STATE_IDLE;
-    _ab_asleep = true;
-    LOG_I("AB test: radio asleep");
-  } else if (!off && _ab_asleep) {
-    _ab_asleep = false;
-    int16_t err = wakeFromSleep();
-    if (err != RADIOLIB_ERR_NONE) LOG_E("AB test: wake failed: %d", err);
-    doResetAGC();
-    _state = STATE_IDLE;
-    _noise_floor = 0;
-    _num_floor_samples = 0;
-    _floor_sample_sum = 0;
-    LOG_I("AB test: radio listening");
-  }
-  return _ab_asleep;
-}
-#else
-bool SF32SX1262Radio::abAsleep() { return false; }
-#endif
-
-
 void SF32SX1262Radio::idle() {
   SX126x_standby(&_radio);
   _state = STATE_IDLE;
@@ -276,11 +246,10 @@ void SF32SX1262Radio::startRecv() {
 }
 
 bool SF32SX1262Radio::isInRecvMode() const {
-  return _ab_asleep || (_state & ~STATE_INT_READY) == STATE_RX;  // (asleep for a test: as planned)
+  return (_state & ~STATE_INT_READY) == STATE_RX;
 }
 
 int SF32SX1262Radio::recvRaw(uint8_t* bytes, int sz) {
-  if (abAsleep()) return 0;
   int len = 0;
   if (_state & STATE_INT_READY) {
     size_t n = (size_t)sz;
@@ -307,7 +276,6 @@ uint32_t SF32SX1262Radio::getEstAirtimeFor(int len_bytes) {
 }
 
 bool SF32SX1262Radio::startSendRaw(const uint8_t* bytes, int len) {
-  if (_ab_asleep) return false;
   _board->onBeforeTransmit();
   int16_t err = SX126x_startTransmit(&_radio, bytes, (size_t)len);
   if (err == RADIOLIB_ERR_NONE) {
@@ -339,7 +307,6 @@ void SF32SX1262Radio::onSendFinished() {
 // Port of CustomSX1262::isReceiving(): true while a preamble or header has been
 // detected and the packet could still be arriving.
 bool SF32SX1262Radio::isReceivingPacket() {
-  if (_ab_asleep) return false;
   const uint16_t activity = SX126X_IRQ_PREAMBLE_DETECTED | SX126X_IRQ_HEADER_VALID | SX126X_IRQ_HEADER_ERROR;
   uint16_t irq = readIrqStatus();
   bool preamble = irq & SX126X_IRQ_PREAMBLE_DETECTED;
@@ -386,14 +353,12 @@ bool SF32SX1262Radio::isReceivingPacket() {
 }
 
 float SF32SX1262Radio::getCurrentRSSI() {
-  if (_ab_asleep) return -127;
   uint8_t d = 0;
   Module_readCommand(&_module, SX126X_CMD_GET_RSSI_INST, RT_NULL, &d, 1);
   return -(float)d / 2.0f;
 }
 
 bool SF32SX1262Radio::isChannelActive() {
-  if (_ab_asleep) return false;
   if (_threshold != 0 && getCurrentRSSI() > _noise_floor + _threshold) return true;
 
   if (_cad_enabled) {
@@ -452,7 +417,6 @@ void SF32SX1262Radio::doResetAGC() {
 }
 
 void SF32SX1262Radio::resetAGC() {
-  if (_ab_asleep) return;
   if ((_state & STATE_INT_READY) != 0 || isReceivingPacket()) return;  // mid-packet
 
   doResetAGC();
@@ -503,7 +467,6 @@ uint32_t SF32SX1262Radio::getRngSeed() {
 // ---- RF diagnostics ----
 
 int SF32SX1262Radio::sampleNoise(int samples, int* lo, int* hi) {
-  if (_ab_asleep) return -127;
   startRecv();
   rt_thread_mdelay(5);
   int mn = 0, mx = -200, sum = 0;

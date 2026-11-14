@@ -415,9 +415,10 @@ auto-replies.
 
 ## Battery and power
 
-- **Battery life** (companion, screen mostly off): an estimated **22-25 hours** on the
-  480 mAh battery, from about 4 % per hour overnight. Work on reducing the screen-off draw
-  is ongoing.
+- **Battery life** (companion, screen mostly off): an estimated **28-30 hours** on the
+  480 mAh battery (about 29 mV per hour overnight, roughly 16-17 mA). With the screen off,
+  the touch controller sleeps (unless Settings > Display > Tap to wake is on) and the
+  audio chip powers down; the LoRa radio keeps listening all the time (about 5 mA of that).
 - **Sleep** (on by default): the chip light-sleeps whenever the screen is off; the
   radio keeps listening and Bluetooth stays up. It stays awake on USB (charging), which
   keeps flashing working.

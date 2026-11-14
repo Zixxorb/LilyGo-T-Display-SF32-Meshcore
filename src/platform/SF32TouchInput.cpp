@@ -21,14 +21,7 @@ extern SF32RTCClock rtc_clock;
 SF32TouchInput touch_input;
 
 static volatile int s_pending_reads = 0;
-#ifdef SF32_TOUCH_AB
-static volatile bool s_touch_low = false;
-extern "C" volatile uint32_t sf32_touch_ab[5];
-#endif
 static rt_err_t on_touch(rt_device_t, rt_size_t) {
-#ifdef SF32_TOUCH_AB
-  if (s_touch_low) sf32_touch_ab[4]++;
-#endif
   s_pending_reads++;
   sf32_pm_event(SF32_PM_EV_TOUCH_IRQ);
   return RT_EOK;
@@ -54,19 +47,10 @@ bool SF32TouchInput::begin() {
 extern "C" volatile uint32_t sf32_remote_touch = 0;
 #endif
 
-#ifdef SF32_TOUCH_AB
-extern "C" bool sf32_touch_ab_low(void);
-// to low ok, to low failed, to normal ok, to normal failed, touch interrupts in low power
-extern "C" { volatile uint32_t sf32_touch_ab[5] = {0}; }
-#endif
 
 void SF32TouchInput::update() {
   if (!_dev && !_tried) begin();
-#ifdef SF32_TOUCH_AB
-  if (_dev) setLowPower(!display.isOn() && sf32_touch_ab_low());
-#else
   if (_dev) setLowPower(!display.isOn() && !_tap_wake);
-#endif
 #ifdef SF32_REMOTE_TOUCH
   uint32_t rc = sf32_remote_touch;
   if (rc) {
@@ -329,10 +313,6 @@ void SF32TouchInput::setLowPower(bool low) {
   }
 #ifdef SF32_SOUND_LOG
   rt_kprintf("touch: %s, write %s\n", low ? "deep sleep" : "normal", r == RT_EOK ? "ok" : "FAILED");
-#endif
-#ifdef SF32_TOUCH_AB
-  sf32_touch_ab[(low ? 0 : 2) + (r == RT_EOK ? 0 : 1)]++;
-  s_touch_low = low;
 #endif
   _low_power = low;
 }

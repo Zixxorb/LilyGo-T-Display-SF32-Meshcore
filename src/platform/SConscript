@@ -23,18 +23,6 @@ if os.getenv('SF32_I2C_SCAN') == '1':  # SF32_I2C_SCAN=1: log an I2C bus scan 5 
     defs.append('SF32_I2C_SCAN_AT_BOOT')
 if os.getenv('SF32_PM_LOG') == '1':  # SF32_PM_LOG=1: count time asleep (power manager)
     defs.append('SF32_PM_LOG')
-if os.getenv('SF32_RADIO_AB') == '1':  # SF32_RADIO_AB=1: battery test: radio on 2 h / asleep 2 h, alternating (sf32_ab_log)
-    defs.append('SF32_RADIO_AB')
-if os.getenv('SF32_SLEEP_AB') == '1':  # SF32_SLEEP_AB=1: battery test: light sleep 2 h / deep sleep 2 h, alternating (sf32_ab_log)
-    defs.append('SF32_SLEEP_AB')
-if os.getenv('SF32_LOOP_AB') == '1':  # SF32_LOOP_AB=1: battery test: screen-off main loop 25 ms 2 h / 250 ms 2 h, no message alerts
-    defs.append('SF32_LOOP_AB')
-if os.getenv('SF32_UART_AB') == '1':  # SF32_UART_AB=1: battery test: console UART pins (PA18/PA19) normal 45 min / pulled down as GPIO inputs 45 min on battery (can they power the unpowered CH343?), no message alerts
-    defs.append('SF32_UART_AB')
-if os.getenv('SF32_TOUCH_AB') == '1':  # SF32_TOUCH_AB=1: battery test: touch controller normal 45 min / deep sleep 45 min with the screen off (button wakes it then), no message alerts
-    defs.append('SF32_TOUCH_AB')
-if os.getenv('SF32_AB_DESK') == '1':  # with SF32_SLEEP_AB: bench version: on USB, sleeps for the first 8 min, 1 min per stretch
-    defs.append('SF32_AB_DESK')
 if os.getenv('SF32_SENSOR_PROBE') == '1':  # SF32_SENSOR_PROBE=1: list the motion hub's sensors at boot
     defs.append('SF32_SENSOR_PROBE')
 if os.getenv('SF32_SOUND_LOG') == '1':  # SF32_SOUND_LOG=1: print each sound played
