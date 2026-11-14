@@ -6,7 +6,7 @@
     python3 sf32-flash.py path/to/companion.zip  # a firmware zip you downloaded (or a folder)
     python3 sf32-flash.py companion --port COM5  # pick the port yourself
 
-Needs Python 3.8+ and pyserial (`pip install pyserial`). The first run downloads SiFli's
+Needs Python 3.8+ and pyserial (install commands: README). The first run downloads SiFli's
 flashing tool, sftool, for your system (checked against a pinned SHA-256) and keeps it in
 a cache folder.
 
@@ -63,8 +63,17 @@ try:
     import serial
     import serial.tools.list_ports
 except ImportError:
-    sys.exit("This needs pyserial. Install it with:\n    python3 -m pip install pyserial\n"
-             "(on Windows: py -m pip install pyserial), then run this again.")
+    if sys.platform.startswith("win"):
+        how = "    py -m pip install pyserial"
+    else:  # most Linux systems (and Homebrew's Python) refuse a plain pip install
+        how = ("    Debian/Ubuntu:  sudo apt install python3-serial\n"
+               "    Fedora:         sudo dnf install python3-pyserial\n"
+               "    Arch/CachyOS:   sudo pacman -S python-pyserial\n"
+               "    macOS:          python3 -m pip install pyserial\n"
+               "If pip says \"externally-managed-environment\", use a virtual environment:\n"
+               "    python3 -m venv ~/sf32-venv && ~/sf32-venv/bin/pip install pyserial\n"
+               "    ~/sf32-venv/bin/python sf32-flash.py")
+    sys.exit("This needs pyserial. Install it with:\n" + how + "\nthen run this again.")
 
 
 def fail(msg):

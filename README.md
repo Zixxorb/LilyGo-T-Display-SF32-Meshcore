@@ -91,7 +91,16 @@ reflashing, so you can switch between them.
 
 No SDK or compiler needed: Python 3 and a USB cable.
 
-1. Install pyserial: `python3 -m pip install pyserial` (Windows: `py -m pip install pyserial`).
+1. Install pyserial:
+   - Windows: `py -m pip install pyserial`
+   - macOS: `python3 -m pip install pyserial`
+   - Debian/Ubuntu: `sudo apt install python3-serial`
+   - Fedora: `sudo dnf install python3-pyserial`
+   - Arch/CachyOS: `sudo pacman -S python-pyserial`
+
+   If pip refuses with "externally-managed-environment", use a virtual environment:
+   `python3 -m venv ~/sf32-venv && ~/sf32-venv/bin/pip install pyserial`, then run the
+   flasher with `~/sf32-venv/bin/python sf32-flash.py` instead of `python3 sf32-flash.py`.
 2. Download [`flasher/sf32-flash.py`](flasher/sf32-flash.py) and a firmware zip
    (`companion.zip`, `repeater.zip` or `room_server.zip`) from the
    [Releases](../../releases) page (or let the flasher download the latest release).
