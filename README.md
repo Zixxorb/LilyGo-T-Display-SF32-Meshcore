@@ -15,7 +15,10 @@ Companion (phone app over Bluetooth, with its own touch UI) · Repeater · Room 
 
 </div>
 
-Built on LilyGo's SiFli SDK and C radio library, with MeshCore itself unmodified.
+**Vesper** (VesperOS) is a custom firmware for the board with MeshCore running underneath,
+unmodified, so it works with the official MeshCore apps and the rest of the mesh. It's built
+on LilyGo's SiFli SDK and C radio library. Vesper has its own version number (shown on the
+start screen and in About), separate from the MeshCore version it runs.
 
 The companion is a **handheld node**, not a messenger: the phone does the messaging, the
 device shows what's happening on the mesh, tests links, finds repeaters and keeps time.
@@ -478,10 +481,9 @@ controller is put to sleep at boot, which saves battery.
 
 Working: all three firmwares, Bluetooth pairing, touch UI, sleep, sound, motion, USB app.
 
-- **Power**: the screen-off draw averages about 19 mA (assuming the rated 480 mAh). The
-  radio is 6-8 mA of that; turning off the motion sensor or Bluetooth (no phone connected)
-  made no measurable difference. The remaining 11-13 mA is still being tracked down, with
-  light vs deep sleep under test. See
+- **Power**: about 28-30 hours with the screen mostly off (roughly 16-17 mA on the rated
+  480 mAh), up from about 22. The touch controller sleeps and the audio chip powers down
+  while the screen is off; the radio keeps listening all the time (about 5 mA). See
   [the measurements](docs/DEVELOPMENT.md#measurements).
 - **WiFi**: needs the T-SF32-Keyboard expansion's ESP32-C6 (per LilyGo).
 - Noise floor reads about -103 to -106 dBm vs -115 on a T1000-E nearby (broadband; a spur at
@@ -499,7 +501,7 @@ src/platform/     board support: battery, radio, display, touch, BLE, USB, RTC, 
 src/arduino/      a minimal Arduino layer for MeshCore
 src/companion_ui/ the companion's screen UI (MeshCore's ui-new plus ui_*.inc)
 lib/              vendored libraries; MeshCore is fetched by setup.sh, unmodified
-tools/            flashing helper, screenshots, remote touch, battery tests, font generator
+tools/            flashing helper, screenshots, remote touch, battery counters, font generator
 flasher/          stand-alone flasher for users (no SDK needed)
 ci/               build-all.sh: the clean build GitHub Actions runs on code pushes
 sdk-patches/      fixes the LilyGo SDK needs (applied by setup.sh)
@@ -507,7 +509,7 @@ sdk-patches/      fixes the LilyGo SDK needs (applied by setup.sh)
 
 ## License and credits
 
-MIT, see [LICENSE](LICENSE). Bundled code and the font keep their own licenses: see
+Vesper is MIT, see [LICENSE](LICENSE). Bundled code and the font keep their own licenses: see
 [THIRD_PARTY.md](THIRD_PARTY.md) and `licenses/`. Built on [MeshCore](https://github.com/meshcore-dev/MeshCore),
 the LilyGo SiFli SDK, Noto Sans (SIL OFL) and Nayuki's QR code generator (MIT).
 
