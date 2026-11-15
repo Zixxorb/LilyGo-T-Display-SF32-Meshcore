@@ -128,7 +128,8 @@ void UITask::closeToMenu(MenuKind kind) {
 
 struct AboutLine { uint8_t kind; const char* text; };  // 0 heading, 1 big, 2 small, 3 gap
 static const AboutLine ABOUT_LINES[] = {
-  {1, "Vesper"},
+  {0, "Powered by"},
+  {1, "VesperOS"},
   {2, "v" VESPER_VERSION " - MeshCore " FIRMWARE_VERSION},
   {2, "LilyGo T-Display-SF32"},
   {3, ""},
