@@ -20,6 +20,9 @@ public:
   void begin(const char* prefix, char* name, uint32_t pin_code);
 
   bool forgetBonds();  // drop every paired phone (they must pair again with the PIN); false: Bluetooth not up
+  // Low power mode: advertise every 2 s instead of 500 ms while no phone is connected (the
+  // first 30 s after a disconnect stay fast). A connected phone isn't affected.
+  void setSlowAdvertising(bool slow);
 
   // A new phone can pair only while pairing is open: Bluetooth page > Pair phone (2 min), or
   // the first 5 min after start while no phone is paired. One failed pairing closes it, so

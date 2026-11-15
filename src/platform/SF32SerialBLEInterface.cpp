@@ -149,9 +149,14 @@ void SF32SerialBLEInterface::setupOnPowerOn() {
   if (_enabled) startAdvertising();
 }
 
+static sibles_adv_config_t s_adv_config;  // as set up, for setSlowAdvertising()
+static bool s_adv_initialised = false;
+#define ADV_BG_NORMAL 0x320  // 500 ms (0.625 ms units)
+#define ADV_BG_SLOW   0xC80  // 2 s
+static uint16_t s_adv_bg = ADV_BG_NORMAL;
+
 void SF32SerialBLEInterface::startAdvertising() {
-  static bool initialised = false;
-  if (!initialised) {
+  if (!s_adv_initialised) {
     sibles_advertising_para_t para = {0};
     para.own_addr_type = GAPM_STATIC_ADDR;
     para.config.adv_mode = SIBLES_ADV_CONNECT_MODE;
@@ -161,7 +166,7 @@ void SF32SerialBLEInterface::startAdvertising() {
     para.config.mode_config.conn_config.interval = 0x30;   // 30 ms (0.625 ms units)
     para.config.mode_config.conn_config.backgroud_mode_enabled = 1;
     para.config.mode_config.conn_config.backgroud_duration = 0;       // until connected
-    para.config.mode_config.conn_config.backgroud_interval = 0x320;   // 500 ms
+    para.config.mode_config.conn_config.backgroud_interval = s_adv_bg;  // 500 ms (2 s in low power mode)
     para.config.max_tx_pwr = 0x7F;
     para.config.is_auto_restart = 1;  // re-advertise after a disconnect
 
@@ -185,10 +190,25 @@ void SF32SerialBLEInterface::startAdvertising() {
       LOG_E("advertising init failed: %d", ret);
       return;
     }
-    initialised = true;
+    s_adv_config = para.config;
+    s_adv_initialised = true;
   }
   uint8_t r = sibles_advertising_start(s_adv_context);
   LOG_I("advertising start: %d", r);
+}
+
+void SF32SerialBLEInterface::setSlowAdvertising(bool slow) {
+  uint16_t bg = slow ? ADV_BG_SLOW : ADV_BG_NORMAL;
+  if (bg == s_adv_bg) return;
+  s_adv_bg = bg;
+  if (!s_adv_initialised) return;  // the first start uses it
+  // the SDK reconfigures only while advertising is stopped
+  s_adv_config.mode_config.conn_config.backgroud_interval = bg;
+  bool running = _ready && _enabled && !_link_up;
+  uint8_t r1 = running ? sibles_advertising_stop(s_adv_context) : 0;
+  uint8_t r2 = sibles_advertising_reconfig(s_adv_context, &s_adv_config);
+  uint8_t r3 = running ? sibles_advertising_start(s_adv_context) : 0;
+  LOG_I("advertising %s: stop %d, reconfig %d, start %d", slow ? "slow" : "normal", r1, r2, r3);
 }
 
 bool SF32SerialBLEInterface::forgetBonds() {

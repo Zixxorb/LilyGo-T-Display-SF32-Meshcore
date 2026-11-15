@@ -76,7 +76,7 @@ struct SF32UIPrefs {
   uint8_t night_dnd = 0;       // do not disturb during the night hours (no alert chime / wake)
   uint8_t clock_face = 0;      // 0 digital, 1 analog, 2 big, 3 info
   uint16_t hidden_pages = 0;   // bit per home page (HomeScreen's order) not shown; the clock always is
-  uint8_t power_save = 1;      // let the chip sleep while the screen is off (Settings > Low power)
+  uint8_t power_save = 1;      // let the chip sleep while the screen is off (Settings > Sleep)
   uint8_t adv_nearby = 0;      // auto advert, zero hop: ADV_NEARBY_HOURS index (0 off)
   uint8_t adv_mesh = 0;        // auto advert, flood: ADV_MESH_HOURS index (0 off)
   uint8_t adv_page_mesh = 0;   // the Advert page's long press: 0 nearby, 1 whole mesh (flood)
@@ -94,6 +94,8 @@ struct SF32UIPrefs {
   uint8_t bot_repeat = 1;      //   BOT_REPEAT_H index (once a day per sender)
   uint8_t bot_gap = 0;         //   BOT_GAP_MIN index (1 min)
   uint8_t tap_wake = 0;        // taps wake the dark screen (touch keeps scanning: ~60% more drain)
+  uint8_t low_power = 0;       // low power mode: 0 off, 1 on (by hand), 2 on (auto, at the battery level below)
+  uint8_t lp_auto = 0;         // low power mode on by itself at LP_AUTO_LEVELS[] % (0: never)
 };
 
 class UITask : public AbstractUITask {
@@ -195,6 +197,8 @@ class UITask : public AbstractUITask {
   void powerCare();
   unsigned long _next_batt_warn_check = 0;
   uint8_t _batt_warn_level = 0;  // 0 none, 1 low shown/pending, 2 critical shown
+  bool _lp_note_pending = false;  // low power mode came on by itself: say so when the screen is on
+  bool _lp_declined = false;      // low power mode turned off by hand this discharge: no auto-on again
   bool _batt_warn_pending = false;
   bool _dimmed = false;
   bool _was_face_down = false;
@@ -239,16 +243,25 @@ public:
   bool showMessages();          // SF32: open the unread messages (false if none)
 
   // SF32: menus and settings
-  enum MenuKind { MENU_POWER, MENU_PAGE, MENU_SETTINGS, MENU_TIME, MENU_NIGHT, MENU_SOUND, MENU_DISPLAY, MENU_MOTION, MENU_PAGES, MENU_ADVERTS, MENU_THEME, MENU_BATTERY, MENU_BOT, MENU_POWER_OFF };
+  enum MenuKind { MENU_POWER, MENU_PAGE, MENU_SETTINGS, MENU_TIME, MENU_NIGHT, MENU_SOUND, MENU_DISPLAY, MENU_MOTION, MENU_PAGES, MENU_ADVERTS, MENU_THEME, MENU_BATTERY, MENU_BOT, MENU_POWER_OFF, MENU_LOW_POWER };
   // the menu a submenu goes back to (MENU_PAGE: not a submenu)
   static MenuKind menuParent(MenuKind k) {
     return (k == MENU_NIGHT || k == MENU_TIME || k == MENU_SOUND || k == MENU_DISPLAY || k == MENU_MOTION ||
-            k == MENU_PAGES || k == MENU_ADVERTS || k == MENU_THEME || k == MENU_BATTERY || k == MENU_BOT) ? MENU_SETTINGS : MENU_PAGE;
+            k == MENU_PAGES || k == MENU_ADVERTS || k == MENU_THEME || k == MENU_BATTERY || k == MENU_BOT ||
+            k == MENU_LOW_POWER) ? MENU_SETTINGS : MENU_PAGE;
   }
   void openMenu(MenuKind kind);
   void closeMenu();
   void menuAction(uint8_t action);
   const SF32UIPrefs& uiPrefs() const { return _ui_prefs; }
+  // Low power mode (ui_power.inc): what the settings come to while it's on. The saved settings
+  // are never changed, so turning it off puts everything back.
+  bool lowPower() const { return _ui_prefs.low_power != 0; }
+  uint8_t tapSnd() const { return lowPower() ? 0 : _ui_prefs.touch_snd; }
+  bool botOn() const { return _ui_prefs.bot_on && !lowPower(); }
+  bool motionWanted() const { return !lowPower() && (_ui_prefs.lift_wake || _ui_prefs.flip_quiet || _ui_prefs.rotation == 2); }
+  void applyMotion();
+  void setLowPower(uint8_t mode);  // 0 off, 1 by hand, 2 auto
   unsigned long autoOffMillis() const;
   int32_t localOffsetSecs(uint32_t utc) const;  // time zone + daylight saving
   void openRadioEditor();

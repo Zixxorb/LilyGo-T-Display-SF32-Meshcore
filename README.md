@@ -169,7 +169,7 @@ uses LE Secure Connections with bonding, so later connections need no PIN.
 |---|---|
 | **Swipe left / right** | Next / previous page |
 | **Tap** or button **A** | Next page (double tap: previous; long press: select) |
-| **Swipe down** | Power menu: Flashlight, Screen off, Reboot, Power off, Send SOS |
+| **Swipe down** | Power menu: Flashlight, Screen off, Low power, Send SOS, Reboot / off |
 | **Swipe up** | The current page's menu, plus **Settings** |
 | **Swipe right** in Settings | Back one level |
 | **Hold** the clock | Next clock face (a ring fills; at 0.6 s it changes with a pop) |
@@ -222,10 +222,11 @@ Pages can be hidden in **Settings > Pages** (the clock always shows).
 | **USB app** | The app protocol over USB as well (off by default) |
 | **Adverts** | Nearby every 1/3/6/12 h, mesh every 12/24/48 h (both off by default), what the Advert page's hold sends |
 | **Bot** | Auto-reply, to DMs, channels, daily max (5/10/20/50), repeat per sender (12 h / 24 h / 7 d), gap between replies (1/5/15 min) |
+| **Low power** | Mode on / off, and Auto at (off / 10 / 15 / 20 / 30 % battery): see [Battery and power](#battery-and-power) |
 | **SOS to** | The channel Mesh SOS goes to (#emergency by default) |
 | **Sleep** | Let the chip sleep with the screen off (on by default) |
 | **Logs** | The last 20 events; tap one for a board snapshot |
-| **Power** | Flashlight, screen off, Send SOS, Reboot / off (reboot, power off) |
+| **Power** | Flashlight, screen off, low power on / off, Send SOS, Reboot / off (reboot, power off) |
 
 A page's swipe-up menu has that page's actions, and a "... menu" row for its settings
 (the same submenu as in Settings; Back returns to where you came from).
@@ -430,6 +431,16 @@ auto-replies.
   480 mAh battery (about 29 mV per hour overnight, roughly 16-17 mA). With the screen off,
   the touch controller sleeps (unless Settings > Display > Tap to wake is on) and the
   audio chip powers down; the LoRa radio keeps listening all the time (about 5 mA of that).
+- **Low power mode** (Power menu, or Settings > Low power): for when only the mesh matters,
+  say someone lost. The clock page becomes a minimal one (dimmer time on black, "Low power"
+  under the date), and it turns off tap and swipe sounds (message chimes stay), the
+  auto-reply bot, the motion sensor (button A wakes the screen), the always-on clock and the
+  Glass style; Bluetooth advertises every 2 s instead of 500 ms while no phone is connected.
+  The radio keeps listening and your phone can still connect. Your settings aren't changed:
+  turning it off puts everything back. **Auto at** turns it on by itself when the battery
+  reaches that level (once per discharge, not again if you turn it off), and USB power turns
+  an automatic one back off. It saves power while the screen is on; with the screen off the
+  board is already about as lean as it gets.
 - **Sleep** (on by default): the chip light-sleeps whenever the screen is off; the
   radio keeps listening and Bluetooth stays up. It stays awake on USB (charging), which
   keeps flashing working.

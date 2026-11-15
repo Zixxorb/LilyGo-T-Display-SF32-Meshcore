@@ -75,6 +75,8 @@ static const uint8_t BOT_GAP_MIN[] = {1, 5, 15};
 // alert comes at 10 % (5 % when the first is at 10 %)
 static const uint8_t BATT_WARN_LEVELS[] = {0, 10, 15, 20, 30};
 #define NUM_BATT_WARN 5
+static const uint8_t LP_AUTO_LEVELS[] = {0, 10, 15, 20, 30};  // low power mode on by itself at this % (0: never)
+#define NUM_LP_AUTO 5
 static int sf32ShownPercent(uint16_t mv) {
   static float est = -1;  // -1: none yet
   static unsigned long last = 0, unplugged_at = 0;

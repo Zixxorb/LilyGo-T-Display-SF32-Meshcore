@@ -273,7 +273,8 @@ void UITask::begin(DisplayDriver* display, SensorManager* sensors, NodePrefs* no
   // SF32: the app protocol over USB as well as Bluetooth (Settings > USB app)
   interface_manager.addInterface(InterfaceType::USB, &usb_app_interface);
   if (_ui_prefs.usb_app) usb_app_interface.enable(); else usb_app_interface.disable();
-  motion.setActive(_ui_prefs.lift_wake || _ui_prefs.flip_quiet || _ui_prefs.rotation == 2);  // SF32: accelerometer only if used
+  applyMotion();  // SF32: accelerometer only if used (and not in low power mode)
+  bluetooth_interface.setSlowAdvertising(lowPower());  // (before it starts: the first start uses it)
   applyRotation();
   motion.begin();                       // SF32: BHI260AP (background)
   InternalFS.remove("/sf32_steps");     // SF32: left over from the removed step counter
@@ -632,7 +633,8 @@ void UITask::loop() {
     if (in_use) _screen_off_since = 0;
     else if (!_screen_off_since) _screen_off_since = millis() | 1;  // (0: in use)
     bool recent = in_use || millis() - _screen_off_since < 2UL * 60 * 1000;
-    bool want = ((_ui_prefs.sound || _ui_prefs.touch_snd) && recent) || _audio_grace_until;
+    // (low power mode: closed; a chime opens it when needed)
+    bool want = (!lowPower() && (_ui_prefs.sound || _ui_prefs.touch_snd) && recent) || _audio_grace_until;
     SF32Sound::Volume v = tapVolume();
     if (want != _audio_open || (want && v != _audio_open_vol)) {
       _audio_open = want;
@@ -746,9 +748,9 @@ void UITask::loop() {
     rt_kprintf("tap: %s, touch_snd %d aod %d\n", touch == 2 ? "swipe" : "tap", _ui_prefs.touch_snd, _aod);
 #endif
     // taps: the chosen style; swipes: a swish. At the Sound volume (Low if chimes are off).
-    if (_ui_prefs.touch_snd && !_aod && !_tap_preview_at) {  // (a preview is coming: it's the sound)
+    if (tapSnd() && !_aod && !_tap_preview_at) {  // (a preview is coming: it's the sound)
       if (touch == 2) sound.chime(SF32Sound::CHIME_SWISH, tapVolume());
-      else sound.tap(_ui_prefs.touch_snd, tapVolume());
+      else sound.tap(tapSnd(), tapVolume());
     }
   }
   if (!_bt_restored) {  // SF32: Bluetooth on/off as last set (after MeshCore enabled it)
@@ -1003,7 +1005,7 @@ void UITask::loop() {
     }
 #endif
     if (millis() > _auto_off && !_aod) {
-      if (_ui_prefs.aod && !(_ui_prefs.flip_quiet && motion.faceDown()) && curr != splash) {
+      if (_ui_prefs.aod && !lowPower() && !(_ui_prefs.flip_quiet && motion.faceDown()) && curr != splash) {
         enterAOD();  // SF32: always-on clock instead of a dark screen
       } else {
         _display->turnOff();

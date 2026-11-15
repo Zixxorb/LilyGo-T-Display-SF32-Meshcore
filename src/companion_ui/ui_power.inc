@@ -57,8 +57,16 @@ void UITask::powerCare() {
     sf32ShownPercent(mv);  // (keeps the charging estimate moving while the screen is off)
     if (board.isExternalPowered() || mv == 0) {
       _batt_warn_level = 0;
+      _lp_declined = false;  // re-armed for the next discharge
+      if (_ui_prefs.low_power == 2 && board.isExternalPowered()) setLowPower(0);  // auto: off on USB
     } else {
       int pct = sf32ShownPercent(mv);
+      // low power mode by itself at the chosen level (once per discharge; not if turned off by hand)
+      int lp_at = LP_AUTO_LEVELS[_ui_prefs.lp_auto % NUM_LP_AUTO];
+      if (lp_at && !lowPower() && !_lp_declined && pct <= lp_at) {
+        setLowPower(2);
+        _lp_note_pending = true;  // told next time the screen is on
+      }
       int warn_pct = BATT_WARN_LEVELS[_ui_prefs.batt_warn % NUM_BATT_WARN];
       // the second alert (it wakes the screen) well before the power-off at 3550 mV (~9.5 %);
       // with the first set at 10 %, that one is the waking alert
@@ -86,6 +94,11 @@ void UITask::powerCare() {
         board.logEvent(tmp);
       }
     }
+  }
+  if (_lp_note_pending && _display && _display->isOn() && !_batt_warn_pending) {
+    _lp_note_pending = false;
+    showAlert("Low power mode on", 3000);
+    _next_refresh = 0;
   }
   if (_batt_warn_pending && _display && _display->isOn()) {
     _batt_warn_pending = false;
@@ -164,6 +177,33 @@ bool UITask::nightNow() const { return _ui_prefs.night_on && nightHours(); }  //
 bool UITask::dndNow() const { return _ui_prefs.night_dnd && nightHours(); }   // do not disturb
 
 // the brightness to use now: the setting, lowered by night dim and the always-on dim
+// ---- Low power mode ----
+// Turns off what isn't needed when only the mesh matters (say, someone lost): tap and swipe
+// sounds (message chimes stay), the auto-reply bot, the motion sensor, the always-on clock and
+// the Glass style; Bluetooth advertises every 2 s while no phone is connected; the clock page is
+// a minimal one. The radio keeps listening and Bluetooth stays available. On by hand (Power
+// menu, Settings > Low power) or by itself at a chosen battery level, in which case USB power
+// turns it back off. The saved settings are never changed.
+void UITask::applyMotion() { motion.setActive(motionWanted()); }
+
+void UITask::setLowPower(uint8_t mode) {
+  if (mode == _ui_prefs.low_power) return;
+  bool was = lowPower();
+  _ui_prefs.low_power = mode;
+  saveUIPrefs();
+  if (was == lowPower()) return;  // (by hand <-> auto: nothing else changes)
+  applyMotion();
+  bluetooth_interface.setSlowAdvertising(lowPower());
+  applyStyle();  // no Glass (it lights the whole panel)
+  if (lowPower() && _aod) {  // the always-on clock: off now
+    exitAOD();
+    _display->turnOff();
+    _display_off_at = millis();
+  }
+  board.logEvent(lowPower() ? (mode == 2 ? "Low power mode on (battery)" : "Low power mode on") : "Low power mode off");
+  _next_refresh = 0;
+}
+
 void UITask::applyBrightness() {
   int level = BRIGHTNESS_STEPS[_ui_prefs.brightness_idx];
   if (nightNow() && NIGHT_LEVELS[_ui_prefs.night_level % NUM_NIGHT_LEVELS] < level)

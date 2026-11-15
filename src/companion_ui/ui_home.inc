@@ -414,7 +414,9 @@ public:
 
     // SF32: the other clock faces (with the time known)
     uint32_t now = _rtc->getCurrentTime();
-    int face = _task->uiPrefs().clock_face % NUM_CLOCK_FACES;
+    // low power mode: always the Digital face, dimmer (few lit pixels on the AMOLED)
+    bool lp = _task->lowPower();
+    int face = lp ? 0 : _task->uiPrefs().clock_face % NUM_CLOCK_FACES;
     if (face != 0 && timeIsSet(now)) {
       if (face == 1) drawAnalogFace(display, now);
       else if (face == 2) drawBigFace(display, now);
@@ -435,13 +437,14 @@ public:
       display.setTextSize(2);
       int w2 = display.getTextWidth(ampm);
       int x = (W - (w1 + (w2 ? 3 + w2 : 0))) / 2;
-      display.setColor(UIColor::primary_txt);
+      display.setColor(lp ? UIColor::secondary_txt : UIColor::primary_txt);
       display.setTextSize(5);
-      display.setCursor(x, 34);
+      int ty = lp ? 29 : 34;  // (low power: a little higher, room for its label)
+      display.setCursor(x, ty);
       display.print(hm);
       display.setTextSize(2);
       display.setColor(UIColor::secondary_txt);
-      display.setCursor(x + w1 + 3, 53);
+      display.setCursor(x + w1 + 3, ty + 19);
       display.print(ampm);
 
       static const char* const days[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
@@ -453,13 +456,21 @@ public:
       sprintf(tmp, "%s, %s %d%s", days[tm.tm_wday], months[tm.tm_mon], tm.tm_mday,
               rtc_clock.timeFromMesh() ? "  (mesh)" : "");  // from adverts until the phone syncs
       display.setColor(UIColor::secondary_txt);
-      display.drawTextCentered(W / 2, 80, tmp);
+      display.drawTextCentered(W / 2, lp ? 73 : 80, tmp);
     } else {
       display.setTextSize(5);
       display.setColor(UIColor::secondary_txt);
       display.drawTextCentered(W / 2, 34, "--:--");
       display.setTextSize(1);
       display.drawTextCentered(W / 2, 82, _task->uiPrefs().mesh_time ? "waiting for the app or mesh" : "connect the app to set the time");
+    }
+
+    // low power mode: say so, between the date and the bottom line
+    bool pin_shown = _task->isBluetoothEnabled() && !_task->hasConnection() && the_mesh.getBLEPin() != 0 && bluetooth_interface.pairingOpen();
+    if (lp && !pin_shown) {
+      display.setTextSize(1);
+      display.setColor(THEME_ACCENT);
+      display.drawTextCentered(W / 2, 92, "Low power");
     }
 
     // bottom: BLE PIN while not connected, else the node name

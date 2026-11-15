@@ -102,7 +102,7 @@ void UITask::applyStyle() {
   g_batt_colors = _ui_prefs.batt_colors;
   int i = themeIndex();
   applyTheme(i);
-  if (_display) ((SF32Display*)_display)->setGlass(_ui_prefs.glass, THEMES[i].accent, THEMES[i].rainbow, _ui_prefs.glass_bg);
+  if (_display) ((SF32Display*)_display)->setGlass(_ui_prefs.glass && !lowPower(), THEMES[i].accent, THEMES[i].rainbow, _ui_prefs.glass_bg);
 }
 void UITask::openTheme() {
   _menu_return_theme = _menu_return;

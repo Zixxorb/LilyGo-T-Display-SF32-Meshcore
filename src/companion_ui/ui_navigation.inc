@@ -54,6 +54,7 @@ void UITask::openMenu(MenuKind kind) {
     m->begin("Power");
     m->add("Flashlight", ACT_FLASHLIGHT);
     m->add("Screen off", ACT_SCREEN_OFF);
+    m->add("Low power", ACT_LOW_POWER, lowPower() ? "On" : "Off");
     m->add("Send SOS", ACT_SOS);
     m->add("Reboot / off", ACT_POWER_OFF_MENU);  // a step away from a stray tap
     if (_power_from == MENU_SETTINGS) {  // Settings > Power: a submenu like the others
@@ -62,6 +63,16 @@ void UITask::openMenu(MenuKind kind) {
       setCurrScreen(menu);
       return;
     }
+  } else if (kind == MENU_LOW_POWER) {
+    m->begin("Low power");
+    m->add("Mode", ACT_LOW_POWER, lowPower() ? "On" : "Off");
+    int at = LP_AUTO_LEVELS[_ui_prefs.lp_auto % NUM_LP_AUTO];
+    if (at) sprintf(tmp, "%d%%", at); else strcpy(tmp, "Off");
+    m->add("Auto at", ACT_LP_AUTO, tmp);  // on by itself at this battery level (off again on USB)
+    m->add("Back", ACT_MENU_BACK);
+    m->setSelected(keep_sel);
+    setCurrScreen(menu);
+    return;
   } else if (kind == MENU_POWER_OFF) {
     m->begin("Power");
     m->add("Reboot", ACT_REBOOT);
@@ -103,6 +114,7 @@ void UITask::openMenu(MenuKind kind) {
     m->add("USB app", ACT_USB_APP, _ui_prefs.usb_app ? "On" : "Off");  // the app protocol over USB
     m->add("Adverts", ACT_ADVERTS_MENU);  // scheduled adverts, what the Advert page's hold sends
     m->add("Bot", ACT_BOT_MENU);
+    m->add("Low power", ACT_LP_MENU);  // low power mode: on now, or by itself at a battery level
     {
       ChannelDetails ch;
       m->add("SOS to", ACT_SOS_CHAN, sosChannelName(_ui_prefs.sos_chan, ch));
@@ -293,7 +305,7 @@ void UITask::menuAction(uint8_t action) {
       static const uint8_t NEXT[5] = {2, 4, 3, 1, 0};  // by stored value
       _ui_prefs.rotation = NEXT[_ui_prefs.rotation % 5];
       saveUIPrefs();
-      motion.setActive(_ui_prefs.lift_wake || _ui_prefs.flip_quiet || _ui_prefs.rotation == 2);
+      applyMotion();
       applyRotation();
       openMenu(_menu_kind);
       break;
@@ -521,7 +533,7 @@ void UITask::menuAction(uint8_t action) {
     case ACT_LOGS: openLogs(); break;
     case ACT_SET_LIFT:
       _ui_prefs.lift_wake = !_ui_prefs.lift_wake;
-      motion.setActive(_ui_prefs.lift_wake || _ui_prefs.flip_quiet || _ui_prefs.rotation == 2);
+      applyMotion();
       saveUIPrefs();
       openMenu(_menu_kind);
       break;
@@ -531,9 +543,24 @@ void UITask::menuAction(uint8_t action) {
       saveUIPrefs();
       openMenu(_menu_kind);
       break;
+    case ACT_LOW_POWER:  // on / off by hand (turning off an automatic one: not again this discharge)
+      if (lowPower()) {
+        if (_ui_prefs.low_power == 2) _lp_declined = true;
+        setLowPower(0);
+      } else {
+        setLowPower(1);
+      }
+      openMenu(_menu_kind);
+      break;
+    case ACT_LP_MENU: openMenu(MENU_LOW_POWER); break;
+    case ACT_LP_AUTO:
+      _ui_prefs.lp_auto = (_ui_prefs.lp_auto + 1) % NUM_LP_AUTO;
+      saveUIPrefs();
+      openMenu(_menu_kind);
+      break;
     case ACT_SET_FLIP:
       _ui_prefs.flip_quiet = !_ui_prefs.flip_quiet;
-      motion.setActive(_ui_prefs.lift_wake || _ui_prefs.flip_quiet || _ui_prefs.rotation == 2);
+      applyMotion();
       saveUIPrefs();
       openMenu(_menu_kind);
       break;
@@ -676,7 +703,7 @@ void UITask::handleTouchMenus() {
         _ui_prefs.clock_face = (_ui_prefs.clock_face + 1) % NUM_CLOCK_FACES;
         saveUIPrefs();
         _next_refresh = 0;
-        if (_ui_prefs.touch_snd) sound.chime(SF32Sound::CHIME_POP, tapVolume());  // a fuller "done" than a tap
+        if (tapSnd()) sound.chime(SF32Sound::CHIME_POP, tapVolume());  // a fuller "done" than a tap
       }
       if (!_hold_done) _next_refresh = millis() + 30;
       _auto_off = millis() + autoOffMillis();
@@ -696,7 +723,7 @@ void UITask::handleTouchMenus() {
     if (h->iconHit(ix, iy)) {
       touch_input.consumeTouch();
       h->iconAction();
-      if (_ui_prefs.touch_snd) sound.chime(SF32Sound::CHIME_POP, tapVolume());
+      if (tapSnd()) sound.chime(SF32Sound::CHIME_POP, tapVolume());
       _auto_off = millis() + autoOffMillis();
       _next_refresh = 0;
     }

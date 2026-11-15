@@ -37,7 +37,7 @@ static bool botLooksAutomatic(const char* text) {
 }
 
 void UITask::botCheck(mesh::Packet* pkt, const ContactInfo* from, const ChannelDetails* chan, const char* text) {
-  if (!_ui_prefs.bot_on || pkt == NULL || !pkt->isRouteFlood()) return;
+  if (!botOn() || pkt == NULL || !pkt->isRouteFlood()) return;
   if (pkt->getPathHashSize() != 1) return;
   if (_bot_reply.pending) return;  // one at a time
   if (_bot_last_sent && millis() - _bot_last_sent < BOT_MIN_GAP_MS) return;
@@ -94,7 +94,7 @@ void UITask::botCheck(mesh::Packet* pkt, const ContactInfo* from, const ChannelD
 void UITask::botLoop() {
   if (!_bot_reply.pending || (long)(millis() - _bot_reply.due) < 0) return;
   _bot_reply.pending = false;
-  if (!_ui_prefs.bot_on) return;  // turned off while waiting
+  if (!botOn()) return;  // turned off (or low power mode) while waiting
 
   uint32_t ts = the_mesh.getRTCClock()->getCurrentTimeUnique();
   bool ok = false;
