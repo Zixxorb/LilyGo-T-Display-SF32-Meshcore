@@ -33,6 +33,8 @@ while read -r sym; do
   fi
 done <<'EOF'
 sf32_pm_stats
+sf32_ab_log
+sf32_link_ab
 _ZL12batt_history
 ui_task
 EOF
@@ -44,4 +46,5 @@ fi
 
 # the readable versions too, if this build has them (they read the same ELF)
 ELF="$elf" tools/pmstats.sh > "$out/pmstats.txt" 2>&1
+arm-none-eabi-nm "$elf" | grep -q " sf32_ab_log$" && ELF="$elf" tools/abstats.sh > "$out/abstats.txt" 2>&1
 echo "savelogs: saved $ok blocks to $out"

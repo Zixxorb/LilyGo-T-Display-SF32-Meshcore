@@ -132,6 +132,53 @@ static void pm_notify(uint8_t event, uint8_t mode, void*) {
 // board.loop(): start counting at the unplug (afresh), freeze at the replug
 #define PM_STATS_MIN_MS (5UL * 60 * 1000)
 
+#ifdef SF32_LINK_AB
+// Battery test build (SF32_LINK_AB=1): on battery, 45 min with the normal Bluetooth link
+// rhythm, then 45 min with low power mode's slow one, and so on (low power mode must be on,
+// a phone connected). The battery voltage every 15 min, and the minutes a phone was
+// connected in each kind of stretch, go to sf32_ab_log for tools/abstats.sh.
+extern "C" {
+struct SF32AbLog {
+  uint32_t magic, n;
+  uint16_t mv[64];                              // mv[i]: i * 15 min after the unplug
+  uint32_t a_conn_ms, a_n, b_conn_ms, b_n;      // connected time in each kind (n: loops seen)
+};
+volatile SF32AbLog sf32_ab_log;
+bool sf32_ble_link_connected(void);  // SF32SerialBLEInterface.cpp
+}
+#define AB_PHASE_MS  (45UL * 60 * 1000)
+#define AB_SAMPLE_MS (15UL * 60 * 1000)
+static bool ab_second_stretch() {
+  return s_pm_counting && sf32_pm_stats.batt_ms >= AB_PHASE_MS && (sf32_pm_stats.batt_ms / AB_PHASE_MS) % 2 == 1;
+}
+extern "C" bool sf32_link_ab_slow(void) { return ab_second_stretch(); }
+static void ab_log_loop(uint16_t mv) {
+  static bool started = false;
+  static unsigned long last = 0;
+  unsigned long now = millis();
+  if (!s_pm_counting) { started = false; return; }
+  if (sf32_pm_stats.batt_ms < PM_STATS_MIN_MS) return;
+  if (!started) {
+    started = true;
+    last = now;
+    sf32_ab_log.magic = 0x53464142;
+    sf32_ab_log.n = 0;
+    sf32_ab_log.a_conn_ms = sf32_ab_log.a_n = sf32_ab_log.b_conn_ms = sf32_ab_log.b_n = 0;
+  }
+  uint32_t d = (uint32_t)(now - last);
+  last = now;
+  if (sf32_ble_link_connected()) {
+    if (ab_second_stretch()) sf32_ab_log.b_conn_ms += d; else sf32_ab_log.a_conn_ms += d;
+  }
+  if (ab_second_stretch()) sf32_ab_log.b_n++; else sf32_ab_log.a_n++;
+  uint32_t n = sf32_ab_log.n;
+  if (n < 64 && sf32_pm_stats.batt_ms >= n * AB_SAMPLE_MS) {
+    sf32_ab_log.mv[n] = mv;
+    sf32_ab_log.n = n + 1;
+  }
+}
+#endif
+
 static void pm_stats_loop(bool external) {
   static unsigned long last = 0;
   unsigned long now = millis();
@@ -294,6 +341,9 @@ void SF32Board::loop() {
   }
 #ifdef RT_USING_PM
   pm_stats_loop(isExternalPowered());
+#ifdef SF32_LINK_AB
+  ab_log_loop(getBattMilliVolts());
+#endif
 #endif
   if ((long)(now - _next_wdt_feed) >= 0) {
     _next_wdt_feed = now + WDT_FEED_MS;

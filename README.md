@@ -435,7 +435,10 @@ auto-replies.
   say someone lost. The clock page becomes a minimal one (dimmer time on black, "Low power"
   under the date), and it turns off tap and swipe sounds (message chimes stay), the
   auto-reply bot, the motion sensor (button A wakes the screen), the always-on clock and the
-  Glass style; Bluetooth advertises every 2 s instead of 500 ms while no phone is connected.
+  Glass style; Bluetooth advertises every 2 s instead of 500 ms while no phone is connected,
+  and once a connected phone has been quiet for 30 s it's asked for a slower rhythm (messages
+  from the phone then take up to ~0.4 s); the radio uses power-saving receive gain (about
+  0.7 mA less, a little less sensitive; the app's setting comes back afterwards).
   The radio keeps listening and your phone can still connect. Your settings aren't changed:
   turning it off puts everything back. **Auto at** turns it on by itself when the battery
   reaches that level (once per discharge, not again if you turn it off), and USB power turns

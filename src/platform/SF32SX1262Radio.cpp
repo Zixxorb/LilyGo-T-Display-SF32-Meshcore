@@ -159,8 +159,10 @@ void SF32SX1262Radio::setTxPower(int8_t dbm) {
   if (err != RADIOLIB_ERR_NONE) LOG_E("setOutputPower(%d) failed: %d", dbm, err);
 }
 
+// enable: the app's setting (kept, and what getRxBoostedGainMode() reports); low power mode
+// overrides it with power saving (~0.7 mA less, ~2-3 dB less sensitive) while it's on.
 bool SF32SX1262Radio::setRxBoostedGainMode(bool enable) {
-  uint8_t gain = enable ? RX_GAIN_BOOSTED : RX_GAIN_POWER_SAVING;
+  uint8_t gain = enable && !_lp_gain ? RX_GAIN_BOOSTED : RX_GAIN_POWER_SAVING;
   if (Module_writeRegister(&_module, REG_RX_GAIN, &gain, 1) != RADIOLIB_ERR_NONE) return false;
   // Keep the gain setting through warm sleep (as RadioLib does).
   const uint8_t retention[] = {0x01, 0x08, 0xAC};

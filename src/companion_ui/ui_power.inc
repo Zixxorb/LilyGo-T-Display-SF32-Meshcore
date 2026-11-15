@@ -180,7 +180,8 @@ bool UITask::dndNow() const { return _ui_prefs.night_dnd && nightHours(); }   //
 // ---- Low power mode ----
 // Turns off what isn't needed when only the mesh matters (say, someone lost): tap and swipe
 // sounds (message chimes stay), the auto-reply bot, the motion sensor, the always-on clock and
-// the Glass style; Bluetooth advertises every 2 s while no phone is connected; the clock page is
+// the Glass style; Bluetooth advertises every 2 s while no phone is connected and asks a connected
+// phone for a slow rhythm when it's quiet; the radio uses power-saving receive gain; the clock page is
 // a minimal one. The radio keeps listening and Bluetooth stays available. On by hand (Power
 // menu, Settings > Low power) or by itself at a chosen battery level, in which case USB power
 // turns it back off. The saved settings are never changed.
@@ -194,6 +195,8 @@ void UITask::setLowPower(uint8_t mode) {
   if (was == lowPower()) return;  // (by hand <-> auto: nothing else changes)
   applyMotion();
   bluetooth_interface.setSlowAdvertising(lowPower());
+  bluetooth_interface.setSlowLink(lowPower());
+  radio_driver.setLowPowerGain(lowPower());
   applyStyle();  // no Glass (it lights the whole panel)
   if (lowPower() && _aod) {  // the always-on clock: off now
     exitAOD();

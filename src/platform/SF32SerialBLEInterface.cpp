@@ -57,6 +57,9 @@ BLE_GATT_SERVICE_DEFINE_128(s_nus_att_db) {
 
 extern "C" sibles_advertising_context_t* sf32_adv_context;  // SF32SerialBLEInterface_events.c
 #define s_adv_context sf32_adv_context
+#ifdef SF32_LINK_AB
+extern "C" volatile uint32_t sf32_link_ab[4];  // battery test counters (defined below)
+#endif
 
 static SF32SerialBLEInterface* s_instance = nullptr;
 
@@ -276,7 +279,10 @@ void SF32SerialBLEInterface::onStackEvent(uint16_t event_id, uint8_t* data, uint
       ble_gap_encrypt_ind_t* ind = (ble_gap_encrypt_ind_t*)data;
       bool sc = (ind->auth & GAP_AUTH_SEC_CON) != 0;
       LOG_I("encrypted (auth 0x%02X)", ind->auth);
-      if (ind->conn_idx == _conn_idx && _link_up && sc) _connected = true;
+      if (ind->conn_idx == _conn_idx && _link_up && sc) {
+        _connected = true;
+        _connected_at = _last_activity = millis();
+      }
       break;
     }
     case BLE_GAP_DISCONNECTED_IND:
@@ -285,7 +291,18 @@ void SF32SerialBLEInterface::onStackEvent(uint16_t event_id, uint8_t* data, uint
       _connected = false;
       _notify_on = false;
       _security_pending = false;
+      _conn_intv = 0;
       break;
+    case BLE_GAP_UPDATE_CONN_PARAM_IND: {
+      ble_gap_update_conn_param_ind_t* ind = (ble_gap_update_conn_param_ind_t*)data;
+      _conn_intv = ind->con_interval;
+#ifdef SF32_LINK_AB
+      sf32_link_ab[2] = ind->con_interval;
+      sf32_link_ab[3]++;
+#endif
+      LOG_I("link: interval %d x 1.25 ms, latency %d, timeout %d0 ms", ind->con_interval, ind->con_latency, ind->sup_to);
+      break;
+    }
     case SIBLES_MTU_EXCHANGE_IND:
       _mtu = ((sibles_mtu_exchange_ind_t*)data)->mtu;
       LOG_I("MTU %d", _mtu);
@@ -319,6 +336,7 @@ uint8_t SF32SerialBLEInterface::onAttributeWrite(uint8_t conn_idx, uint8_t idx, 
     Frame f;
     f.len = (uint8_t)len;
     memcpy(f.buf, value, len);
+    _last_activity = millis();
     rt_err_t r = rt_mq_send(&_rx_mq, &f, sizeof(f));  // dropped if the queue is full, as on ESP32
     LOG_D("rx frame %d bytes (cmd %d), queued %d", len, value[0], r);
   } else if (idx == NUS_TX_CCCD && len >= 1) {
@@ -343,8 +361,40 @@ size_t SF32SerialBLEInterface::writeFrame(const uint8_t src[], size_t len) {
   return len;
 }
 
+#ifdef SF32_LINK_AB
+// battery test (SF32Board.cpp): the slow rhythm only in the test stretches
+extern "C" bool sf32_link_ab_slow(void);
+extern "C" { volatile uint32_t sf32_link_ab[4] = {0}; }  // slow asked, fast asked, last granted interval (1.25 ms), grants
+static SF32SerialBLEInterface* s_link_iface = nullptr;
+extern "C" bool sf32_ble_link_connected(void) { return s_link_iface && s_link_iface->isConnected(); }
+#endif
+
+void SF32SerialBLEInterface::linkPowerLoop() {
+#ifdef SF32_LINK_AB
+  s_link_iface = this;
+  bool slow_ok = _slow_link && sf32_link_ab_slow();
+#else
+  bool slow_ok = _slow_link;
+#endif
+  if (!_connected) { _link_req = 0; return; }
+  unsigned long now = millis();
+  bool want_slow = slow_ok && now - _connected_at > 45000 && now - _last_activity > 30000 && _send_len == 0;
+  uint8_t want = want_slow ? 2 : (_link_req == 2 ? 1 : _link_req);  // (fast again only if we slowed it)
+  if (want == _link_req || (_link_req_at && now - _link_req_at < 5000)) return;  // (a request at most every 5 s)
+  // interval in 1.25 ms units; supervision timeout 4 s (within Apple's accessory rules)
+  ble_gap_update_conn_param_t p = BLE_GAP_UPDATE_CONN_PARAM_INIT(_conn_idx, want == 2 ? 256 : 12, want == 2 ? 320 : 40, 0, 400);
+  uint8_t r = ble_gap_update_conn_param(&p);
+  LOG_I("link: asking for %s: %d", want == 2 ? "320-400 ms" : "15-50 ms", r);
+#ifdef SF32_LINK_AB
+  sf32_link_ab[want == 2 ? 0 : 1]++;
+#endif
+  _link_req = want;
+  _link_req_at = now;
+}
+
 size_t SF32SerialBLEInterface::checkRecvFrame(uint8_t dest[]) {
   if (_power_on_pending) setupOnPowerOn();
+  linkPowerLoop();
   if (_security_pending && _link_up && (rt_int32_t)(rt_tick_get() - _security_due) >= 0) {
     // SMP security request: the phone then pairs (passkey = PIN) or, if already
     // bonded, re-encrypts with the stored keys.
@@ -363,7 +413,7 @@ size_t SF32SerialBLEInterface::checkRecvFrame(uint8_t dest[]) {
     int w = sibles_write_value(_conn_idx, &value);
     LOG_D("notify %d bytes -> %d", value.len, w);
     if (w == value.len) {  // 0 = stack busy, retry later
-      _last_write = millis();
+      _last_write = _last_activity = millis();
       _send_len--;
       for (int i = 0; i < _send_len; i++) _send_queue[i] = _send_queue[i + 1];
     }

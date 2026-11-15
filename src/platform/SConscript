@@ -17,6 +17,8 @@ if os.getenv('SF32_FIRMWARE', 'repeater') != 'companion':
 # '_' separates.
 # SF32_UI_DEMO_TIME=<epoch>: set the RTC to this at boot, even backwards.
 defs = []
+if os.getenv('SF32_LINK_AB') == '1':  # SF32_LINK_AB=1: battery test: low power mode's slow Bluetooth link rhythm off 45 min / on 45 min (phone connected)
+    defs.append('SF32_LINK_AB')
 if os.getenv('SF32_MOTION_LOG') == '1':  # SF32_MOTION_LOG=1: print the accelerometer every second
     defs.append('SF32_MOTION_LOG')
 if os.getenv('SF32_I2C_SCAN') == '1':  # SF32_I2C_SCAN=1: log an I2C bus scan 5 s after boot

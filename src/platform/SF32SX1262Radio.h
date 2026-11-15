@@ -45,6 +45,8 @@ public:
   void powerOff();
   bool setRxBoostedGainMode(bool enable);
   bool getRxBoostedGainMode() const { return _rx_boost; }
+  // Low power mode: power-saving RX gain whatever the app chose (its choice comes back after)
+  void setLowPowerGain(bool on) { if (on != _lp_gain) { _lp_gain = on; setRxBoostedGainMode(_rx_boost); } }
   bool configSideDetectors(const uint8_t[], uint8_t, float) { return false; }  // LR2021 only
   bool isChannelActive();
   uint32_t getPacketsRecv() const { return n_recv; }
@@ -91,6 +93,7 @@ private:
   float _bw_khz = 125;
   uint8_t _sf = 9, _cr = 5;
   bool _rx_boost = false;
+  bool _lp_gain = false;
   float _last_rssi = 0, _last_snr = 0;
   int16_t _last_error = 0;
 

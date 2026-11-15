@@ -23,6 +23,11 @@ public:
   // Low power mode: advertise every 2 s instead of 500 ms while no phone is connected (the
   // first 30 s after a disconnect stay fast). A connected phone isn't affected.
   void setSlowAdvertising(bool slow);
+  // Low power mode: once a connected phone has been quiet for 30 s (and not in the first 45 s
+  // of a connection), ask it for a slow connection rhythm (320-400 ms); fast again as soon as
+  // frames flow. Messages from the phone then wait up to ~0.4 s.
+  void setSlowLink(bool on) { _slow_link = on; }
+  uint16_t connIntervalUnits() const { return _conn_intv; }  // last granted (1.25 ms units), 0 unknown
 
   // A new phone can pair only while pairing is open: Bluetooth page > Pair phone (2 min), or
   // the first 5 min after start while no phone is paired. One failed pairing closes it, so
@@ -77,4 +82,11 @@ private:
   Frame _send_queue[QUEUE_SIZE];
   int _send_len = 0;
   unsigned long _last_write = 0;
+  void linkPowerLoop();
+  bool _slow_link = false;
+  uint8_t _link_req = 0;                     // 0 the phone's choice, 1 fast asked, 2 slow asked
+  unsigned long _link_req_at = 0;
+  volatile unsigned long _connected_at = 0;  // when the link became encrypted (millis)
+  volatile unsigned long _last_activity = 0; // last frame either way (millis)
+  volatile uint16_t _conn_intv = 0;
 };

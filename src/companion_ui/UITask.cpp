@@ -275,6 +275,8 @@ void UITask::begin(DisplayDriver* display, SensorManager* sensors, NodePrefs* no
   if (_ui_prefs.usb_app) usb_app_interface.enable(); else usb_app_interface.disable();
   applyMotion();  // SF32: accelerometer only if used (and not in low power mode)
   bluetooth_interface.setSlowAdvertising(lowPower());  // (before it starts: the first start uses it)
+  bluetooth_interface.setSlowLink(lowPower());
+  radio_driver.setLowPowerGain(lowPower());
   applyRotation();
   motion.begin();                       // SF32: BHI260AP (background)
   InternalFS.remove("/sf32_steps");     // SF32: left over from the removed step counter
@@ -308,6 +310,9 @@ void UITask::showNewMessage(bool direct) {
   bool alert = _ui_prefs.alerts == 0 || (_ui_prefs.alerts == 1 && direct);
   if (_ui_prefs.flip_quiet && motion.faceDown()) alert = false;  // lying face down: quiet
   if (dndNow()) alert = false;  // do not disturb (night hours): no chime, no wake; still unread
+#ifdef SF32_LINK_AB
+  alert = false;  // battery test: messages leave the screen dark, so the stretches stay comparable
+#endif
   if (_aod) {
     if (!alert) { _next_refresh = 0; return; }  // quiet: the envelope on the AOD updates
     exitAOD();
@@ -406,9 +411,11 @@ void UITask::onMessageRecv(mesh::Packet *pkt, const ContactInfo &from, uint8_t t
   botCheck(pkt, &from, NULL, text);  // SF32
 
   if (_display != NULL) {
+#ifndef SF32_LINK_AB  // battery test: the screen stays dark
     if (!_display->isOn() && !hasConnection()) {
       _display->turnOn();
     }
+#endif
     if (_display->isOn()) {
     _auto_off = millis() + autoOffMillis();  // extend the auto-off timer
     _next_refresh = 100;  // trigger refresh
@@ -427,9 +434,11 @@ void UITask::onChannelMessageRecv(mesh::Packet *pkt, ChannelDetails& channel_det
   botCheck(pkt, NULL, &channel_details, text);  // SF32
 
   if (_display != NULL) {
+#ifndef SF32_LINK_AB  // battery test: the screen stays dark
     if (!_display->isOn() && !hasConnection()) {
       _display->turnOn();
     }
+#endif
     if (_display->isOn()) {
     _auto_off = millis() + autoOffMillis();  // extend the auto-off timer
     _next_refresh = 100;  // trigger refresh
