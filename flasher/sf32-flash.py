@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Flash MeshCore onto a LilyGo T-Display-SF32: no SDK or compiler needed.
+"""Flash Vesper (MeshCore firmware) onto a LilyGo T-Display-SF32: no SDK or compiler needed.
 
     python3 sf32-flash.py                        # asks which firmware, downloads it, flashes
     python3 sf32-flash.py companion              # or repeater / room_server
@@ -30,7 +30,7 @@ import time
 import urllib.request
 import zipfile
 
-REPO = "Zixxorb/LilyGo-T-Display-SF32-Meshcore"
+REPO = "Zixxorb/VesperOS"
 FIRMWARES = {
     "companion": "Companion: pairs with the MeshCore phone app over Bluetooth, touch screen UI",
     "repeater": "Repeater: extends the mesh (configure at config.meshcore.io)",
@@ -307,7 +307,7 @@ def prepare(port_name, baud):
 # ---------------------------------------------------------------- main
 
 def main():
-    ap = argparse.ArgumentParser(description="Flash MeshCore onto a LilyGo T-Display-SF32.")
+    ap = argparse.ArgumentParser(description="Flash Vesper (MeshCore firmware) onto a LilyGo T-Display-SF32.")
     ap.add_argument("firmware", nargs="?", help="companion, repeater, room_server, or a firmware zip / folder")
     ap.add_argument("--port", help="serial port (default: found automatically)")
     ap.add_argument("--sftool", help="path to sftool (default: downloaded automatically)")

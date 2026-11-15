@@ -25,6 +25,13 @@ jobs:
             ~/.sifli
           key: sdk-${{ hashFiles('ci/pins.sh') }}
 
+      - name: Tag matches the firmware version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          v=$(sed -n 's/^#define VESPER_VERSION "\(.*\)"/\1/p' src/platform/variant.h)
+          [ "$TAG" = "v$v" ] || { echo "tag $TAG doesn't match VESPER_VERSION $v (src/platform/variant.h)"; exit 1; }
+
       - name: Build companion, repeater, room server
         run: ci/build-all.sh
 
@@ -37,4 +44,4 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           gh release create "$TAG" dist/*.zip dist/sf32-flash.py dist/SHA256SUMS.txt \
-            --title "$TAG" --notes-file docs/RELEASE_NOTES.md --verify-tag
+            --title "Vesper $TAG" --notes-file docs/RELEASE_NOTES.md --verify-tag

@@ -1,8 +1,8 @@
 <div align="center">
 
-# MeshCore for the LilyGo T-Display-SF32
+# Vesper
 
-**A pocket MeshCore node with a 480x480 AMOLED touch screen.**
+**VesperOS: MeshCore firmware for the LilyGo T-Display-SF32, a pocket node with a 480x480 AMOLED touch screen.**
 
 Companion (phone app over Bluetooth, with its own touch UI) · Repeater · Room server
 

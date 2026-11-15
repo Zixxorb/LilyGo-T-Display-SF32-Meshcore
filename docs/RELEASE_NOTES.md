@@ -1,4 +1,4 @@
-MeshCore (v1.18, unmodified) for the LilyGo T-Display-SF32, built by CI from this tag.
+Vesper (VesperOS): MeshCore (v1.18, unmodified) firmware for the LilyGo T-Display-SF32, built by CI from this tag.
 
 **Files**
 - `companion.zip`: your own node. Pairs with the MeshCore phone app over Bluetooth and has
@@ -25,4 +25,4 @@ switch between firmwares.
 touch controller sleeps while the screen is off (button A wakes it; Settings > Display >
 Tap to wake brings tap-to-wake back at a higher drain), and the audio chip powers down.
 
-See the [README](https://github.com/Zixxorb/LilyGo-T-Display-SF32-Meshcore#readme) for features, menus and building from source.
+See the [README](https://github.com/Zixxorb/VesperOS#readme) for features, menus and building from source.

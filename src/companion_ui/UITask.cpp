@@ -101,17 +101,18 @@ public:
   }
 
   int render(DisplayDriver& display) override {
-    // SF32: MeshCore wordmark, site and version, centred on the panel
+    // SF32: Vesper wordmark and version, then MeshCore (what it runs) and the board
     display.setColor(UIColor::primary_txt);
-    display.drawXbm(0, 40, meshcore_logo, 128, 13);
+    display.setTextSize(3);
+    display.drawTextCentered(display.width() / 2, 30, "Vesper");
     display.setColor(THEME_ACCENT);
     display.fillRect(58, 60, 12, 2);
     display.setTextSize(1);
     display.setColor(UIColor::primary_txt);
-    display.drawTextCentered(display.width() / 2, 68, "meshcore.io");
+    display.drawTextCentered(display.width() / 2, 68, "v" VESPER_VERSION);
     display.setColor(UIColor::secondary_txt);
     char tmp[40];
-    sprintf(tmp, "%s  -  T-Display-SF32", _version_info);
+    sprintf(tmp, "MeshCore %s  -  T-Display-SF32", _version_info);
     display.drawTextCentered(display.width() / 2, 82, tmp);
     display.setColor(THEME_DIM);
     display.drawTextCentered(display.width() / 2, 94, FIRMWARE_BUILD_DATE);
