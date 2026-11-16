@@ -966,7 +966,7 @@ public:
       last_seen = millis();
       char mtxt[40];
       if (millis() - opened < 5000) strcpy(mtxt, "stroke: pet, tap: boop, hold: play");
-      else sprintf(mtxt, "your %s is %s", PetGame::kindName(pet.kind()), PetGame::moodName(pet.mood()));
+      else sprintf(mtxt, "your Starlit is %s", PetGame::moodName(pet.mood()));
       display.drawTextCentered(W / 2, 108, mtxt);
       next_render = still ? 60000 : (pet.reaction() ? 33 : 70);
     } else if (_page == HomePage::NODES) {

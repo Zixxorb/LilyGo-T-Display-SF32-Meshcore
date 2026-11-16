@@ -155,11 +155,11 @@ public:
   // A Starlit: a small original critter with a glowing star mark, chibi proportions (a big head
   // on a small body) and big eyes (coloured irises, star-shaped glints). Its kind and colours come
   // from its seed: Drake (horns, wings, a spade tail), Fluff (tall ears, a big curled tail, cheek
-  // tufts), Moth (feathery antennae, a fuzzy collar, spotted wings), Ember (round ears, a tail
+  // tufts), Glimmer (feathery antennae, a fuzzy collar, spotted wings), Ember (round ears, a tail
   // tip that flickers like a flame). Built from shaded, lit parts so it looks rounded.
   // (cx, cy): the middle of the figure. still: one frame, no animation (low power mode).
-  enum Kind { DRAKE, FLUFF, MOTH, EMBER };
-  static const char* kindName(int k) { static const char* const N[] = {"Drake", "Fluff", "Moth", "Ember"}; return N[k & 3]; }
+  enum Kind { DRAKE, FLUFF, GLIMMER, EMBER };
+  static const char* kindName(int k) { static const char* const N[] = {"Drake", "Fluff", "Glimmer", "Ember"}; return N[k & 3]; }
   int kind() const { return (_s.seed >> 3) & 3; }
 
   // (seed / kind_of: another look, e.g. a friend's pet; 0 / -1: this one's)
@@ -259,7 +259,7 @@ public:
       sd.fillShaded(tx, ty - 3 * size, 3.4f * size * (1 + fl), 5.2f * size * (1 - fl), hsvColor(25, 0.85f, 1.0f), 0.3f, fl);
       sd.fillShaded(tx, ty - 2 * size, 1.8f * size, 3.0f * size * (1 + fl), hsvColor(50, 0.6f, 1.0f), 0.2f, -fl);
     }
-    if (k == DRAKE || k == MOTH) {  // wings behind the body
+    if (k == DRAKE || k == GLIMMER) {  // wings behind the body
       for (int side = -1; side <= 1; side += 2) {
         float a = side * (0.9f + flap * 0.35f);
         float wx = cx + side * (bw + 4 * size), wy = byc - bh * 0.4f;
@@ -283,7 +283,7 @@ public:
       sd.fillShaded(cx + side * bw * 0.5f, ground - 2.2f * size - lift - step, 4.4f * size, 2.6f * size, deep, 0.3f);  // feet
       sd.fillShaded(cx + side * bw * 0.8f, byc - bh * 0.05f, 2.6f * size, 3.6f * size, body, 0.3f, side * 0.4f);  // paws
     }
-    if (k == MOTH) {  // a fuzzy collar where head meets body
+    if (k == GLIMMER) {  // a fuzzy collar where head meets body
       ColorVal fz = hsvColor(hue, 0.12f, 1.0f);
       for (int i = -3; i <= 3; i++) sd.fillShaded(cx + i * bw * 0.27f, byc - bh * 0.75f + fabsf((float)i) * 0.8f, 3.4f * size, 2.8f * size, fz, 0.15f);
     }
@@ -305,7 +305,7 @@ public:
       } else if (k == DRAKE) {   // little horns
         float a = side * 0.45f + headtilt;
         sd.fillShaded(ex - side * 1.5f, ey - 2 * size, 2.2f * size, 6 * size, hsvColor(40, 0.18f, 1.0f), 0.6f, a);
-      } else {                   // MOTH: feathery antennae
+      } else {                   // GLIMMER: feathery antennae
         float sway = still ? 0 : sinf(t * 6.2832f / 2800 + side) * 1.5f;
         d.setColor(deep);
         float x0 = hxc + side * hw * 0.3f, y0 = hyc - hh * 0.85f;
