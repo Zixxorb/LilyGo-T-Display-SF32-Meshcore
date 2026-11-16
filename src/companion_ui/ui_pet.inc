@@ -741,6 +741,7 @@ public:
     _n = 0;
     _page = 0;
     _detail_on = false;
+    _card_only = false;
     _layer_ok = false;
     _ds = DragScroll();
     int recent[RECENT], nr = 0;
@@ -760,41 +761,85 @@ public:
   }
   bool scrolls() const { return !_detail_on && maxScroll() > 0; }
   DragScroll& drag() { _ds.max = maxScroll(); return _ds; }
-  // a tap: on a friend, meet it (big); when meeting one, back to the grid
-  void handleTap(int x, int y) {
-    if (_detail_on) { _detail_on = false; return; }
-    if (y < TOP) return;
-    int row = (int)((y - TOP + _ds.pos) / ROW_H), i = row * 2 + (x >= 64 ? 1 : 0);
-    if (i >= 0 && i < _n) { _detail = i; _detail_on = true; }
+  // One card per node (from here, or from the Nodes page): its Starlit, name, kind, when it was
+  // last heard and how far, its path-hash size, and its battery on request (the Battery button).
+  void openCard(const ContactInfo& c, bool only) {  // only: opened by itself (back closes it)
+    memcpy(_card_key, c.id.pub_key, PUB_KEY_SIZE);
+    _detail_on = true;
+    _card_only = only;
   }
-  bool back() {  // swipe right / the button: out of meeting one first
-    if (!_detail_on) return false;
+  bool cardOnly() const { return _card_only; }
+  static const int CARD_BTN_Y = 112;
+  // a tap: on a friend, its card; on a card: the Battery button asks, anywhere else is back
+  // (returns false when that leaves the screen)
+  bool handleTap(int x, int y) {
+    if (_detail_on) {
+      ContactInfo* c = the_mesh.lookupContactByPubKey(_card_key, PUB_KEY_SIZE);
+      if (c && y >= CARD_BTN_Y - 2) {
+        if (!my_nodes.ask(*c)) _task->showAlert(my_nodes.waiting() ? "Still waiting for a reply" : "Wait a few seconds", 1200);
+        return true;
+      }
+      return back();
+    }
+    if (y < TOP) return true;
+    int row = (int)((y - TOP + _ds.pos) / ROW_H), i = row * 2 + (x >= 64 ? 1 : 0);
+    ContactInfo c;
+    if (i >= 0 && i < _n && the_mesh.getContactByIdx(_idx[i], c)) openCard(c, false);
+    return true;
+  }
+  bool back() {  // swipe right / the button: out of a card first (false: leave the screen)
+    if (!_detail_on || _card_only) return false;
     _detail_on = false;
     return true;
   }
   int render(DisplayDriver& d) override {
     SF32Display& sd = (SF32Display&)d;
     bool still = _task->lowPower();
-    ContactInfo c;
-    if (_detail_on && _detail < _n && the_mesh.getContactByIdx(_idx[_detail], c)) {  // meeting one
-      themeHeader(d, "Friends", _task->getBattMilliVolts());
+    ContactInfo* cp = _detail_on ? the_mesh.lookupContactByPubKey(_card_key, PUB_KEY_SIZE) : NULL;
+    if (cp) {  // a node's card
+      const ContactInfo& c = *cp;
+      themeHeader(d, "Node", _task->getBattMilliVolts());
       uint32_t seed = PetGame::seedOf(c.id.pub_key);
       uint8_t hs = hash_sizes.get(c.id.pub_key);
-      pet.draw(d, 64, 54, 0.98f, still, seed, -1, hs);
-      char name[sizeof(c.name)];
+      pet.draw(d, 64, 47, 0.78f, still, seed, -1, hs);
+      char name[sizeof(c.name)], tmp[48], heard[16];
       d.translateUTF8ToBlocks(name, c.name, sizeof(name));
       d.setTextSize(1);
       d.setColor(UIColor::primary_txt);
-      if (d.getTextWidth(name) > 120) d.drawTextEllipsized(4, 94, 120, name); else d.drawTextCentered(64, 94, name);
-      char tmp[40];
-      sprintf(tmp, "a %s Starlit%s", PetGame::kindName((seed >> 3) & 3), (c.flags & 1) ? ", a favourite" : "");
+      if (d.getTextWidth(name) > 120) d.drawTextEllipsized(4, 72, 120, name); else d.drawTextCentered(64, 72, name);
       d.setColor(UIColor::secondary_txt);
-      d.drawTextCentered(64, 104, tmp);
-      if (hs) sprintf(tmp, "%d-byte path hashes", hs); else strcpy(tmp, "hash size not known yet");
+      sprintf(tmp, "%s Starlit%s", PetGame::kindName((seed >> 3) & 3), (c.flags & 1) ? "  -  favourite" : "");
+      d.drawTextCentered(64, 82, tmp);
+      uint32_t now = rtc_clock.getCurrentTime();
+      if (c.lastmod && now >= c.lastmod) formatAge(heard, now - c.lastmod); else strcpy(heard, "-");
+      int hops = c.out_path_len & 63;
+      if (c.out_path_len == OUT_PATH_UNKNOWN) sprintf(tmp, "heard %s  -  flood", heard);
+      else if (hops == 0) sprintf(tmp, "heard %s  -  direct", heard);
+      else sprintf(tmp, "heard %s  -  %d hop%s", heard, hops, hops == 1 ? "" : "s");
+      d.drawTextCentered(64, 92, tmp);
+      if (hs) sprintf(tmp, "%d-byte path hashes", hs); else strcpy(tmp, "path hash size not known yet");
       d.setColor(hs >= 2 ? THEME_ACCENT : (hs == 1 ? UIColor::warning_txt : THEME_DIM));
-      d.drawTextCentered(64, 114, tmp);
+      d.drawTextCentered(64, 102, tmp);
+      // the Battery button: asks it (once, when tapped); shows the answer
+      NodeReading* r = my_nodes.reading(c.id.pub_key, false);
+      ColorVal bc = UIColor::primary_txt;
+      if (r && r->state == 1) strcpy(tmp, "Battery: asking...");
+      else if (r && r->state == 3) { strcpy(tmp, "Battery: no reply (tap to retry)"); bc = UIColor::warning_txt; }
+      else if (r && r->state == 2 && r->mv) {
+        int pct = sf32BatteryPercent(r->mv);
+        char age[12] = "";
+        if (r->at && now >= r->at) formatAge(age, now - r->at);
+        sprintf(tmp, "Battery %d.%02dV %d%%  %s", r->mv / 1000, (r->mv % 1000) / 10, pct, age);
+        bc = pct <= 15 ? UIColor::warning_txt : THEME_ACCENT;
+      } else if (r && r->state == 2) strcpy(tmp, "Battery: not shared");
+      else strcpy(tmp, "Battery: tap to ask");
+      themeCard(d, 4, CARD_BTN_Y, 120, 14);
+      d.setColor(bc);
+      if (d.getTextWidth(tmp) > 114) d.drawTextEllipsized(7, CARD_BTN_Y + 3, 114, tmp); else d.drawTextCentered(64, CARD_BTN_Y + 3, tmp);
+      if (my_nodes.expire()) {}  // (a request that timed out shows as "no reply")
       return still ? 60000 : 80;
     }
+    ContactInfo c;
     _detail_on = false;
     themeHeader(d, "Friends", _task->getBattMilliVolts());
     d.setTextSize(1);
@@ -852,7 +897,8 @@ private:
   UITask* _task;
   int _idx[FRIENDS_MAX];
   int _n = 0, _page = 0, _detail = 0;
-  bool _detail_on = false, _layer_ok = false;
+  bool _detail_on = false, _layer_ok = false, _card_only = false;
+  uint8_t _card_key[PUB_KEY_SIZE] = {};
   uint32_t _lgen = 0;
   DragScroll _ds;
   int rowsH() const { return ((_n + 1) / 2) * ROW_H; }
@@ -862,6 +908,14 @@ private:
 void UITask::openFriends() {
   if (!friends_screen) friends_screen = new FriendsScreen(this);
   ((FriendsScreen*)friends_screen)->reset();
+  _menu_return = NULL;
+  ((SF32Display*)_display)->setTransition(SF32Display::TRANSITION_LEFT);
+  setCurrScreen(friends_screen);
+}
+void UITask::openNodeCard(const ContactInfo& c) {  // a node's card by itself (from the Nodes page)
+  if (!friends_screen) friends_screen = new FriendsScreen(this);
+  ((FriendsScreen*)friends_screen)->reset();
+  ((FriendsScreen*)friends_screen)->openCard(c, true);
   _menu_return = NULL;
   ((SF32Display*)_display)->setTransition(SF32Display::TRANSITION_LEFT);
   setCurrScreen(friends_screen);

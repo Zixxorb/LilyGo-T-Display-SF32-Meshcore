@@ -303,6 +303,7 @@ public:
   void openScan();   // band scan (ui_scan.inc)
   void closeScan();
   void openFriends();  // the Starlits of the nodes heard (ui_pet.inc)
+  void openNodeCard(const ContactInfo& c);  // one node's card (ui_pet.inc)
   void closeFriends();
   void openQr();   // share this node's contact as a QR code (ui_qr.inc)
   void closeQr();

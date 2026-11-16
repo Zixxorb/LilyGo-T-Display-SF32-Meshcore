@@ -546,7 +546,7 @@ public:
   bool wantsTaps() const {
     return iconHoldPage()  // a touch held elsewhere isn't a long press: only where it says
         || (_page == HomePage::CLOCK && _task->getUnreadCount() > 0)  // the envelope opens messages
-        || _page == HomePage::NODES  // a row: ask that node for its battery
+        || _page == HomePage::NODES  // a row: that node's card
         || _page == HomePage::GAMES;  // tap the pet: pet it
   }
   // true if the tap hit something; otherwise it acts as a normal tap (next page)
@@ -562,12 +562,12 @@ public:
       if (pet.boop()) _task->petSound(3);  // a tap: a boop (stroking it is petting)
       return true;
     }
-    if (_page == HomePage::NODES) {  // a node's row: ask it for its battery
+    if (_page == HomePage::NODES) {  // a node's row: its card (Starlit, details, battery on request)
       ContactInfo fav[NODES_MAX];
       int n = my_nodes.favourites(fav, NODES_MAX), shown = n < NODES_MAX ? n : NODES_MAX;
       int row = (y - 27) / 24;
       if (y < 27 || row >= shown) return false;
-      if (!my_nodes.ask(fav[row])) _task->showAlert(my_nodes.waiting() ? "Still waiting for a reply" : "Wait a few seconds", 1200);
+      _task->openNodeCard(fav[row]);
       return true;
     }
     return false;
@@ -1007,7 +1007,7 @@ public:
         display.setColor(UIColor::secondary_txt);
         display.drawTextCentered(W / 2, 50, "Star contacts as favourites");
         display.drawTextCentered(W / 2, 61, "in the app to list them here");
-        display.drawTextCentered(W / 2, 80, "tap one for its battery");
+        display.drawTextCentered(W / 2, 80, "tap one for its card");
       }
       uint32_t now = rtc_clock.getCurrentTime();
       for (int i = 0; i < shown; i++) {
@@ -1028,7 +1028,7 @@ public:
           sprintf(bat, "%d.%02dV %d%%", r->mv / 1000, (r->mv % 1000) / 10, pct);
           bc = pct <= 15 ? UIColor::warning_txt : THEME_ACCENT;
         } else if (r && r->state == 2) strcpy(bat, "no battery data");
-        else strcpy(bat, "tap: battery");
+        else strcpy(bat, ">");  // (tap: its card)
         int bw = display.getTextWidth(bat);
         display.setColor(UIColor::primary_txt);
         display.drawTextEllipsized(8, y + 3, 112 - bw - 4, name);

@@ -897,7 +897,7 @@ void UITask::handleTouchMenus() {
   } else if (curr == hour_screen) {
     ((HourScreen*)hour_screen)->handleTap(x, y);
   } else if (curr == friends_screen) {
-    ((FriendsScreen*)friends_screen)->handleTap(x, y);  // a friend: meet it; meeting one: back to all
+    if (!((FriendsScreen*)friends_screen)->handleTap(x, y)) closeFriends();  // a friend: its card; a card: Battery, or back
     _next_refresh = 0;
   } else if (curr == scan_screen) {
     ((ScanScreen*)scan_screen)->reset();  // tap: start over (clears the max hold)
