@@ -80,7 +80,7 @@ void SF32TouchInput::update() {
     } else if (kind == 8) {  // that finger lifts
       _release_vx = 0;
       _touch_ms = millis() - _down_at;
-      if (_down && !_consumed && display.isOn() && _direct) { _tap_pending = true; _tap_x = _x0; _tap_y = _y0; }
+      if (_down && !_consumed && display.isOn() && _direct && abs(_x - _x0) <= TAP_MAX_PX && abs(_y - _y0) <= TAP_MAX_PX) { _tap_pending = true; _tap_x = _x0; _tap_y = _y0; }  // (a drag isn't a tap)
       _down = false;
       _consumed = false;
     } else {  // a press (also a tap when taps aren't taken directly; wakes the screen)

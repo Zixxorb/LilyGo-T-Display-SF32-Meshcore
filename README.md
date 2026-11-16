@@ -46,6 +46,7 @@ device shows what's happening on the mesh, tests links, finds repeaters and keep
 | **Signal tools** | Signal tester, repeater **finder** (warmer/colder), 902-928 MHz **band scan** |
 | **Mesh at a glance** | Activity graph, heard nodes, **My Nodes** with on-demand battery |
 | **Battery** | 48 h history graph, time left, low-battery protection |
+| **Starlits** | A little critter of your own that grows from the mesh traffic it hears: stroke it, boop it, play; meet your friends' Starlits |
 | **Mesh SOS** | Triple-press A: location + battery to a channel, repeated |
 | **Extras** | Flashlight (white/red), share contact QR, auto adverts, mesh time, rotation |
 | **USB app** | MeshCore app protocol over USB too: PC tools and a raw-packet **observer** |
@@ -71,6 +72,12 @@ device shows what's happening on the mesh, tests links, finds repeaters and keep
 <td align="center"><img src="docs/images/settings.png" width="180"><br><sub>Settings</sub></td>
 <td align="center"><img src="docs/images/display.png" width="180"><br><sub>Display settings</sub></td>
 <td align="center"><img src="docs/images/powermenu.png" width="180"><br><sub>Power menu (swipe down)</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/images/starlit.png" width="180"><br><sub>Your Starlit</sub></td>
+<td align="center"><img src="docs/images/starlit-petted.png" width="180"><br><sub>Stroked</sub></td>
+<td align="center"><img src="docs/images/starlit-friend.png" width="180"><br><sub>Meeting a friend's</sub></td>
+<td></td>
 </tr>
 </table>
 
@@ -307,6 +314,29 @@ times in all, until you tap Stop. The location is the node's as set in the app.
 </details>
 
 ### Radio and mesh tools
+
+<details>
+<summary><b>Starlits</b></summary>
+
+Every node has a **Starlit**: a little original critter with a glowing star mark, made from the
+node's own key, so each one is different. There are four kinds, each its own shape: the
+**Drake** (sturdy, snouted, horns, wings, a spade tail), the **Fluff** (a puffball with crystal
+ears and a comet tail), the **Glimmer** (floats on a glowing wisp, petal wings, light-stalks)
+and the **Ember** (squat, with flame tufts and a flame-tipped tail); colours, eyes and build vary
+too.
+
+- **It lives on the mesh**: it's fed by the packets your radio hears, grows curious from adverts
+  and new nodes, and rests while the screen is off. Three bars show how it's doing; the line
+  under them says its mood.
+- **Care**: stroke it to pet it (hearts), tap it to boop it, hold it to play (a star-ball). It
+  breathes, blinks, looks at your finger, and does little things on its own.
+- **Friends** (its swipe-up menu): the Starlits of your favourite nodes and the 5 others heard
+  most recently, in a grid that scrolls; tap one to meet it.
+- **Gentle by design**: it never dies or nags, and never transmits anything. While the screen is
+  off it does nothing at all (no battery cost); time away is caught up when you look. It's
+  saved on the board and survives reflashing. Sounds and Reset are in Settings > Starlit.
+
+</details>
 
 <details>
 <summary><b>Signal tester and repeater finder</b></summary>

@@ -808,6 +808,7 @@ void UITask::handleTouchMenus() {
   if (curr == menu && ((MenuScreen*)menu)->scrolls()) ds = &((MenuScreen*)menu)->drag();
   else if (curr == about_screen && ((AboutScreen*)about_screen)->scrolls()) ds = &((AboutScreen*)about_screen)->drag();
   else if (curr == logs_screen && !((LogScreen*)logs_screen)->inDetail()) ds = &((LogScreen*)logs_screen)->drag();
+  else if (curr == friends_screen && ((FriendsScreen*)friends_screen)->scrolls()) ds = &((FriendsScreen*)friends_screen)->drag();
   if (ds) {
     if (touch_input.fingerDown() && touch_input.touchConsumed()) {
       // the touch that opened this menu: it doesn't drag the list as well
@@ -854,7 +855,7 @@ void UITask::handleTouchMenus() {
     else if (curr == sos_screen) {}  // only its button leaves it
     else if (curr == qr_screen) closeQr();
     else if (curr == scan_screen) closeScan();
-    else if (curr == friends_screen) closeFriends();
+    else if (curr == friends_screen) { if (!((FriendsScreen*)friends_screen)->back()) closeFriends(); }
     else if (curr == menu) {
       // a panel goes back the way it came. The power menu came down from
       // the top: swipe up; menus that came up from the bottom: swipe down.
@@ -896,7 +897,7 @@ void UITask::handleTouchMenus() {
   } else if (curr == hour_screen) {
     ((HourScreen*)hour_screen)->handleTap(x, y);
   } else if (curr == friends_screen) {
-    ((FriendsScreen*)friends_screen)->next();  // tap: the next four
+    ((FriendsScreen*)friends_screen)->handleTap(x, y);  // a friend: meet it; meeting one: back to all
     _next_refresh = 0;
   } else if (curr == scan_screen) {
     ((ScanScreen*)scan_screen)->reset();  // tap: start over (clears the max hold)

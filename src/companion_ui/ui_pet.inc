@@ -556,7 +556,8 @@ public:
 static PetGame pet;
 
 // Friends: the Starlits of your favourite nodes and the 5 others heard most recently (each drawn
-// from its key; nothing is sent or stored). Four at a time; a tap shows the next four; swipe right or the button: back.
+// from its key; nothing is sent or stored), in a grid that scrolls like the menus; tap one to meet
+// it (big, with its name and kind). Four at a time; a tap shows the next four; swipe right or the button: back.
 class FriendsScreen : public UIScreen {
 public:
   FriendsScreen(UITask* task) : _task(task) {}
@@ -564,6 +565,8 @@ public:
   void reset() {
     _n = 0;
     _page = 0;
+    _detail_on = false;
+    _ds = DragScroll();
     int recent[RECENT], nr = 0;
     uint32_t rts[RECENT];
     int total = the_mesh.getNumContacts();
@@ -579,49 +582,91 @@ public:
     }
     for (int i = 0; i < nr && _n < FRIENDS_MAX; i++) _idx[_n++] = recent[i];
   }
-  void next() { int pages = (_n + 3) / 4; _page = pages ? (_page + 1) % pages : 0; }
+  bool scrolls() const { return !_detail_on && maxScroll() > 0; }
+  DragScroll& drag() { _ds.max = maxScroll(); return _ds; }
+  // a tap: on a friend, meet it (big); when meeting one, back to the grid
+  void handleTap(int x, int y) {
+    if (_detail_on) { _detail_on = false; return; }
+    if (y < TOP) return;
+    int row = (int)((y - TOP + _ds.pos) / ROW_H), i = row * 2 + (x >= 64 ? 1 : 0);
+    if (i >= 0 && i < _n) { _detail = i; _detail_on = true; }
+  }
+  bool back() {  // swipe right / the button: out of meeting one first
+    if (!_detail_on) return false;
+    _detail_on = false;
+    return true;
+  }
   int render(DisplayDriver& d) override {
+    SF32Display& sd = (SF32Display&)d;
+    bool still = _task->lowPower();
+    ContactInfo c;
+    if (_detail_on && _detail < _n && the_mesh.getContactByIdx(_idx[_detail], c)) {  // meeting one
+      themeHeader(d, "Friends", _task->getBattMilliVolts());
+      uint32_t seed = PetGame::seedOf(c.id.pub_key);
+      pet.draw(d, 64, 56, 0.95f, still, seed);
+      char name[sizeof(c.name)];
+      d.translateUTF8ToBlocks(name, c.name, sizeof(name));
+      d.setTextSize(1);
+      d.setColor(UIColor::primary_txt);
+      if (d.getTextWidth(name) > 120) d.drawTextEllipsized(4, 94, 120, name); else d.drawTextCentered(64, 94, name);
+      char tmp[40];
+      sprintf(tmp, "a %s Starlit%s", PetGame::kindName((seed >> 3) & 3), (c.flags & 1) ? "  -  a favourite" : "");
+      d.setColor(UIColor::secondary_txt);
+      d.drawTextCentered(64, 105, tmp);
+      d.setColor(THEME_DIM);
+      d.drawTextCentered(64, 115, "tap: back to all");
+      return still ? 60000 : 80;
+    }
+    _detail_on = false;
     themeHeader(d, "Friends", _task->getBattMilliVolts());
     d.setTextSize(1);
     if (_n == 0) {
       d.setColor(UIColor::secondary_txt);
-      d.drawTextCentered(64, 50, "No other nodes yet");
-      d.drawTextCentered(64, 62, "the Starlits of the nodes");
-      d.drawTextCentered(64, 72, "you hear show up here");
+      d.drawTextCentered(64, 50, "No friends yet: the Starlits of");
+      d.drawTextCentered(64, 62, "your favourite nodes and the");
+      d.drawTextCentered(64, 72, "ones heard lately show up here");
       return 5000;
     }
-    bool still = _task->lowPower();
-    for (int q = 0; q < 4; q++) {
-      int i = _page * 4 + q;
-      if (i >= _n) break;
-      ContactInfo c;
+    _ds.max = maxScroll();
+    bool moving = _ds.step();
+    sd.pushClip(0, TOP, 128, 128 - TOP);
+    int first = (int)(_ds.pos / ROW_H) * 2;
+    for (int i = first < 0 ? 0 : first; i < _n; i++) {
+      float x = i % 2 ? 94 : 34, y = TOP + (i / 2) * ROW_H - _ds.pos + 18;
+      if (y - 22 > 128) break;
       if (!the_mesh.getContactByIdx(_idx[i], c)) continue;
-      float x = q % 2 ? 94 : 34, y = q < 2 ? 42 : 88;
-      pet.draw(d, x, y, 0.48f, still, PetGame::seedOf(c.id.pub_key));
+      pet.draw(d, x, y, 0.46f, still, PetGame::seedOf(c.id.pub_key));
       char name[sizeof(c.name)];
       d.translateUTF8ToBlocks(name, c.name, sizeof(name));
-      d.setColor(UIColor::secondary_txt);
+      d.setTextSize(1);
+      d.setColor((c.flags & 1) ? UIColor::primary_txt : UIColor::secondary_txt);  // favourites a little brighter
       if (d.getTextWidth(name) > 58) d.drawTextEllipsized((int)x - 29, (int)y + 13, 58, name);
       else d.drawTextCentered((int)x, (int)y + 13, name);
     }
-    char tmp[32];
-    int pages = (_n + 3) / 4;
-    if (pages > 1) sprintf(tmp, "tap: more  -  %d/%d", _page + 1, pages);
-    else strcpy(tmp, "swipe right: back");
-    d.setColor(THEME_DIM);
-    d.drawTextCentered(64, 114, tmp);
-    return still ? 60000 : 120;
+    sd.popClip();
+    if (maxScroll() > 0) {  // a scroll bar, as in the menus
+      int track = 128 - TOP - 4, thumb = track * (128 - TOP) / (rowsH()), ty = TOP + (int)((track - thumb) * (_ds.pos / maxScroll()));
+      d.setColor(THEME_DIM);
+      d.fillRect(125, TOP, 2, track);
+      d.setColor(THEME_ACCENT);
+      d.fillRect(125, ty, 2, thumb);
+    }
+    return moving || _ds.active ? 16 : (still ? 60000 : 100);
   }
-  bool handleInput(char c) override {  // the button: back
+  bool handleInput(char c) override {  // the button: back (out of meeting one first)
     if (c == 0) return false;
-    _task->closeFriends();
+    if (!back()) _task->closeFriends();
     return true;
   }
 private:
-  static const int FRIENDS_MAX = 24, RECENT = 5;
+  static const int FRIENDS_MAX = 24, RECENT = 5, TOP = 24, ROW_H = 46;
   UITask* _task;
   int _idx[FRIENDS_MAX];
-  int _n = 0, _page = 0;
+  int _n = 0, _page = 0, _detail = 0;
+  bool _detail_on = false;
+  DragScroll _ds;
+  int rowsH() const { return ((_n + 1) / 2) * ROW_H; }
+  int maxScroll() const { int m = rowsH() - (128 - TOP); return m > 0 ? m : 0; }
 };
 
 void UITask::openFriends() {
