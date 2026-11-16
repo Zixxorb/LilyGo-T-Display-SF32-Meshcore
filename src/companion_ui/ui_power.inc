@@ -33,7 +33,7 @@ void UITask::powerCare() {
   {  // the pet: caught up when the screen turns on, saved when it goes dark (nothing in between)
     static bool pet_on = false;
     bool on = _display && _display->isOn();
-    if (on != pet_on) { pet_on = on; pet.onScreen(on); }
+    if (on != pet_on) { pet_on = on; pet.onScreen(on); if (!on) hash_sizes.save(); }
   }
   if (_ui_prefs.rotation == 2 && _display && _display->isOn()) applyRotation();
   bool picked = motion.takePickup();

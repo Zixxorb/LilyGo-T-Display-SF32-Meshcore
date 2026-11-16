@@ -945,7 +945,7 @@ public:
       themeHeader(display, "Starlit", mv);
       bool still = _task->lowPower();
       pet.update(true);
-      pet.draw(display, 64, 58, 1.0f, still);
+      pet.draw(display, 64, 57, 1.08f, still, 0, -1, _node_prefs->path_hash_mode + 1);  // (its ring: your own hash size)
       // its needs: three small bars
       const PetSave& ps = pet.stats();
       static const char* const L[] = {"Fed", "Curious", "Rested"};

@@ -21,6 +21,54 @@ struct PetSave {
   uint32_t sum;      // check
 };
 
+// Which path-hash size each node uses (1, 2 or 3 bytes), learnt from its flood adverts: a sender
+// writes its own setting into the top two bits of path_len. Known for sure when those bits say 2-3
+// bytes, or say 1 byte on an advert that came through repeaters; a direct (zero-hop) advert with
+// them at 0 tells nothing. Remembered in a tiny file (5 bytes a node, the newest 32).
+#define HSZ_FILE "/sf32_hsz"
+class HashSizes {
+public:
+  void note(const uint8_t* pub_key, uint8_t path_len) {
+    uint8_t sz = (path_len >> 6) + 1, hops = path_len & 63;
+    if (sz == 1 && hops == 0) return;  // a direct advert: not known from this
+    load();
+    int at = find(pub_key);
+    if (at >= 0 && _e[at].size == sz) return;
+    if (at < 0) {  // a new one: at the front, the oldest dropped
+      if (_n < N) _n++;
+      for (int i = _n - 1; i > 0; i--) _e[i] = _e[i - 1];
+      at = 0;
+      memcpy(_e[0].key, pub_key, 4);
+    }
+    _e[at].size = sz;
+    _dirty = true;
+  }
+  uint8_t get(const uint8_t* pub_key) { load(); int at = find(pub_key); return at >= 0 ? _e[at].size : 0; }
+  void save() {
+    if (!_dirty) return;
+    File f = InternalFS.open(HSZ_FILE, "w", true);
+    if (f) { f.write((const uint8_t*)&_n, 1); f.write((const uint8_t*)_e, _n * sizeof(Entry)); }
+    _dirty = false;
+  }
+private:
+  struct Entry { uint8_t key[4]; uint8_t size; };
+  static const int N = 32;
+  Entry _e[N];
+  uint8_t _n = 0;
+  bool _loaded = false, _dirty = false;
+  int find(const uint8_t* k) const { for (int i = 0; i < _n; i++) if (memcmp(_e[i].key, k, 4) == 0) return i; return -1; }
+  void load() {
+    if (_loaded) return;
+    _loaded = true;
+    File f = InternalFS.open(HSZ_FILE, "r");
+    if (!f) return;
+    uint8_t n = 0;
+    if (f.read(&n, 1) == 1 && n <= N && f.read((uint8_t*)_e, n * sizeof(Entry)) == (int)(n * sizeof(Entry))) _n = n;
+    for (int i = 0; i < _n; i++) if (_e[i].size < 1 || _e[i].size > 3) _n = i;  // (damaged: keep what's sound)
+  }
+};
+static HashSizes hash_sizes;
+
 class PetGame {
 public:
   // ---- state ----
@@ -163,7 +211,8 @@ public:
   int kind() const { return (_s.seed >> 3) & 3; }
 
   // (seed / kind_of: another look, e.g. a friend's pet; 0 / -1: this one's)
-  void draw(DisplayDriver& d, float cx, float cy, float size, bool still, uint32_t seed = 0, int kind_of = -1) {
+  // hsz: its node's path-hash size (0 not known): 2-3 bytes put a ring of light round the star
+  void draw(DisplayDriver& d, float cx, float cy, float size, bool still, uint32_t seed = 0, int kind_of = -1, int hsz = 0) {
     SF32Display& sd = (SF32Display&)d;
     const uint32_t sd0 = seed ? seed : _s.seed;
     static const uint16_t HUES[] = {155, 22, 268, 205, 352, 45, 120, 300};  // mint, apricot, violet, sky, rose, gold, leaf, orchid
@@ -373,6 +422,15 @@ public:
     float stx = hxc, sty = hyc - hh * 0.62f;
     sd.fillSoft(stx, sty, 6 * size, 6 * size, star, (int)(10 * glow));
     starShape(sd, stx, sty, 2.6f * size, hsvColor(fmodf(hue + 200, 360), 0.25f + 0.25f * glow, 1.0f));
+    if (hsz >= 2) {  // multi-byte path hashes: a ring of light round the star
+      ColorVal rc = hsvColor(fmodf(hue + 200, 360), 0.3f, 1.0f);
+      d.setColor(rc);
+      float rr = 4.4f * size, rot = still ? 0 : t * 0.0008f;
+      for (int i = 0; i < 16; i++) {
+        float a0 = rot + i * 0.3927f, a1 = a0 + 0.26f;
+        sd.drawLineAA(stx + cosf(a0) * rr, sty + sinf(a0) * rr, stx + cosf(a1) * rr, sty + sinf(a1) * rr, 0.8f * size + 0.3f);
+      }
+    }
 
     // ---- face ----
     float fy = hyc + hh * (k == DRAKE ? -0.12f : (k == FLUFF ? -0.06f : 0.06f)), eg = (k == EMBER ? 7.6f : 6.8f) * size * sx;
@@ -603,18 +661,20 @@ public:
     if (_detail_on && _detail < _n && the_mesh.getContactByIdx(_idx[_detail], c)) {  // meeting one
       themeHeader(d, "Friends", _task->getBattMilliVolts());
       uint32_t seed = PetGame::seedOf(c.id.pub_key);
-      pet.draw(d, 64, 56, 0.95f, still, seed);
+      uint8_t hs = hash_sizes.get(c.id.pub_key);
+      pet.draw(d, 64, 54, 0.98f, still, seed, -1, hs);
       char name[sizeof(c.name)];
       d.translateUTF8ToBlocks(name, c.name, sizeof(name));
       d.setTextSize(1);
       d.setColor(UIColor::primary_txt);
       if (d.getTextWidth(name) > 120) d.drawTextEllipsized(4, 94, 120, name); else d.drawTextCentered(64, 94, name);
       char tmp[40];
-      sprintf(tmp, "a %s Starlit%s", PetGame::kindName((seed >> 3) & 3), (c.flags & 1) ? "  -  a favourite" : "");
+      sprintf(tmp, "a %s Starlit%s", PetGame::kindName((seed >> 3) & 3), (c.flags & 1) ? ", a favourite" : "");
       d.setColor(UIColor::secondary_txt);
-      d.drawTextCentered(64, 105, tmp);
-      d.setColor(THEME_DIM);
-      d.drawTextCentered(64, 115, "tap: back to all");
+      d.drawTextCentered(64, 104, tmp);
+      if (hs) sprintf(tmp, "%d-byte path hashes", hs); else strcpy(tmp, "hash size not known yet");
+      d.setColor(hs >= 2 ? THEME_ACCENT : (hs == 1 ? UIColor::warning_txt : THEME_DIM));
+      d.drawTextCentered(64, 114, tmp);
       return still ? 60000 : 80;
     }
     _detail_on = false;
@@ -632,16 +692,16 @@ public:
     sd.pushClip(0, TOP, 128, 128 - TOP);
     int first = (int)(_ds.pos / ROW_H) * 2;
     for (int i = first < 0 ? 0 : first; i < _n; i++) {
-      float x = i % 2 ? 94 : 34, y = TOP + (i / 2) * ROW_H - _ds.pos + 18;
-      if (y - 22 > 128) break;
+      float x = i % 2 ? 94 : 34, y = TOP + (i / 2) * ROW_H - _ds.pos + 24;
+      if (y - 28 > 128) break;
       if (!the_mesh.getContactByIdx(_idx[i], c)) continue;
-      pet.draw(d, x, y, 0.46f, still, PetGame::seedOf(c.id.pub_key));
+      pet.draw(d, x, y, 0.6f, still, PetGame::seedOf(c.id.pub_key), -1, hash_sizes.get(c.id.pub_key));
       char name[sizeof(c.name)];
       d.translateUTF8ToBlocks(name, c.name, sizeof(name));
       d.setTextSize(1);
       d.setColor((c.flags & 1) ? UIColor::primary_txt : UIColor::secondary_txt);  // favourites a little brighter
-      if (d.getTextWidth(name) > 58) d.drawTextEllipsized((int)x - 29, (int)y + 13, 58, name);
-      else d.drawTextCentered((int)x, (int)y + 13, name);
+      if (d.getTextWidth(name) > 58) d.drawTextEllipsized((int)x - 29, (int)y + 16, 58, name);
+      else d.drawTextCentered((int)x, (int)y + 16, name);
     }
     sd.popClip();
     if (maxScroll() > 0) {  // a scroll bar, as in the menus
@@ -659,7 +719,7 @@ public:
     return true;
   }
 private:
-  static const int FRIENDS_MAX = 24, RECENT = 5, TOP = 24, ROW_H = 46;
+  static const int FRIENDS_MAX = 24, RECENT = 5, TOP = 24, ROW_H = 58;
   UITask* _task;
   int _idx[FRIENDS_MAX];
   int _n = 0, _page = 0, _detail = 0;

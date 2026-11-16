@@ -332,6 +332,9 @@ too.
   breathes, blinks, looks at your finger, and does little things on its own.
 - **Friends** (its swipe-up menu): the Starlits of your favourite nodes and the 5 others heard
   most recently, in a grid that scrolls; tap one to meet it.
+- **Path-hash size**: a Starlit whose node sends 2- or 3-byte path hashes wears a ring of light
+  round its star (yours too); the meet view says which, learnt from the node's adverts (no
+  messages needed). Kept in a tiny file (5 bytes a node, the newest 32).
 - **Gentle by design**: it never dies or nags, and never transmits anything. While the screen is
   off it does nothing at all (no battery cost); time away is caught up when you look. It's
   saved on the board and survives reflashing. Sounds and Reset are in Settings > Starlit.
