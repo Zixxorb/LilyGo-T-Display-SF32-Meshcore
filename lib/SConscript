@@ -81,6 +81,7 @@ elif firmware == 'companion':
                                          (['SF32_SOUND_STRESS'] if os.getenv('SF32_SOUND_STRESS') == '1' else []) +
                                          (['SF32_NOISE_TEST'] if os.getenv('SF32_NOISE_TEST') == '1' else []) +
                                          (['SF32_RAINBOW_TEST'] if os.getenv('SF32_RAINBOW_TEST') == '1' else []) +
+                                         (['SF32_SHOT_THEME'] if os.getenv('SF32_SHOT_THEME') == '1' else []) +  # README shots: Rainbow + Glass, not saved
                                          (['SF32_REMOTE_TOUCH'] if os.getenv('SF32_REMOTE_TOUCH') == '1' else []) +
                                          (['SF32_LINK_AB'] if os.getenv('SF32_LINK_AB') == '1' else []) +
                                          (['SF32_CPU_TEST'] if os.getenv('SF32_CPU_TEST') == '1' else []) +

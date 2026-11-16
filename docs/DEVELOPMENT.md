@@ -168,6 +168,8 @@ The same channel works on a running or crashed board:
   way: they read memory through the chip's hardware debug port, the same one flashing
   uses, so anyone with the USB cable and the board in hand can read (or reflash) it
   whatever firmware it runs.
+- **README screenshots**: add `SF32_SHOT_THEME=1` to the build: it shows Rainbow + Glass,
+  the README's look, whatever theme is saved (and saves nothing), so all shots match.
 - **Scripted UI**: `SF32_UI_DEMO=t_t_U_240,300 ./build.sh companion` plays touch input, one
   step every 8 s from 10 s after boot: `t` tap, `L` long press, `U`/`D` swipe up/down,
   `l`/`r` swipe left/right, `X,Y` tap at panel coordinates, `.` wait.

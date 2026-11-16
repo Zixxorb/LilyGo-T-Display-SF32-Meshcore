@@ -116,8 +116,13 @@ void UITask::applyBattery() {
 void UITask::applyStyle() {
   g_batt_colors = _ui_prefs.batt_colors;
   int i = themeIndex();
+  bool glass = _ui_prefs.glass;
+#ifdef SF32_SHOT_THEME  // README screenshot builds: Rainbow + Glass, whatever is saved (and nothing saved)
+  for (int t = 0; t < NUM_THEMES; t++) if (THEMES[t].rainbow) i = t;
+  glass = true;
+#endif
   applyTheme(i);
-  if (_display) ((SF32Display*)_display)->setGlass(_ui_prefs.glass && !lowPower(), THEMES[i].accent, THEMES[i].rainbow, _ui_prefs.glass_bg);
+  if (_display) ((SF32Display*)_display)->setGlass(glass && !lowPower(), THEMES[i].accent, THEMES[i].rainbow, _ui_prefs.glass_bg);
 }
 void UITask::openTheme() {
   _menu_return_theme = _menu_return;
