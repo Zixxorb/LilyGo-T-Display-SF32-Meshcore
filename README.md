@@ -385,8 +385,10 @@ menu > Advert menu > **Hold** picks what its icon hold sends.
 - **Glass style** (Settings > Theme): a wallpaper in the theme's colours (Aurora, Dunes or
   Blend) or plain black (None), with cards as frosted panes and popups that blur what's behind them. It lights more of the screen than Normal, so it uses more power while the
   screen is on. The always-on clock stays on black.
-- **Themes**: MeshCore blue, cyan, teal, green, purple, pink, red, orange, mono, and
-  Rainbow (every page in its own hue).
+- **Themes**: MeshCore blue, cyan, teal, green, purple, pink, red, orange, mono,
+  Rainbow (every page in its own hue), and ChattaMesh ([chattamesh.com](https://chattamesh.com)'s
+  colours in full: navy background, periwinkle, gold and green; the navy lights the whole
+  panel, so it uses a little more power with the screen on than the black-background themes).
 - **Tap to wake** (Settings > Display, Off by default): taps wake a dark screen. Off, the
   touch controller sleeps while the screen is dark and only button A wakes it: in a night
   test that cut the screen-off battery drain by about 60%.

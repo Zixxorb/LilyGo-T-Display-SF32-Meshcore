@@ -205,7 +205,7 @@ void UITask::loadUIPrefs() {
   applyBattery();
   applyStyle();
 #ifdef SF32_RAINBOW_TEST
-  applyTheme(NUM_THEMES - 1);  // test builds: show Rainbow without saving it
+  for (int t = 0; t < NUM_THEMES; t++) if (THEMES[t].rainbow) applyTheme(t);  // test builds: show Rainbow without saving it
 #endif
   if (_ui_prefs.brightness_idx >= sizeof(BRIGHTNESS_STEPS)) _ui_prefs.brightness_idx = 2;
   if (_ui_prefs.timeout_idx >= sizeof(TIMEOUT_SECS) / sizeof(TIMEOUT_SECS[0])) _ui_prefs.timeout_idx = 0;

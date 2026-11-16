@@ -4,7 +4,10 @@
 // ---- SF32: colour themes ----
 
 #define RGB(r, g, b) (ColorVal)((((r) & 0xF8) << 8) | (((g) & 0xFC) << 3) | ((b) >> 3))
-struct UITheme { const char* name; ColorVal accent, card; bool rainbow; };
+// bg / text / text2 / warn / good: 0 = the usual (black background, light grey text, amber
+// highlights, teal-green "good");
+// grid: a shorter label for the Color grid when the name doesn't fit its swatch
+struct UITheme { const char* name; ColorVal accent, card; bool rainbow; ColorVal bg, text, text2, warn, good; const char* grid; };
 static const UITheme THEMES[] = {
   {"MeshCore", RGB(0x4C, 0x8D, 0xFF), RGB(0x1F, 0x29, 0x37)},
   {"Cyan",     RGB(0x38, 0xBD, 0xF8), RGB(0x14, 0x2A, 0x3A)},
@@ -16,6 +19,11 @@ static const UITheme THEMES[] = {
   {"Orange",   RGB(0xFB, 0x92, 0x3C), RGB(0x33, 0x24, 0x18)},
   {"Mono",     RGB(0xE5, 0xE7, 0xEB), RGB(0x26, 0x26, 0x28)},
   {"Rainbow",  RGB(0xFF, 0x3C, 0xAC), RGB(0x2A, 0x1E, 0x3A), true},  // a hue per page
+  // chattamesh.com's colour scheme, in full: navy page, periwinkle accent, gold highlights
+  // (lights the whole panel: more power with the screen on than the black-background themes)
+  {"ChattaMesh", RGB(0x6E, 0x70, 0xE6), RGB(0x22, 0x27, 0x3A), false,
+   RGB(0x1A, 0x1D, 0x2C), RGB(0xED, 0xEE, 0xF2), RGB(0x9D, 0xA4, 0xBA), RGB(0xF2, 0xC8, 0x61),
+   RGB(0x4F, 0xB8, 0x60), "Chatta"},
 };
 static const int NUM_THEMES = sizeof(THEMES) / sizeof(THEMES[0]);
 
@@ -29,6 +37,12 @@ static void applyTheme(int i) {
   UIColor::corp_blue = THEMES[i].accent;  // THEME_ACCENT
   UIColor::title_bkg = THEMES[i].card;    // THEME_CARD
   UIColor::popup_bkg = lighten(THEMES[i].card, 24);
+  static const ColorVal TEXT = RGB(0xF3, 0xF4, 0xF6), TEXT2 = RGB(0x9C, 0xA3, 0xAF), WARN = RGB(0xF5, 0xA5, 0x24);
+  UIColor::window_bkg = THEMES[i].bg;  // (0: black)
+  UIColor::primary_txt = UIColor::title_txt = UIColor::popup_txt = THEMES[i].text ? THEMES[i].text : TEXT;
+  UIColor::secondary_txt = THEMES[i].text2 ? THEMES[i].text2 : TEXT2;
+  UIColor::warning_txt = THEMES[i].warn ? THEMES[i].warn : WARN;
+  THEME_GOOD = THEMES[i].good ? THEMES[i].good : THEME_GOOD_DEFAULT;
   g_rainbow_theme = THEMES[i].rainbow;
 }
 
@@ -53,7 +67,7 @@ public:
       }
       d.setTextSize(1);
       d.setColor(i == cur ? UIColor::primary_txt : UIColor::secondary_txt);
-      d.drawTextCentered(c.x + c.w / 2, c.y + 8, THEMES[i].name);
+      d.drawTextCentered(c.x + c.w / 2, c.y + 8, THEMES[i].grid ? THEMES[i].grid : THEMES[i].name);
       if (i == cur) {
         d.setColor(UIColor::primary_txt);
         d.drawRect(c.x, c.y, c.w, c.h);

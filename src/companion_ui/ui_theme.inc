@@ -21,7 +21,8 @@ static ColorVal hsvColor(float h, float s, float v) {
 // the Rainbow theme is on: each home page gets its own hue (HomeScreen::render)
 static bool g_rainbow_theme = false;
 
-static const ColorVal THEME_GOOD = ((0x34 & 0xF8) << 8) | ((0xD3 & 0xFC) << 3) | (0x99 >> 3);  // charging, strong signal
+static const ColorVal THEME_GOOD_DEFAULT = ((0x34 & 0xF8) << 8) | ((0xD3 & 0xFC) << 3) | (0x99 >> 3);
+static ColorVal THEME_GOOD = THEME_GOOD_DEFAULT;  // charging, strong signal (a theme may set its own: applyTheme)
 static const ColorVal THEME_RED = ((0xEF & 0xF8) << 8) | ((0x44 & 0xFC) << 3) | (0x44 >> 3);   // SOS
 static const ColorVal THEME_YELLOW = ((0xFA & 0xF8) << 8) | ((0xCC & 0xFC) << 3) | (0x15 >> 3);
 static const ColorVal THEME_GREEN = ((0x30 & 0xF8) << 8) | ((0xD1 & 0xFC) << 3) | (0x58 >> 3);  // true green (THEME_GOOD is teal)
