@@ -557,6 +557,7 @@ public:
     }
     if (_page == HomePage::GAMES) {  // the pet: pet it (it looks at where you touched)
       if (x < 30 || x >= 98 || y < 24 || y >= 88) return false;
+      if (pet.context() & PetGame::CTX_MAIL) { _task->showMessages(); return true; }  // it's holding a message: open it
       pet.look(x, y);
       if (pet.boop()) _task->petSound(3);  // a tap: a boop (stroking it is petting)
       return true;
@@ -948,6 +949,13 @@ public:
       unsigned long pet_t0 = millis();
       themeHeader(display, "Starlit", mv);
       bool still = _task->lowPower();
+      {  // what the device is doing, for it to reflect
+        int bp = mv > 0 ? sf32ShownPercent(mv) : -1;
+        bool usb = board.isExternalPowered();
+        pet.setContext((_task->sosState() ? PetGame::CTX_SOS : 0) | (_task->dndNow() ? PetGame::CTX_NIGHT : 0) |
+                       (still ? PetGame::CTX_LOWPOWER : 0) | (_task->getUnreadCount() > 0 ? PetGame::CTX_MAIL : 0) |
+                       (bp >= 0 && bp < 20 && !usb ? PetGame::CTX_LOWBATT : 0) | (usb && bp >= 0 && bp < 100 ? PetGame::CTX_CHARGING : 0));
+      }
       pet.update(true);
       pet.draw(display, 64, 57, 1.08f, still, 0, -1, _node_prefs->path_hash_mode + 1);  // (its ring: your own hash size)
       // its needs: three small bars
@@ -979,7 +987,10 @@ public:
         char tmp[64];
         while (n < 4 && today_finds.line(n, tmp, sizeof(tmp))) n++;
         int slot = still ? 0 : (int)(((millis() - opened - 5000) / 4000) % (n + 1));
-        if (slot == 0 || !today_finds.line(slot - 1, mtxt, sizeof(mtxt))) sprintf(mtxt, "your Starlit is %s", PetGame::moodName(pet.mood()));
+        if (slot == 0 || !today_finds.line(slot - 1, mtxt, sizeof(mtxt))) {
+          const char* cl = pet.contextLine();  // the device's state comes before its mood
+          if (cl) StrHelper::strncpy(mtxt, cl, sizeof(mtxt)); else sprintf(mtxt, "your Starlit is %s", PetGame::moodName(pet.mood()));
+        }
       }
       if (display.getTextWidth(mtxt) > W - 8) display.drawTextEllipsized(4, 108, W - 8, mtxt);
       else display.drawTextCentered(W / 2, 108, mtxt);

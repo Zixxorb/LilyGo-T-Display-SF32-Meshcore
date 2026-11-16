@@ -250,6 +250,21 @@ public:
 
   // ---- mood ----
   enum Mood { CONTENT, HAPPY, EXCITED, SLEEPY, HUNGRY, BORED, SAD };
+  // What the rest of the device is doing, so your Starlit reflects it (set by its page each frame;
+  // friends' Starlits ignore it). In priority order for the bottom line.
+  enum Ctx { CTX_SOS = 1, CTX_NIGHT = 2, CTX_LOWPOWER = 4, CTX_MAIL = 8, CTX_LOWBATT = 16, CTX_CHARGING = 32 };
+  void setContext(uint8_t c) { _ctx = c; }
+  uint8_t context() const { return _ctx; }
+  // the line under its bars for the device's state (NULL: nothing to say, show its mood)
+  const char* contextLine() const {
+    if (_ctx & CTX_SOS) return "it's worried: SOS is on";
+    if (_ctx & CTX_MAIL) return "it has mail: tap it";
+    if (_ctx & CTX_NIGHT) return "it's asleep: night hours";
+    if (_ctx & CTX_LOWPOWER) return "it's napping: low power";
+    if (_ctx & CTX_LOWBATT) return "it's drowsy: battery low";
+    if (_ctx & CTX_CHARGING) return "it's charging up";
+    return NULL;
+  }
   int mood() const {
     if (reaction()) return EXCITED;
     if (_s.rested < 25) return SLEEPY;
@@ -297,7 +312,12 @@ public:
     bool other = seed != 0;  // a friend's: calm, its own blinks, not looking at your finger
     if (other) { m = CONTENT; react = 0; }
     float rk = react ? (t - _react_at) / (float)_react_len : 0;
-    bool sleepy = m == SLEEPY;
+    const uint8_t ctx = other ? 0 : _ctx;
+    const bool worried = ctx & CTX_SOS, mail = (ctx & CTX_MAIL) && !worried;
+    const bool asleep = (ctx & (CTX_NIGHT | CTX_LOWPOWER)) && !worried && !mail;  // eyes shut (a reaction wakes it a moment)
+    bool sleepy = m == SLEEPY || asleep || ((ctx & CTX_LOWBATT) && !worried && !mail);
+    if (worried) m = SAD;           // brows up, a frown
+    else if (mail) m = EXCITED;     // perked up
 
     // ---- animation ----
     float br = sinf(t * 6.2832f / (sleepy ? 5200 : 3400));
@@ -510,7 +530,7 @@ public:
     if (petted) {                               // "^ ^"
       d.setColor(ink);
       for (int s2 = 0; s2 < 2; s2++) arcLine(sd, s2 ? exr : exl, eyy + 1.2f, 3.2f * size, false, 2.0f);
-    } else if ((sleepy || blink) && !booped) {  // closed
+    } else if ((sleepy || blink || asleep) && !booped && !mail) {  // closed
       d.setColor(ink);
       for (int s2 = 0; s2 < 2; s2++) arcLine(sd, s2 ? exr : exl, eyy - 0.6f, 3.0f * size, true, 1.7f);
     } else {                                    // open: white, a coloured iris, a pupil, star glints
@@ -528,7 +548,7 @@ public:
         if (m == SAD) {
           d.setColor(ink);
           float side = s2 ? 1 : -1;
-          sd.drawLineAA(ex - side * erx * 0.9f, eyy - ery - 1.4f, ex + side * erx * 0.6f, eyy - ery - 2.8f, 1.3f);
+          sd.drawLineAA(ex - side * erx * 0.9f, eyy - ery - 3.0f, ex + side * erx * 0.6f, eyy - ery - 1.2f, 1.3f);  // inner ends up: worried, not cross
         }
       }
     }
@@ -552,6 +572,37 @@ public:
       d.setColor(0xFFFF);
       sd.drawLineAA(hxc - 2.4f, my + 0.6f, hxc - 2.2f, my + 1.8f, 0.9f);
       sd.drawLineAA(hxc + 2.4f, my + 0.6f, hxc + 2.2f, my + 1.8f, 0.9f);
+    }
+
+    // ---- what the device is doing ----
+    if (asleep) {  // little z's drifting up (still in low power mode: just two)
+      d.setColor(hsvColor(fmodf(hue + 200, 360), 0.3f, 1.0f));
+      for (int z = 0; z < 3; z++) {
+        float zp = still ? (z == 2 ? -1 : 0.25f + z * 0.4f) : fmodf(t / 2600.0f + z / 3.0f, 1.0f);
+        if (zp < 0) continue;
+        float zs = (1.6f + zp * 1.6f) * size, zx = hxc + hw * 0.9f + zp * 9, zy = hyc - hh * 0.6f - zp * 16;
+        sd.drawLineAA(zx - zs, zy - zs, zx + zs, zy - zs, 0.9f);
+        sd.drawLineAA(zx + zs, zy - zs, zx - zs, zy + zs, 0.9f);
+        sd.drawLineAA(zx - zs, zy + zs, zx + zs, zy + zs, 0.9f);
+      }
+    }
+    if (mail) {  // holds a little envelope in front of it, bobbing
+      float ex2 = cx, ey2 = (k == FLUFF ? hyc + hh * 0.62f : (k == GLIMMER ? byc + bh * 0.35f : byc + bh * 0.05f)) + (still ? 0 : sinf(t * 6.2832f / 900) * 0.8f);
+      float ew = 7.5f * size, eh = 5.2f * size;
+      d.setColor(0xFFFF);
+      d.fillRect((int)(ex2 - ew), (int)(ey2 - eh), (int)(ew * 2), (int)(eh * 2));
+      d.setColor(THEME_ACCENT);
+      sd.drawLineAA(ex2 - ew, ey2 - eh, ex2, ey2 + eh * 0.15f, 1.0f);
+      sd.drawLineAA(ex2, ey2 + eh * 0.15f, ex2 + ew, ey2 - eh, 1.0f);
+      for (int side = -1; side <= 1; side += 2)  // its paws holding it
+        sd.fillShaded(ex2 + side * ew * 0.95f, ey2 + eh * 0.3f, 2.4f * size, 2.2f * size, body, 0.3f);
+    }
+    if ((ctx & CTX_CHARGING) && !worried && !asleep && !still) {  // now and then, a spark rising off it
+      unsigned long ph = t % 2400;
+      if (ph < 1200) {
+        float p = ph / 1200.0f, side = ((t / 2400) & 1) ? 1 : -1;
+        sparkle(sd, cx + side * (hw * 0.7f + p * 4), hyc - p * 14, (1.8f - p) * size, hsvColor(45, 0.55f, 1.0f));
+      }
     }
 
     if (still) return;
@@ -595,7 +646,7 @@ private:
   bool _begun = false, _dirty = false, _was_on = true;
   unsigned long _last_ms = 0;
   uint32_t _last_pkts = 0;
-  uint8_t _adverts = 0, _new_nodes = 0;
+  uint8_t _adverts = 0, _new_nodes = 0, _ctx = 0;
   int _react = 0;
   unsigned long _react_at = 0, _react_len = 0;
   int _gaze_x = 64, _gaze_y = 60;

@@ -331,6 +331,10 @@ too.
   (hops, and who sent it), adverts and packets heard (they start over at local midnight).
 - **Care**: stroke it to pet it (hearts), tap it to boop it, hold it to play (a star-ball). It
   breathes, blinks, looks at your finger, and does little things on its own.
+- **It reflects the device**: it holds an envelope when you have unread messages (tap it to read
+  them), sleeps during your night hours (do not disturb) and naps in low power mode, gets
+  drowsy when the battery is low, sparks now and then while charging, and looks worried while an
+  SOS is on. The line under its bars says so.
 - **Friends** (its swipe-up menu): the Starlits of your favourite nodes and the 5 others heard
   most recently, a still gallery that scrolls; tap one to meet it (it comes to life).
 - **Path-hash size**: each Starlit glows with a faint aura for its node's path-hash size:
