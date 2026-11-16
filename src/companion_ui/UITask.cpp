@@ -410,6 +410,7 @@ void UITask::onMessageRecv(mesh::Packet *pkt, const ContactInfo &from, uint8_t t
   ((MsgPreviewScreen *) msg_preview)->addPreview(path_len, from.name, text);
   showNewMessage(true);  // SF32: direct
   botCheck(pkt, &from, NULL, text);  // SF32
+  if (pkt->isRouteFlood()) hash_sizes.note(from.id.pub_key, pkt->path_len);  // SF32: a flood message carries its sender's hash size too
 
   if (_display != NULL) {
 #ifndef SF32_LINK_AB  // battery test: the screen stays dark

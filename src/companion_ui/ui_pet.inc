@@ -625,7 +625,6 @@ public:
     _page = 0;
     _detail_on = false;
     _layer_ok = false;
-    _idle_frames = 0;
     _ds = DragScroll();
     int recent[RECENT], nr = 0;
     uint32_t rts[RECENT];
@@ -691,31 +690,20 @@ public:
     }
     _ds.max = maxScroll();
     bool moving = _ds.step();
-    bool ready = _layer_ok && sd.layerGen() == _lgen;
-    if (!ready && (moving || _ds.active || ++_idle_frames == 3)) {  // all of them, still, into the layer: made
-      sd.beginLayer(rowsH() + 4);                                     // soon after opening, so a drag never waits
+    // a still gallery, drawn once into the layer (tap one to see it move); the layer slides when scrolled
+    if (!_layer_ok || sd.layerGen() != _lgen) {
+      sd.beginLayer(rowsH() + 4);
       for (int i = 0; i < _n; i++) drawFriend(d, i, (i / 2) * ROW_H + 24, true);
       sd.endLayer();
       sd.layerSpans();
       _lgen = sd.layerGen();
-      _layer_ok = ready = true;
+      _layer_ok = true;
+    } else if (moving || _ds.active) {
+      sd.setFlushBand(TOP, 128 - TOP);  // only the grid moves
     }
-    if (moving || _ds.active) {  // moving: the layer slides (60 fps); stopped, they're live again
-      if (!_ds.active || abs((int)_ds.pos - (int)_ds.start) > 0) sd.setFlushBand(TOP, 128 - TOP);
-      sd.composeSprites(0, TOP, 124, 128 - TOP, (int)lroundf(_ds.pos * SF32Display::SCALE));
-      scrollBar(d);
-      return 16;
-    }
-    sd.pushClip(0, TOP, 128, 128 - TOP);
-    int first = (int)(_ds.pos / ROW_H) * 2;
-    for (int i = first < 0 ? 0 : first; i < _n; i++) {
-      float y = TOP + (i / 2) * ROW_H - _ds.pos + 24;
-      if (y - 28 > 128) break;
-      drawFriend(d, i, y, still);
-    }
-    sd.popClip();
+    sd.composeSprites(0, TOP, 124, 128 - TOP, (int)lroundf(_ds.pos * SF32Display::SCALE));
     scrollBar(d);
-    return still ? 60000 : 100;
+    return moving || _ds.active ? 16 : 60000;  // still: nothing to redraw
   }
   void drawFriend(DisplayDriver& d, int i, float y, bool still) {
     ContactInfo c;
@@ -748,7 +736,6 @@ private:
   int _idx[FRIENDS_MAX];
   int _n = 0, _page = 0, _detail = 0;
   bool _detail_on = false, _layer_ok = false;
-  int _idle_frames = 0;
   uint32_t _lgen = 0;
   DragScroll _ds;
   int rowsH() const { return ((_n + 1) / 2) * ROW_H; }

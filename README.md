@@ -331,11 +331,11 @@ too.
 - **Care**: stroke it to pet it (hearts), tap it to boop it, hold it to play (a star-ball). It
   breathes, blinks, looks at your finger, and does little things on its own.
 - **Friends** (its swipe-up menu): the Starlits of your favourite nodes and the 5 others heard
-  most recently, in a grid that scrolls; tap one to meet it.
+  most recently, a still gallery that scrolls; tap one to meet it (it comes to life).
 - **Path-hash size**: each Starlit glows with a faint aura for its node's path-hash size:
   amber for 1-byte, cyan for 2-byte, violet for 3-byte (none until it's known; yours from your
-  setting). The meet view says it in words. Learnt from the node's adverts (no messages
-  needed), kept in a tiny file (5 bytes a node, the newest 32).
+  setting). The meet view says it in words. Learnt from the node's flooded adverts and
+  messages (nodes heard only directly, with no flood yet, stay unknown for a while), kept in a tiny file (5 bytes a node, the newest 32).
 - **Gentle by design**: it never dies or nags, and never transmits anything. While the screen is
   off it does nothing at all (no battery cost); time away is caught up when you look. It's
   saved on the board and survives reflashing. Sounds and Reset are in Settings > Starlit.
