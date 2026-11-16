@@ -575,15 +575,23 @@ public:
     }
 
     // ---- what the device is doing ----
-    if (asleep) {  // little z's drifting up (still in low power mode: just two)
-      d.setColor(hsvColor(fmodf(hue + 200, 360), 0.3f, 1.0f));
+    if (sleepy) {  // z's: from beside its head (clear of antennae and stalks), up and out along a slant,
+                   // growing as they go and fading at the end; evenly spaced, so they never overlap
+      ColorVal zc = hsvColor(fmodf(hue + 200, 360), 0.22f, 0.95f), bgc = UIColor::window_bkg;
       for (int z = 0; z < 3; z++) {
-        float zp = still ? (z == 2 ? -1 : 0.25f + z * 0.4f) : fmodf(t / 2600.0f + z / 3.0f, 1.0f);
-        if (zp < 0) continue;
-        float zs = (1.6f + zp * 1.6f) * size, zx = hxc + hw * 0.9f + zp * 9, zy = hyc - hh * 0.6f - zp * 16;
-        sd.drawLineAA(zx - zs, zy - zs, zx + zs, zy - zs, 0.9f);
-        sd.drawLineAA(zx + zs, zy - zs, zx - zs, zy + zs, 0.9f);
-        sd.drawLineAA(zx - zs, zy + zs, zx + zs, zy + zs, 0.9f);
+        float zp = still ? 0.15f + z * 0.33f : fmodf(t / 3600.0f + z / 3.0f, 1.0f);
+        if (still && z == 2) continue;
+        float fade = zp > 0.65f ? (1 - zp) / 0.35f : (zp < 0.1f ? zp / 0.1f : 1);  // in and out
+        int a = (int)(fade * 16);
+        int r = (((zc >> 11) & 31) * a + ((bgc >> 11) & 31) * (16 - a)) >> 4;
+        int g = (((zc >> 5) & 63) * a + ((bgc >> 5) & 63) * (16 - a)) >> 4;
+        int b = ((zc & 31) * a + (bgc & 31) * (16 - a)) >> 4;
+        d.setColor((ColorVal)((r << 11) | (g << 5) | b));
+        float zs = (1.3f + zp * 1.5f) * size;  // half its size
+        float zx = hxc + hw * 1.05f + zp * 13 * size, zy = hyc - hh * 0.15f - zp * 22 * size;
+        sd.drawLineAA(zx - zs, zy - zs, zx + zs, zy - zs, 0.8f + zp * 0.3f);
+        sd.drawLineAA(zx + zs, zy - zs, zx - zs, zy + zs, 0.8f + zp * 0.3f);
+        sd.drawLineAA(zx - zs, zy + zs, zx + zs, zy + zs, 0.8f + zp * 0.3f);
       }
     }
     if (mail) {  // holds a little envelope in front of it, bobbing
@@ -628,15 +636,6 @@ public:
       for (int k2 = 0; k2 < 3; k2++) {
         float sp = fmodf(rk * 3 + k2 * 0.33f, 1);
         sparkle(sd, hxc + (k2 - 1) * 16, hyc - hh - 4 - sp * 10, 2.2f * (1 - sp), UIColor::warning_txt);
-      }
-    }
-    if (sleepy) {
-      for (int k2 = 0; k2 < 3; k2++) {
-        float zp = fmodf(t / 3000.0f + k2 / 3.0f, 1);
-        d.setColor(UIColor::secondary_txt);
-        d.setTextSize(1);
-        d.setCursor((int)(hxc + hw * 0.7f + zp * 8 + k2), (int)(hyc - hh - zp * 14));
-        d.print("z");
       }
     }
   }
