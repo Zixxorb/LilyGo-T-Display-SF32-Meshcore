@@ -346,7 +346,7 @@ public:
       case HomePage::SIGNAL: return "Signal";
       case HomePage::ACTIVITY: return "Activity";
       case HomePage::NODES: return "Nodes";
-      case HomePage::GAMES: return "Games";
+      case HomePage::GAMES: return "Starlit";
 #ifndef UI_NO_HIBERNATE
       case HomePage::SHUTDOWN: return "Power";
 #endif
@@ -644,9 +644,9 @@ public:
         m.add("Send to mesh", ACT_ADVERT_MESH);
         break;
       case HomePage::GAMES:
-        m.begin("Games");
+        m.begin("Starlit");
         m.add("Play", ACT_PET_PLAY);
-        m.add("Games menu", ACT_GAMES_MENU);  // the same submenu as Settings > Games
+        m.add("Starlit menu", ACT_GAMES_MENU);  // the same submenu as Settings > Starlit
         break;
 #ifndef UI_NO_HIBERNATE
       case HomePage::SHUTDOWN:
@@ -941,7 +941,7 @@ public:
         drawBatteryGraph(display, 10, 60, 108, 40, BATT_GRAPH_HOURS[_task->uiPrefs().batt_graph % NUM_BATT_GRAPH]);
       }
     } else if (_page == HomePage::GAMES) {
-      themeHeader(display, "Games", mv);
+      themeHeader(display, "Starlit", mv);
       bool still = _task->lowPower();
       pet.update(true);
       pet.draw(display, 64, 58, 1.0f, still);
@@ -960,8 +960,13 @@ public:
         display.fillRect(bx, 100, (36 * v[k] + 50) / 100, 3);
       }
       display.setColor(THEME_DIM);
-      char mtxt[32];
-      sprintf(mtxt, "%s  -  stroke: pet, hold: play", PetGame::moodName(pet.mood()));
+      // its kind and mood; the controls for the first few seconds on the page
+      static unsigned long last_seen = 0, opened = 0;
+      if (millis() - last_seen > 1500) opened = millis();
+      last_seen = millis();
+      char mtxt[40];
+      if (millis() - opened < 5000) strcpy(mtxt, "stroke: pet, tap: boop, hold: play");
+      else sprintf(mtxt, "your %s is %s", PetGame::kindName(pet.kind()), PetGame::moodName(pet.mood()));
       display.drawTextCentered(W / 2, 108, mtxt);
       next_render = still ? 60000 : (pet.reaction() ? 33 : 70);
     } else if (_page == HomePage::NODES) {

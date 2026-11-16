@@ -64,7 +64,7 @@ void UITask::openMenu(MenuKind kind) {
       return;
     }
   } else if (kind == MENU_GAMES) {
-    m->begin("Games");
+    m->begin("Starlit");
     m->add("Sounds", ACT_PET_SOUND, _ui_prefs.pet_sound ? "On" : "Off");  // the pet's chirps
     m->add("Reset pet", ACT_PET_RESET);  // fresh needs, the same look
     m->add("Back", ACT_MENU_BACK);
@@ -123,7 +123,7 @@ void UITask::openMenu(MenuKind kind) {
     m->add("Adverts", ACT_ADVERTS_MENU);  // scheduled adverts, what the Advert page's hold sends
     m->add("Bot", ACT_BOT_MENU);
     m->add("Low power", ACT_LP_MENU);  // low power mode: on now, or by itself at a battery level
-    m->add("Games", ACT_GAMES_MENU);  // the pet
+    m->add("Starlit", ACT_GAMES_MENU);  // the pet (a Starlit)
     {
       ChannelDetails ch;
       m->add("SOS to", ACT_SOS_CHAN, sosChannelName(_ui_prefs.sos_chan, ch));
