@@ -578,17 +578,20 @@ static void frame_from(const uint16_t* src) {
 #endif
   memcpy(s_fb, src, FB_PIXELS * 2);
 }
-static void frame_black() {
+// The frame cleared to one colour by DMA (black, or a theme's background such as ChattaMesh's
+// navy): the CPU fill took several ms a frame, enough to starve the sound during page slides.
+static void frame_fill(ColorVal c) {
 #ifdef SF32_GFX_HW
-  static uint32_t zero = 0;  // in RAM: not const, which would put it in flash, very slow for DMA
-  mpu_dcache_clean(&zero, 4);
+  static uint32_t word = 0;  // in RAM: not const, which would put it in flash, very slow for DMA
+  word = ((uint32_t)c << 16) | c;
+  mpu_dcache_clean(&word, 4);
   mpu_dcache_clean((void*)s_fb, FB_PIXELS * 2);
-  if (EXT_DMA_Config(0, 1) == RT_EOK && EXT_DMA_TRANS_SYNC((uint32_t)&zero, (uint32_t)s_fb, FB_PIXELS / 2, 200) == RT_EOK) {
+  if (EXT_DMA_Config(0, 1) == RT_EOK && EXT_DMA_TRANS_SYNC((uint32_t)&word, (uint32_t)s_fb, FB_PIXELS / 2, 200) == RT_EOK) {
     mpu_dcache_invalidate((void*)s_fb, FB_PIXELS * 2);
     return;
   }
 #endif
-  memset(s_fb, 0, FB_PIXELS * 2);
+  fill16(s_fb, c, FB_PIXELS);
 }
 
 #ifdef SF32_GFX_HW
@@ -722,8 +725,7 @@ void SF32Display::startFrame(ColorVal bkg) {
   _list_next = false;
   if (_list_frame) {}  // composeLayer builds the list; the rest isn't sent this frame
   else if (glassActive() && bkg == UIColor::window_bkg && s_glass_bg != 3) frame_from(s_wall);
-  else if (bkg == 0) frame_black();
-  else fill16(s_fb, bkg, PANEL_W * PANEL_H);
+  else frame_fill(bkg);
   _color = UIColor::primary_txt;
   _text_size = 1;
   _cx = _cy = 0;
@@ -819,6 +821,63 @@ void SF32Display::drawLineAA(float x0, float y0, float x1, float y1, float width
       blendPixel(px, py, cov >= 1 ? 15 : (int)(cov * 15 + 0.5f));
     }
   }
+}
+
+// A shaded ellipse (logical units, rotated by rot radians): lit as a rounded 3D surface, from the
+// upper left and towards the viewer, with a glossy highlight (gloss 0..1) and an anti-aliased
+// edge. Used for soft figures (the pet).
+void SF32Display::fillShaded(float cx, float cy, float rx, float ry, uint16_t base, float gloss, float rot) {
+  float acx = OFFSET_X + cx * SCALE, acy = OFFSET_Y + cy * SCALE, arx = rx * SCALE, ary = ry * SCALE;
+  if (arx < 0.5f || ary < 0.5f) return;
+  float cr = cosf(rot), sr = sinf(rot), R = fmaxf(arx, ary) + 1.5f, mr = fminf(arx, ary);
+  int minx = (int)floorf(acx - R), maxx = (int)ceilf(acx + R), miny = (int)floorf(acy - R), maxy = (int)ceilf(acy + R);
+  int br = (base >> 11) << 3, bgc = ((base >> 5) & 0x3F) << 2, bb = (base & 0x1F) << 3;
+  const float lx = -0.45f, ly = -0.62f, lz = 0.64f;            // the light
+  const float hx = -0.2f, hy = -0.276f, hz = 0.94f;            // half-way to the viewer (normalised)
+  uint16_t saved = _color;
+  for (int py = miny; py <= maxy; py++) {
+    for (int px = minx; px <= maxx; px++) {
+      float qx = px + 0.5f - acx, qy = py + 0.5f - acy;
+      float ux = (qx * cr + qy * sr) / arx, uy = (-qx * sr + qy * cr) / ary;
+      float d2 = ux * ux + uy * uy;
+      if (d2 >= 1.06f) continue;
+      float dd = sqrtf(d2);
+      float cov = (1 - dd) * mr + 0.5f;
+      if (cov <= 0) continue;
+      float nz = d2 < 1 ? sqrtf(1 - d2) : 0;
+      float nx = ux * cr - uy * sr, ny = ux * sr + uy * cr;
+      float lam = nx * lx + ny * ly + nz * lz;
+      if (lam < 0) lam = 0;
+      float shade = 0.38f + 0.72f * lam + 0.10f * (ny > 0 ? ny * (1 - nz) : 0);  // ambient, light, a little bounce below
+      float sp = nx * hx + ny * hy + nz * hz;
+      sp = sp > 0 ? sp : 0;
+      sp *= sp; sp *= sp; sp *= sp; sp *= sp; sp *= sp;  // ^32: a tight highlight
+      int add = (int)(sp * gloss * 230);
+      int r = (int)(br * shade) + add, g = (int)(bgc * shade) + add, b = (int)(bb * shade) + add;
+      r = r > 255 ? 255 : r; g = g > 255 ? 255 : g; b = b > 255 ? 255 : b;
+      _color = (uint16_t)(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3));
+      blendPixel(px, py, cov >= 1 ? 15 : (int)(cov * 15 + 0.5f));
+    }
+  }
+  _color = saved;
+}
+
+// A soft spot: colour c fading out from the centre (alpha 0..15 at the middle): shadows, blush, glow.
+void SF32Display::fillSoft(float cx, float cy, float rx, float ry, uint16_t c, int alpha) {
+  float acx = OFFSET_X + cx * SCALE, acy = OFFSET_Y + cy * SCALE, arx = rx * SCALE, ary = ry * SCALE;
+  if (arx < 0.5f || ary < 0.5f || alpha <= 0) return;
+  int minx = (int)floorf(acx - arx), maxx = (int)ceilf(acx + arx), miny = (int)floorf(acy - ary), maxy = (int)ceilf(acy + ary);
+  uint16_t saved = _color;
+  _color = c;
+  for (int py = miny; py <= maxy; py++) {
+    for (int px = minx; px <= maxx; px++) {
+      float ux = (px + 0.5f - acx) / arx, uy = (py + 0.5f - acy) / ary, d2 = ux * ux + uy * uy;
+      if (d2 >= 1) continue;
+      float f = 1 - d2;
+      blendPixel(px, py, (int)(alpha * f * f + 0.5f));
+    }
+  }
+  _color = saved;
 }
 
 // Rotation by the panel itself (CO5300 MADCTL: bit 7 MY rows mirrored, bit 6 MX columns

@@ -943,7 +943,7 @@ public:
       themeHeader(display, "Games", mv);
       bool still = _task->lowPower();
       pet.update(true);
-      pet.draw(display, 64, 56, 1.0f, still);
+      pet.draw(display, 64, 60, 1.0f, still);
       // its needs: three small bars
       const PetSave& ps = pet.stats();
       static const char* const L[] = {"Fed", "Curious", "Rested"};
@@ -962,7 +962,7 @@ public:
       char mtxt[32];
       sprintf(mtxt, "%s  -  tap: pet, hold: play", PetGame::moodName(pet.mood()));
       display.drawTextCentered(W / 2, 108, mtxt);
-      next_render = still ? 60000 : (pet.reaction() ? 40 : 160);
+      next_render = still ? 60000 : (pet.reaction() ? 33 : 70);
     } else if (_page == HomePage::NODES) {
       themeHeader(display, "Nodes", mv);
       ContactInfo fav[NODES_MAX];

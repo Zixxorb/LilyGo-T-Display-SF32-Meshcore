@@ -218,6 +218,8 @@ void UITask::glassLightLoop() {
     if (!want) d->setGlassLight(false, 0, 0);
   }
   if (!want || !motion.ready()) return;
+  // never mid-swipe or mid-slide: a redraw then costs the slide (and the sound) its time
+  if (d->transitionPending() || touch_input.fingerDown()) return;
   static unsigned long last = 0;
   if (millis() - last < 100) return;
   last = millis();

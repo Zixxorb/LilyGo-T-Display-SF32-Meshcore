@@ -77,6 +77,10 @@ public:
   // An anti-aliased line with round ends, logical coordinates (fractions allowed), width in
   // logical px (clock hands, dial ticks)
   void drawLineAA(float x0, float y0, float x1, float y1, float width);
+  // a 3D-looking shaded ellipse (lit from the upper left, glossy highlight), rotated by rot radians
+  void fillShaded(float cx, float cy, float rx, float ry, uint16_t base, float gloss = 0.5f, float rot = 0);
+  // a soft spot fading out from the centre (shadows, blush, glow); alpha 0..15 at the middle
+  void fillSoft(float cx, float cy, float rx, float ry, uint16_t c, int alpha);
   // A sharp rectangle in panel pixels (0..479, plus the burn-in shift), e.g. QR modules
   void setRotation(int rot);  // quarter turns clockwise, 0..3 (the panel does it: free)
   int rotation() const { return _rot; }
