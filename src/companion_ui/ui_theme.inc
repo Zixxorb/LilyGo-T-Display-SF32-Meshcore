@@ -222,9 +222,10 @@ static void themeBolt(DisplayDriver& display, int x, int y) {
   d.drawLineAA(x + 1.6f, y + 4.4f, x + 6.2f, y + 3.6f, 1.5f);
   d.drawLineAA(x + 6.2f, y + 3.6f, x + 2.6f, y + 7.7f, 1.5f);
 }
-// low power mode is on: a small leaf by the battery (clock and page headers); set from
-// UITask::lowPower() before every frame
-static bool g_low_power_icon = false;
+// The status row: small icons in one style, always just left of the battery's % (clock and
+// page headers), most important nearest the battery. Set from UITask before every frame.
+enum { ST_USB = 1, ST_LOWPOWER = 2, ST_DND = 4, ST_MAIL = 8, ST_BT = 16 };
+static uint8_t g_status = 0;
 static void themeLeaf(DisplayDriver& display, int x, int y) {  // 8x8, from its stem (bottom left) to its tip
   SF32Display& d = (SF32Display&)display;
   d.setColor(THEME_GOOD);
@@ -234,6 +235,51 @@ static void themeLeaf(DisplayDriver& display, int x, int y) {  // 8x8, from its 
     d.drawLineAA(x0 + (x1 - x0) * a, y0 + (y1 - y0) * a, x0 + (x1 - x0) * b, y0 + (y1 - y0) * b, 0.6f + 3.4f * sinf(m * 3.1416f));
   }
   d.drawLineAA(x0 - 0.6f, y0 + 0.6f, x0 + 0.8f, y0 - 0.8f, 1.0f);  // the stem
+}
+static void themeMoon(DisplayDriver& display, int x, int y) {  // 8x8: a crescent (night hours: do not disturb)
+  SF32Display& d = (SF32Display&)display;
+  d.setColor(THEME_ACCENT);
+  const float cx = x + 4.6f, cy = y + 4.0f, r = 3.2f;
+  for (int i = 0; i < 7; i++) {  // tapered strokes round the left of a circle: thick in the middle
+    float a0 = 1.75f + i * 0.4f, a1 = a0 + 0.4f, m = (i + 0.5f) / 7;
+    d.drawLineAA(cx + cosf(a0) * r, cy - sinf(a0) * r, cx + cosf(a1) * r, cy - sinf(a1) * r, 0.7f + 2.0f * sinf(m * 3.1416f));
+  }
+}
+static void themeMail(DisplayDriver& display, int x, int y) {  // 8x8: a small envelope (unread messages)
+  SF32Display& d = (SF32Display&)display;
+  d.setColor(UIColor::warning_txt);
+  float x0 = x + 0.5f, x1 = x + 7.5f, y0 = y + 1.5f, y1 = y + 6.5f;
+  d.drawLineAA(x0, y0, x1, y0, 1.0f); d.drawLineAA(x1, y0, x1, y1, 1.0f);
+  d.drawLineAA(x1, y1, x0, y1, 1.0f); d.drawLineAA(x0, y1, x0, y0, 1.0f);
+  d.drawLineAA(x0, y0, x + 4, y + 4.4f, 1.0f); d.drawLineAA(x + 4, y + 4.4f, x1, y0, 1.0f);
+}
+static void themeBluetooth(DisplayDriver& display, int x, int y) {  // 8x8: the Bluetooth rune (a phone connected)
+  SF32Display& d = (SF32Display&)display;
+  d.setColor(hsvColor(212, 0.55f, 1.0f));
+  const float m = x + 3.8f;
+  d.drawLineAA(m, y + 0.4f, m, y + 7.6f, 0.9f);
+  d.drawLineAA(x + 1.0f, y + 2.2f, x + 6.2f, y + 5.6f, 0.9f); d.drawLineAA(x + 6.2f, y + 5.6f, m, y + 7.6f, 0.9f);
+  d.drawLineAA(x + 1.0f, y + 5.8f, x + 6.2f, y + 2.4f, 0.9f); d.drawLineAA(x + 6.2f, y + 2.4f, m, y + 0.4f, 0.9f);
+}
+// The status icons, right to left, the rightmost ending at `right`, as many as fit down to min_x;
+// returns where they end. Order: USB, low power, night (these three come before the battery's %
+// when space is short), then mail and Bluetooth (after it).
+static const int STATUS_STEP = 11;
+static int themeStatusWidth(uint8_t bits) { int n = 0; for (int b = 0; b < 5; b++) if (bits & (1 << b)) n++; return n * STATUS_STEP; }
+static int themeStatus(DisplayDriver& d, int right, int y, int min_x, uint8_t bits) {
+  int x = right;
+  for (int b = 0; b < 5; b++) {
+    if (!(bits & (1 << b))) continue;
+    if (x - (STATUS_STEP - 3) < min_x) break;  // no room: the rest (less important) are left out
+    int ix = x - 8;
+    x -= STATUS_STEP;
+    if (b == 0) { d.setColor(UIColor::warning_txt); themeBolt(d, ix, y); }
+    else if (b == 1) themeLeaf(d, ix, y);
+    else if (b == 2) themeMoon(d, ix, y);
+    else if (b == 3) themeMail(d, ix, y);
+    else themeBluetooth(d, ix, y);
+  }
+  return x;
 }
 static void themeEnvelope(DisplayDriver& display, int x, int y, const uint8_t* envelope) {
   SF32Display& d = (SF32Display&)display;
@@ -282,29 +328,18 @@ static void themeHeader(DisplayDriver& d, const char* title, uint16_t mv) {
   } else {
     strcpy(tmp, "--");
   }
-  // the % (and bolt) only if they fit next to the title
+  // the % and the status icons, as far as they fit next to the title: the % goes first
   d.setTextSize(2);
   int title_end = 4 + d.getTextWidth(title) + 4;
   d.setTextSize(1);
-  int tw = d.getTextWidth(tmp);
-  bool usb = board.isExternalPowered();
-  const int leaf = g_low_power_icon ? 11 : 0;  // low power mode's leaf: kept before the % (it says a mode is on)
-  int x = bx - 3 - tw - (usb ? 10 : 0);
-  if (x - leaf < title_end) {
-    tw = 0;
-    x = bx - (usb ? 10 : 0);
-    if (leaf && x - leaf >= title_end) themeLeaf(d, x - leaf, by);
-    if (x < title_end) return;  // icon only
-  } else {
+  int tw = d.getTextWidth(tmp), right = bx - 3;
+  if (right - tw - themeStatusWidth(g_status & (ST_USB | ST_LOWPOWER | ST_DND)) >= title_end) {  // mail, Bluetooth: if room
     d.setColor(pct >= 0 ? battColor(pct, UIColor::secondary_txt) : outline);  // low shows even without the icon
-    d.setCursor(bx - 3 - tw, by);
+    d.setCursor(right - tw, by);
     d.print(tmp);
+    right -= tw + 3;
   }
-  if (usb) {
-    d.setColor(UIColor::warning_txt);
-    themeBolt(d, x, by);
-  }
-  if (leaf && tw) themeLeaf(d, x - leaf, by);  // low power mode
+  themeStatus(d, right, by, title_end, g_status);
 }
 
 // a size-2 value with a small unit after it, on the same baseline

@@ -913,7 +913,8 @@ void UITask::loop() {
       // popup's band would replace it (stale header area, the list not sent)
       bool list_screen = curr == menu || curr == about_screen || (curr == logs_screen && !((LogScreen*)logs_screen)->inDetail());
       if (!list_screen || millis() < _banner_expiry || millis() < _alert_expiry) ((SF32Display *) _display)->cancelListFrame();
-      g_low_power_icon = lowPower();  // SF32: the leaf by the battery
+      g_status = (board.isExternalPowered() ? ST_USB : 0) | (lowPower() ? ST_LOWPOWER : 0) | (dndNow() ? ST_DND : 0) |  // SF32: the status row
+                 (getUnreadCount() > 0 ? ST_MAIL : 0) | (hasConnection() ? ST_BT : 0);
       _display->startFrame();
       ((SF32Display *) _display)->setSquareLayout(true);  // SF32: all screens are full-panel
       int delay_millis = curr->render(*_display);

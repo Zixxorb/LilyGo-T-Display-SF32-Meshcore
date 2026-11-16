@@ -396,25 +396,17 @@ public:
     int tw = display.getTextWidth(tmp);
     display.setCursor(bx - 3 - tw, 6);  // centred on the battery
     display.print(tmp);
-    if (board.isExternalPowered()) {
-      display.setColor(UIColor::warning_txt);
-      themeBolt(display, bx - 3 - tw - 11, 6);
-    }
-    // do not disturb (night hours): always in the bottom left corner, just above the page dots
-    if (_task->dndNow()) {
-      display.setTextSize(1);
-      display.setColor(THEME_ACCENT);
-      display.setCursor(4, 106);
-      display.print("DND");
-    }
+    // the status icons (the same row as in page headers), clear of the unread count; the
+    // envelope is left out here: the clock has its own, bigger and tappable, top left
+    display.setTextSize(2);
+    sprintf(tmp, "%d", unread);
+    int min_x = unread > 0 ? 23 + display.getTextWidth(tmp) + 3 : 4;
+    themeStatus(display, bx - 3 - tw - 3, 8, min_x, g_status & ~ST_MAIL);
     if (mv > 0) {  // voltage under the battery, small
       display.setTextSize(1);
       display.setColor(UIColor::secondary_txt);
       sprintf(tmp, "%d.%02dV", mv / 1000, (mv % 1000) / 10);
       display.drawTextRightAlign(W - 4, 20, tmp);
-      if (g_low_power_icon) themeLeaf(display, W - 4 - display.getTextWidth(tmp) - 11, 20);  // low power mode (clear of the unread count)
-    } else if (g_low_power_icon) {
-      themeLeaf(display, W - 12, 20);
     }
 
     // SF32: the other clock faces (with the time known)

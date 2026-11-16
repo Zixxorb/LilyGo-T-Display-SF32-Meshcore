@@ -193,7 +193,8 @@ on the clock. Long lists follow your finger and glide after a flick.
 
 | Page | Shows |
 |---|---|
-| **Clock** | Time, date, unread envelope (tap to read), battery. Six faces |
+| **Clock** | Time, date, unread envelope (tap to read), battery and the status icons. Six faces |
+| **Status icons** | Left of the battery %, on the clock and every page header, in one style: bolt (USB power), leaf (low power mode), moon (night: do not disturb), envelope (unread messages; on the clock it's the big one top left), Bluetooth (a phone connected). When space is short the bolt, leaf and moon come before the %, mail and Bluetooth after |
 | **Status** | Unread, messages waiting for the app, Bluetooth PIN or node name |
 | **Battery** | Charge, voltage, chip temperature, time left, 48 h graph |
 | **Heard** | Recently heard nodes |
@@ -480,7 +481,7 @@ auto-replies.
   audio chip powers down; the LoRa radio keeps listening all the time (about 5 mA of that).
 - **Low power mode** (Power menu, or Settings > Low power): for when only the mesh matters,
   say someone lost. The clock page becomes a minimal one (dimmer time on black, "Low power"
-  under the date), a small green leaf shows by the battery (clock and page headers), and it
+  under the date), a small green leaf shows in the status icons (clock and page headers), and it
   turns off tap and swipe sounds (message chimes stay), the
   auto-reply bot, the motion sensor (button A wakes the screen), the always-on clock and the
   Glass style; Bluetooth advertises every 2 s instead of 500 ms while no phone is connected,
