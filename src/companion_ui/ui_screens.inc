@@ -122,8 +122,7 @@ void UITask::applyStyle() {
   glass = true;
 #endif
   applyTheme(i);
-  SF32Display::setCap30(lowPower());
-  g_low_power_icon = lowPower();  // (applyStyle runs whenever low power mode changes)
+  SF32Display::setCap30(lowPower());  // (applyStyle runs whenever low power mode changes)
   if (_display) ((SF32Display*)_display)->setGlass(glass && !lowPower(), THEMES[i].accent, THEMES[i].rainbow, _ui_prefs.glass_bg);
 }
 void UITask::openTheme() {

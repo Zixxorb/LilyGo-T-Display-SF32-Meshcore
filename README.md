@@ -327,7 +327,8 @@ too.
 
 - **It lives on the mesh**: it's fed by the packets your radio hears, grows curious from adverts
   and new nodes, and rests while the screen is off. Three bars show how it's doing; the line
-  under them says its mood.
+  under them says its mood, and in turn **today's finds**: new nodes met, the farthest packet
+  (hops, and who sent it), adverts and packets heard (they start over at local midnight).
 - **Care**: stroke it to pet it (hearts), tap it to boop it, hold it to play (a star-ball). It
   breathes, blinks, looks at your finger, and does little things on its own.
 - **Friends** (its swipe-up menu): the Starlits of your favourite nodes and the 5 others heard

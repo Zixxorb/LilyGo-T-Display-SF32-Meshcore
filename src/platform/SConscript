@@ -40,6 +40,6 @@ if os.getenv('SF32_UI_DEMO'):  # (a value: the touch script)
 
 # variant.h supplies LORA_* defaults used by target.cpp
 group = DefineGroup('Platform', src, depend=[''], CPPPATH=[cwd], LOCAL_CPPDEFINES=defs,
-                    LOCAL_CCFLAGS=' -include sf32_platform.h -include variant.h')
+                    LOCAL_CCFLAGS=' -include sf32_platform.h -include variant.h -fno-math-errno')  # (sqrtf: the FPU's vsqrt, not a library call)
 
 Return('group')

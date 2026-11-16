@@ -410,7 +410,10 @@ void UITask::onMessageRecv(mesh::Packet *pkt, const ContactInfo &from, uint8_t t
   ((MsgPreviewScreen *) msg_preview)->addPreview(path_len, from.name, text);
   showNewMessage(true);  // SF32: direct
   botCheck(pkt, &from, NULL, text);  // SF32
-  if (pkt->isRouteFlood()) hash_sizes.note(from.id.pub_key, pkt->path_len);  // SF32: a flood message carries its sender's hash size too
+  if (pkt->isRouteFlood()) {  // SF32: a flood message carries its sender's hash size too, and how far it came
+    hash_sizes.note(from.id.pub_key, pkt->path_len);
+    today_finds.hops(pkt->getPathHashCount(), from.name);
+  }
 
   if (_display != NULL) {
 #ifndef SF32_LINK_AB  // battery test: the screen stays dark
@@ -469,6 +472,7 @@ void UITask::onQueueSizeChanged(int msgcount) {
 void UITask::onDiscoveredContact(ContactInfo &contact, bool is_new, uint8_t path_len, const uint8_t* path) {
   pet.onAdvert(is_new);  // SF32: the pet grows curious (just counted; nothing while the screen is off)
   hash_sizes.note(contact.id.pub_key, path_len);  // SF32: its path-hash size, for its Starlit (RAM; saved at screen-off)
+  today_finds.hops(path_len & 63, contact.name);  // SF32: the farthest today (a direct advert: 0 hops)
   // SF32: time from the mesh. Only nodes already in the contacts count: brand-new
   // identities cost nothing to make, so a stranger can't outvote them.
   if (_ui_prefs.mesh_time && !is_new && !rtc_clock.timeKnown()) {
@@ -541,6 +545,7 @@ void UITask::shutdown(bool restart){
   batt_history.save();  // SF32
   pet.save();
   hash_sizes.save();
+  today_finds.save();
 
   #ifdef PIN_BUZZER
   /* note: we have a choice here -
@@ -908,6 +913,7 @@ void UITask::loop() {
       // popup's band would replace it (stale header area, the list not sent)
       bool list_screen = curr == menu || curr == about_screen || (curr == logs_screen && !((LogScreen*)logs_screen)->inDetail());
       if (!list_screen || millis() < _banner_expiry || millis() < _alert_expiry) ((SF32Display *) _display)->cancelListFrame();
+      g_low_power_icon = lowPower();  // SF32: the leaf by the battery
       _display->startFrame();
       ((SF32Display *) _display)->setSquareLayout(true);  // SF32: all screens are full-panel
       int delay_millis = curr->render(*_display);

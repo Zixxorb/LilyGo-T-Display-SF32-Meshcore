@@ -133,6 +133,8 @@ private:
   int drawChar(int pen16, int y, unsigned char c);  // returns the advance (1/16 px)
   int charAdvance(unsigned char c) const;            // 1/16 px
   void blendPixel(int px, int py, int alpha);  // alpha 0..15, _color over the frame
+  // the drawable area (panel, bleed and any clip), as inclusive pixel bounds; false: nothing
+  bool clipBounds(int& x0, int& y0, int& x1, int& y1) const;
   void fillPhys(int x0, int y0, int x1, int y1, int radius);
   void fillSpan(int x0, int x1, int py);
   void flush(const uint16_t* buf, int py0 = 0, int py1 = -1);  // rows [py0, py1]

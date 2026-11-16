@@ -400,7 +400,6 @@ public:
       display.setColor(UIColor::warning_txt);
       themeBolt(display, bx - 3 - tw - 11, 6);
     }
-    if (g_low_power_icon) themeLeaf(display, bx - 3 - tw - (board.isExternalPowered() ? 22 : 11), 6);  // low power mode
     // do not disturb (night hours): always in the bottom left corner, just above the page dots
     if (_task->dndNow()) {
       display.setTextSize(1);
@@ -413,6 +412,9 @@ public:
       display.setColor(UIColor::secondary_txt);
       sprintf(tmp, "%d.%02dV", mv / 1000, (mv % 1000) / 10);
       display.drawTextRightAlign(W - 4, 20, tmp);
+      if (g_low_power_icon) themeLeaf(display, W - 4 - display.getTextWidth(tmp) - 11, 20);  // low power mode (clear of the unread count)
+    } else if (g_low_power_icon) {
+      themeLeaf(display, W - 12, 20);
     }
 
     // SF32: the other clock faces (with the time known)
@@ -967,13 +969,24 @@ public:
       static unsigned long last_seen = 0, opened = 0;
       if (millis() - last_seen > 1500) opened = millis();
       last_seen = millis();
-      char mtxt[40];
+      // then, every 4 s in turn: its mood and today's finds
+      uint32_t utc = _rtc->getCurrentTime();
+      today_finds.setDay(timeIsSet(utc) ? (uint32_t)((int32_t)utc + _task->localOffsetSecs(utc)) / 86400 : 0x80000000u | (millis() / 86400000UL));
+      char mtxt[64];
       if (millis() - opened < 5000) strcpy(mtxt, "stroke: pet, tap: boop, hold: play");
-      else sprintf(mtxt, "your Starlit is %s", PetGame::moodName(pet.mood()));
-      display.drawTextCentered(W / 2, 108, mtxt);
+      else {
+        int n = 0;
+        char tmp[64];
+        while (n < 4 && today_finds.line(n, tmp, sizeof(tmp))) n++;
+        int slot = still ? 0 : (int)(((millis() - opened - 5000) / 4000) % (n + 1));
+        if (slot == 0 || !today_finds.line(slot - 1, mtxt, sizeof(mtxt))) sprintf(mtxt, "your Starlit is %s", PetGame::moodName(pet.mood()));
+      }
+      if (display.getTextWidth(mtxt) > W - 8) display.drawTextEllipsized(4, 108, W - 8, mtxt);
+      else display.drawTextCentered(W / 2, 108, mtxt);
       // paced from this frame's start (not its end): ~18 fps idle, as fast as it draws (~28) in a reaction
+      // (UITask counts a delay of 20 ms or less from the frame's start, more from its end)
       int period = pet.reaction() ? 16 : 55, left = period - (int)(millis() - pet_t0);
-      next_render = still ? 60000 : (left > 16 ? left : 16);
+      next_render = still ? 60000 : (period <= 20 ? period : (left > 20 ? left : 21));
     } else if (_page == HomePage::NODES) {
       themeHeader(display, "Nodes", mv);
       ContactInfo fav[NODES_MAX];

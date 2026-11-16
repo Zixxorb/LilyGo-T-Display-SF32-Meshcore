@@ -222,7 +222,8 @@ static void themeBolt(DisplayDriver& display, int x, int y) {
   d.drawLineAA(x + 1.6f, y + 4.4f, x + 6.2f, y + 3.6f, 1.5f);
   d.drawLineAA(x + 6.2f, y + 3.6f, x + 2.6f, y + 7.7f, 1.5f);
 }
-// low power mode is on: a small leaf by the battery (clock and page headers)
+// low power mode is on: a small leaf by the battery (clock and page headers); set from
+// UITask::lowPower() before every frame
 static bool g_low_power_icon = false;
 static void themeLeaf(DisplayDriver& display, int x, int y) {  // 8x8, from its stem (bottom left) to its tip
   SF32Display& d = (SF32Display&)display;
@@ -287,10 +288,12 @@ static void themeHeader(DisplayDriver& d, const char* title, uint16_t mv) {
   d.setTextSize(1);
   int tw = d.getTextWidth(tmp);
   bool usb = board.isExternalPowered();
+  const int leaf = g_low_power_icon ? 11 : 0;  // low power mode's leaf: kept before the % (it says a mode is on)
   int x = bx - 3 - tw - (usb ? 10 : 0);
-  if (x < title_end) {
+  if (x - leaf < title_end) {
     tw = 0;
     x = bx - (usb ? 10 : 0);
+    if (leaf && x - leaf >= title_end) themeLeaf(d, x - leaf, by);
     if (x < title_end) return;  // icon only
   } else {
     d.setColor(pct >= 0 ? battColor(pct, UIColor::secondary_txt) : outline);  // low shows even without the icon
@@ -301,7 +304,7 @@ static void themeHeader(DisplayDriver& d, const char* title, uint16_t mv) {
     d.setColor(UIColor::warning_txt);
     themeBolt(d, x, by);
   }
-  if (g_low_power_icon && x - 11 >= title_end) themeLeaf(d, x - 11, by);  // low power mode
+  if (leaf && tw) themeLeaf(d, x - leaf, by);  // low power mode
 }
 
 // a size-2 value with a small unit after it, on the same baseline
