@@ -38,6 +38,9 @@ public:
   uint32_t layerGen() const;  // changes whenever beginLayer() starts a new layer: still ours?
   void endLayer();
   void composeLayer(int x, int y, int w, int h, int src_px);
+  // The same for a layer of things drawn on the plain background (no panes), such as Starlits:
+  // only what differs from the background is copied (in Glass, the wallpaper shows behind).
+  void composeSprites(int x, int y, int w, int h, int src_px);
   // The same for a menu's rows (x = 4..124), by the graphics hardware: faster. layerRowsDone after
   // drawing rows into the layer (logical). composeList returns false if it couldn't: use composeLayer.
   void layerRowsDone(int y, int h);

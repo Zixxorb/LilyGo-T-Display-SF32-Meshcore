@@ -576,6 +576,29 @@ void SF32Display::composeLayer(int x, int y, int w, int h, int src_px) {
   }
 }
 
+void SF32Display::composeSprites(int x, int y, int w, int h, int src_px) {
+  if (!glassActive()) { composeLayer(x, y, w, h, src_px); return; }  // a plain colour: a straight copy
+  int x0 = px_x(x), x1 = px_x(x + w), y0 = px_y(y), y1 = px_y(y + h);
+  if (x0 < 0) x0 = 0;
+  if (x1 > PANEL_W) x1 = PANEL_W;
+  x0 &= ~1; x1 &= ~1;  // pairs of pixels at a time
+  const uint16_t bg = UIColor::window_bkg;
+  const uint32_t bg2 = ((uint32_t)bg << 16) | bg;
+  for (int py = y0; py < y1; py++) {  // the frame already has the wallpaper: copy only what's drawn
+    int src = src_px + (py - y0);
+    if (py < 0 || py >= PANEL_H || src < 0 || src >= s_layer_h) continue;
+    const uint32_t* from = (const uint32_t*)(s_layer + src * PANEL_W + x0);
+    uint16_t* dst = s_fb + py * PANEL_W + x0;
+    for (int i = 0, n = (x1 - x0) / 2; i < n; i++) {
+      uint32_t v = from[i];
+      if (v == bg2) continue;  // the commonest by far
+      uint16_t a = v & 0xFFFF, b = v >> 16;
+      if (a != bg) dst[i * 2] = a;
+      if (b != bg) dst[i * 2 + 1] = b;
+    }
+  }
+}
+
 void SF32Display::setSquareLayout(bool square) {
   s_area_h = square ? AREA_W : WIDE_H;
   s_offset_y = (PANEL_H - s_area_h) / 2;

@@ -422,13 +422,20 @@ public:
     float stx = hxc, sty = hyc - hh * 0.62f;
     sd.fillSoft(stx, sty, 6 * size, 6 * size, star, (int)(10 * glow));
     starShape(sd, stx, sty, 2.6f * size, hsvColor(fmodf(hue + 200, 360), 0.25f + 0.25f * glow, 1.0f));
-    if (hsz >= 2) {  // multi-byte path hashes: a ring of light round the star
-      ColorVal rc = hsvColor(fmodf(hue + 200, 360), 0.3f, 1.0f);
-      d.setColor(rc);
-      float rr = 4.4f * size, rot = still ? 0 : t * 0.0008f;
-      for (int i = 0; i < 16; i++) {
-        float a0 = rot + i * 0.3927f, a1 = a0 + 0.26f;
-        sd.drawLineAA(stx + cosf(a0) * rr, sty + sinf(a0) * rr, stx + cosf(a1) * rr, sty + sinf(a1) * rr, 0.8f * size + 0.3f);
+    if (hsz >= 2) {  // multi-byte path hashes: a ring inlaid round the star, flattened to the head's curve
+      float rx = 5.0f * size, ry = 3.1f * size, ca = cosf(headtilt), sa = sinf(headtilt);
+      float gl = still ? -1 : fmodf(t * 0.0015f, 6.2832f);  // a gleam that travels round it
+      ColorVal shade = hsvColor(hue, 0.55f, 0.5f), rc = hsvColor(fmodf(hue + 200, 360), 0.35f, 1.0f);
+      for (int pass = 0; pass < 2; pass++) {  // a groove in the head (a little lower), then the light
+        float oy = pass == 0 ? 0.7f : 0, w = pass == 0 ? 1.1f * size : 0.6f * size + 0.2f;
+        for (int i = 0; i < 20; i++) {
+          float a0 = i * 0.31416f, a1 = a0 + 0.31416f;
+          float x0 = cosf(a0) * rx, y0 = sinf(a0) * ry, x1 = cosf(a1) * rx, y1 = sinf(a1) * ry;
+          float near = 0;  // the gleam: brighter near its angle
+          if (pass && gl >= 0) { float dd = fabsf(fmodf(a0 - gl + 9.4248f, 6.2832f) - 3.1416f); near = dd > 2.4f ? (dd - 2.4f) / 0.74f : 0; }
+          d.setColor(pass == 0 ? shade : (near > 0.3f ? hsvColor(fmodf(hue + 200, 360), 0.1f, 1.0f) : rc));
+          sd.drawLineAA(stx + x0 * ca - y0 * sa, sty + oy + x0 * sa + y0 * ca, stx + x1 * ca - y1 * sa, sty + oy + x1 * sa + y1 * ca, w);
+        }
       }
     }
 
@@ -624,6 +631,8 @@ public:
     _n = 0;
     _page = 0;
     _detail_on = false;
+    _layer_ok = false;
+    _idle_frames = 0;
     _ds = DragScroll();
     int recent[RECENT], nr = 0;
     uint32_t rts[RECENT];
@@ -689,29 +698,50 @@ public:
     }
     _ds.max = maxScroll();
     bool moving = _ds.step();
+    bool ready = _layer_ok && sd.layerGen() == _lgen;
+    if (!ready && (moving || _ds.active || ++_idle_frames == 3)) {  // all of them, still, into the layer: made
+      sd.beginLayer(rowsH() + 4);                                     // soon after opening, so a drag never waits
+      for (int i = 0; i < _n; i++) drawFriend(d, i, (i / 2) * ROW_H + 24, true);
+      sd.endLayer();
+      _lgen = sd.layerGen();
+      _layer_ok = ready = true;
+    }
+    if (moving || _ds.active) {  // moving: the layer slides (60 fps); stopped, they're live again
+      if (!_ds.active || abs((int)_ds.pos - (int)_ds.start) > 0) sd.setFlushBand(TOP, 128 - TOP);
+      sd.composeSprites(0, TOP, 124, 128 - TOP, (int)lroundf(_ds.pos * SF32Display::SCALE));
+      scrollBar(d);
+      return 16;
+    }
     sd.pushClip(0, TOP, 128, 128 - TOP);
     int first = (int)(_ds.pos / ROW_H) * 2;
     for (int i = first < 0 ? 0 : first; i < _n; i++) {
-      float x = i % 2 ? 94 : 34, y = TOP + (i / 2) * ROW_H - _ds.pos + 24;
+      float y = TOP + (i / 2) * ROW_H - _ds.pos + 24;
       if (y - 28 > 128) break;
-      if (!the_mesh.getContactByIdx(_idx[i], c)) continue;
-      pet.draw(d, x, y, 0.6f, still, PetGame::seedOf(c.id.pub_key), -1, hash_sizes.get(c.id.pub_key));
-      char name[sizeof(c.name)];
-      d.translateUTF8ToBlocks(name, c.name, sizeof(name));
-      d.setTextSize(1);
-      d.setColor((c.flags & 1) ? UIColor::primary_txt : UIColor::secondary_txt);  // favourites a little brighter
-      if (d.getTextWidth(name) > 58) d.drawTextEllipsized((int)x - 29, (int)y + 16, 58, name);
-      else d.drawTextCentered((int)x, (int)y + 16, name);
+      drawFriend(d, i, y, still);
     }
     sd.popClip();
-    if (maxScroll() > 0) {  // a scroll bar, as in the menus
-      int track = 128 - TOP - 4, thumb = track * (128 - TOP) / (rowsH()), ty = TOP + (int)((track - thumb) * (_ds.pos / maxScroll()));
-      d.setColor(THEME_DIM);
-      d.fillRect(125, TOP, 2, track);
-      d.setColor(THEME_ACCENT);
-      d.fillRect(125, ty, 2, thumb);
-    }
-    return moving || _ds.active ? 16 : (still ? 60000 : 100);
+    scrollBar(d);
+    return still ? 60000 : 100;
+  }
+  void drawFriend(DisplayDriver& d, int i, float y, bool still) {
+    ContactInfo c;
+    if (!the_mesh.getContactByIdx(_idx[i], c)) return;
+    float x = i % 2 ? 94 : 34;
+    pet.draw(d, x, y, 0.6f, still, PetGame::seedOf(c.id.pub_key), -1, hash_sizes.get(c.id.pub_key));
+    char name[sizeof(c.name)];
+    d.translateUTF8ToBlocks(name, c.name, sizeof(name));
+    d.setTextSize(1);
+    d.setColor((c.flags & 1) ? UIColor::primary_txt : UIColor::secondary_txt);  // favourites a little brighter
+    if (d.getTextWidth(name) > 58) d.drawTextEllipsized((int)x - 29, (int)y + 16, 58, name);
+    else d.drawTextCentered((int)x, (int)y + 16, name);
+  }
+  void scrollBar(DisplayDriver& d) {  // as in the menus
+    if (maxScroll() <= 0) return;
+    int track = 128 - TOP - 4, thumb = track * (128 - TOP) / (rowsH()), ty = TOP + (int)((track - thumb) * (_ds.pos / maxScroll()));
+    d.setColor(THEME_DIM);
+    d.fillRect(125, TOP, 2, track);
+    d.setColor(THEME_ACCENT);
+    d.fillRect(125, ty, 2, thumb);
   }
   bool handleInput(char c) override {  // the button: back (out of meeting one first)
     if (c == 0) return false;
@@ -723,7 +753,9 @@ private:
   UITask* _task;
   int _idx[FRIENDS_MAX];
   int _n = 0, _page = 0, _detail = 0;
-  bool _detail_on = false;
+  bool _detail_on = false, _layer_ok = false;
+  int _idle_frames = 0;
+  uint32_t _lgen = 0;
   DragScroll _ds;
   int rowsH() const { return ((_n + 1) / 2) * ROW_H; }
   int maxScroll() const { int m = rowsH() - (128 - TOP); return m > 0 ? m : 0; }
