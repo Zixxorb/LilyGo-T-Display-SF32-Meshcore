@@ -42,7 +42,7 @@ device shows what's happening on the mesh, tests links, finds repeaters and keep
 
 | Feature | What it does |
 |---|---|
-| **6 clock faces** | Color, Sun (sunrise/sunset arc), Digital, Analog, Big, Info. Hold the clock to switch |
+| **7 clock faces** | Color, Sun (sunrise/sunset arc), Starlit, Digital, Analog, Big, Info. Hold the clock to switch |
 | **Signal tools** | Signal tester, repeater **finder** (warmer/colder), 902-928 MHz **band scan** |
 | **Mesh at a glance** | Activity graph, heard nodes, **My Nodes** with on-demand battery |
 | **Battery** | 48 h history graph, time left, low-battery protection |
@@ -193,7 +193,7 @@ on the clock. Long lists follow your finger and glide after a flick.
 
 | Page | Shows |
 |---|---|
-| **Clock** | Time, date, unread envelope (tap to read), battery and the status icons. Six faces |
+| **Clock** | Time, date, unread envelope (tap to read), battery and the status icons. Seven faces |
 | **Status icons** | Left of the battery %, on the clock and every page header, in one style: bolt (USB power), leaf (low power mode), moon (night: do not disturb), envelope (unread messages; on the clock it's the big one top left), Bluetooth (a phone connected). When space is short the bolt, leaf and moon come before the %, mail and Bluetooth after |
 | **Status** | Unread, messages waiting for the app, Bluetooth PIN or node name |
 | **Battery** | Charge, voltage, chip temperature, time left, 48 h graph |
@@ -262,6 +262,9 @@ Click a feature to expand it.
   node's location as set in the app (the sunrise equation; no network).
 - **Digital**, **Analog**, **Big** (stacked hours and minutes), **Info** (time plus unread,
   battery, phone and last-heard cards; also shows the next sunrise or sunset).
+- **Starlit**: the time and date with your Starlit below, as on its page (it reflects the
+  device: asleep at night, holding mail, and so on), and its line under it: its state or mood,
+  then today's finds. It animates gently (about 12 frames a second).
 
 Switch by holding the clock, or Settings > Clock > Face (also via the clock page's menu > Clock menu).
 The time comes from the phone app when it connects; until then the clock shows `--:--`.

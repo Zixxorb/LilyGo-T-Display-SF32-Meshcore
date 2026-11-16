@@ -16,8 +16,8 @@ enum MenuAction : uint8_t {
   ACT_PAGE_TOGGLE = 200,  // + page index: Settings > Pages
 };
 
-#define NUM_CLOCK_FACES 6
-static const char* const CLOCK_FACE_NAMES[NUM_CLOCK_FACES] = {"Digital", "Analog", "Big", "Info", "Color", "Sun"};
+#define NUM_CLOCK_FACES 7
+static const char* const CLOCK_FACE_NAMES[NUM_CLOCK_FACES] = {"Digital", "Analog", "Big", "Info", "Color", "Sun", "Starlit"};
 
 // Drag scrolling for lists (logical px): the list follows the finger; a flick keeps it
 // gliding and slowing down. Lists draw into SF32Display's layer once and copy the visible

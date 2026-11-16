@@ -132,6 +132,61 @@ class HomeScreen : public UIScreen {
     d.drawTextCentered(64, 108, tmp);
   }
 
+  // ---- your Starlit, on its page and on the Starlit clock face ----
+  void petPrep(uint16_t mv, bool still) {  // up to now, and what the device is doing, for it to reflect
+    int bp = mv > 0 ? sf32ShownPercent(mv) : -1;
+    bool usb = board.isExternalPowered();
+    pet.setContext((_task->sosState() ? PetGame::CTX_SOS : 0) | (_task->dndNow() ? PetGame::CTX_NIGHT : 0) |
+                   (still ? PetGame::CTX_LOWPOWER : 0) | (_task->getUnreadCount() > 0 ? PetGame::CTX_MAIL : 0) |
+                   (bp >= 0 && bp < 20 && !usb ? PetGame::CTX_LOWBATT : 0) | (usb && bp >= 0 && bp < 100 ? PetGame::CTX_CHARGING : 0));
+    pet.update(true);
+  }
+  // the line under it: every 4 s in turn, its state or mood, then today's finds (`since`: ms shown)
+  void petLine(char* out, int n, bool still, unsigned long since) {
+    uint32_t utc = _rtc->getCurrentTime();
+    today_finds.setDay(timeIsSet(utc) ? (uint32_t)((int32_t)utc + _task->localOffsetSecs(utc)) / 86400 : 0x80000000u | (millis() / 86400000UL));
+    int k = 0;
+    char tmp[64];
+    while (k < 7 && today_finds.line(k, tmp, sizeof(tmp))) k++;
+    int slot = still ? 0 : (int)((since / 4000) % (k + 1));
+    if (slot > 0 && today_finds.line(slot - 1, out, n)) return;
+    const char* cl = pet.contextLine();  // the device's state comes before its mood
+    if (cl) StrHelper::strncpy(out, cl, n); else snprintf(out, n, "your Starlit is %s", PetGame::moodName(pet.mood()));
+  }
+  // its frames, paced from the frame's start (UITask counts a delay of 20 ms or less from the
+  // frame's start, more from its end)
+  static int petDelay(unsigned long t0, int period) {
+    int left = period - (int)(millis() - t0);
+    return period <= 20 ? period : (left > 20 ? left : 21);
+  }
+  // The Starlit face: the time and date at the top, your Starlit below (as on its page: it
+  // reflects the device), and its line (state, mood, today's finds) at the bottom.
+  int drawStarlitFace(DisplayDriver& d, uint32_t now) {
+    unsigned long t0 = millis();
+    struct tm tm;
+    localTm(_task, now, tm);
+    char hm[8], ampm[4], tmp[64];
+    formatTime(now, hm, ampm);
+    d.setTextSize(3);
+    d.setColor(UIColor::primary_txt);
+    d.setCursor(6, 24);
+    d.print(hm);
+    int x = 6 + d.getTextWidth(hm) + 3;
+    d.setTextSize(1);
+    d.setColor(UIColor::secondary_txt);
+    if (ampm[0]) { d.setCursor(x, 24); d.print(ampm); }
+    dateText(tmp, tm, true);
+    d.setCursor(x, 33);
+    d.print(tmp);
+    uint16_t mv = _task->getBattMilliVolts();
+    petPrep(mv, false);
+    pet.draw(d, 64, 79, 0.84f, false, 0, -1, _node_prefs->path_hash_mode + 1);
+    petLine(tmp, sizeof(tmp), false, millis());
+    d.setTextSize(1);
+    d.setColor(THEME_DIM);
+    if (d.getTextWidth(tmp) > 120) d.drawTextEllipsized(4, 108, 120, tmp); else d.drawTextCentered(64, 108, tmp);
+    return petDelay(t0, 80);  // ~12 fps: gentle on the battery for the page seen most
+  }
   void drawInfoFace(DisplayDriver& d, uint32_t now) {
     struct tm tm;
     localTm(_task, now, tm);
@@ -419,6 +474,7 @@ public:
       else if (face == 2) drawBigFace(display, now);
       else if (face == 3) drawInfoFace(display, now);
       else if (face == 4) drawColorFace(display, now);
+      else if (face == 6) { int ms = drawStarlitFace(display, now); drawPageDots(display); return ms; }
       else drawSunFace(display, now);
       drawPageDots(display);
       int to_minute = (int)(60 - now % 60) * 1000 + 50;
@@ -941,14 +997,7 @@ public:
       unsigned long pet_t0 = millis();
       themeHeader(display, "Starlit", mv);
       bool still = _task->lowPower();
-      {  // what the device is doing, for it to reflect
-        int bp = mv > 0 ? sf32ShownPercent(mv) : -1;
-        bool usb = board.isExternalPowered();
-        pet.setContext((_task->sosState() ? PetGame::CTX_SOS : 0) | (_task->dndNow() ? PetGame::CTX_NIGHT : 0) |
-                       (still ? PetGame::CTX_LOWPOWER : 0) | (_task->getUnreadCount() > 0 ? PetGame::CTX_MAIL : 0) |
-                       (bp >= 0 && bp < 20 && !usb ? PetGame::CTX_LOWBATT : 0) | (usb && bp >= 0 && bp < 100 ? PetGame::CTX_CHARGING : 0));
-      }
-      pet.update(true);
+      petPrep(mv, still);
       pet.draw(display, 64, 57, 1.08f, still, 0, -1, _node_prefs->path_hash_mode + 1);  // (its ring: your own hash size)
       // its needs: three small bars
       const PetSave& ps = pet.stats();
@@ -969,27 +1018,14 @@ public:
       static unsigned long last_seen = 0, opened = 0;
       if (millis() - last_seen > 1500) opened = millis();
       last_seen = millis();
-      // then, every 4 s in turn: its mood and today's finds
-      uint32_t utc = _rtc->getCurrentTime();
-      today_finds.setDay(timeIsSet(utc) ? (uint32_t)((int32_t)utc + _task->localOffsetSecs(utc)) / 86400 : 0x80000000u | (millis() / 86400000UL));
       char mtxt[64];
       if (millis() - opened < 5000) strcpy(mtxt, "stroke: pet, tap: boop, hold: play");
-      else {
-        int n = 0;
-        char tmp[64];
-        while (n < 7 && today_finds.line(n, tmp, sizeof(tmp))) n++;
-        int slot = still ? 0 : (int)(((millis() - opened - 5000) / 4000) % (n + 1));
-        if (slot == 0 || !today_finds.line(slot - 1, mtxt, sizeof(mtxt))) {
-          const char* cl = pet.contextLine();  // the device's state comes before its mood
-          if (cl) StrHelper::strncpy(mtxt, cl, sizeof(mtxt)); else sprintf(mtxt, "your Starlit is %s", PetGame::moodName(pet.mood()));
-        }
-      }
+      else petLine(mtxt, sizeof(mtxt), still, millis() - opened - 5000);
       if (display.getTextWidth(mtxt) > W - 8) display.drawTextEllipsized(4, 108, W - 8, mtxt);
       else display.drawTextCentered(W / 2, 108, mtxt);
       // paced from this frame's start (not its end): ~18 fps idle, as fast as it draws (~28) in a reaction
       // (UITask counts a delay of 20 ms or less from the frame's start, more from its end)
-      int period = pet.reaction() ? 16 : 55, left = period - (int)(millis() - pet_t0);
-      next_render = still ? 60000 : (period <= 20 ? period : (left > 20 ? left : 21));
+      next_render = still ? 60000 : petDelay(pet_t0, pet.reaction() ? 16 : 55);
     } else if (_page == HomePage::NODES) {
       themeHeader(display, "Nodes", mv);
       ContactInfo fav[NODES_MAX];
