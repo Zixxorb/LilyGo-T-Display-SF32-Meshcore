@@ -152,6 +152,7 @@ class UITask : public AbstractUITask {
   UIScreen* sos_screen = NULL;
   UIScreen* qr_screen = NULL;
   UIScreen* scan_screen = NULL;  // Radio > Band scan
+  UIScreen* friends_screen = NULL;  // Starlit > Friends (ui_pet.inc)
   UIScreen* _scan_return = NULL;
   UIScreen* _qr_return = NULL;
   bool _qr_bright = false;  // brightness raised for the QR code
@@ -301,6 +302,8 @@ public:
   bool radioHasChanges() const;
   void openScan();   // band scan (ui_scan.inc)
   void closeScan();
+  void openFriends();  // the Starlits of the nodes heard (ui_pet.inc)
+  void closeFriends();
   void openQr();   // share this node's contact as a QR code (ui_qr.inc)
   void closeQr();
   void openFlashlight();

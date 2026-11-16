@@ -646,6 +646,7 @@ public:
       case HomePage::GAMES:
         m.begin("Starlit");
         m.add("Play", ACT_PET_PLAY);
+        m.add("Friends", ACT_PET_FRIENDS);  // the Starlits of the nodes heard
         m.add("Starlit menu", ACT_GAMES_MENU);  // the same submenu as Settings > Starlit
         break;
 #ifndef UI_NO_HIBERNATE

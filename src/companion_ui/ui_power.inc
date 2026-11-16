@@ -349,6 +349,7 @@ void UITask::goBack() {
   else if (curr == msg_preview) { gotoHomeScreen(); d->setTransition(SF32Display::TRANSITION_RIGHT); }  // messages stay unread
   else if (curr == qr_screen) closeQr();
   else if (curr == scan_screen) closeScan();
+  else if (curr == friends_screen) closeFriends();
   else if (curr == about_screen) closeAbout();
   else if (curr == logs_screen) closeLogs();
   else if (curr == theme_screen) closeTheme();

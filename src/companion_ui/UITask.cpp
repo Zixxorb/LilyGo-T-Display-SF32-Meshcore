@@ -826,7 +826,7 @@ void UITask::loop() {
     _auto_off = millis() + autoOffMillis();  // SF32: any swipe counts as activity
   }
   bool sub_screen = curr == menu || curr == theme_screen || curr == about_screen || curr == logs_screen ||
-                    curr == tz_screen || curr == hour_screen || curr == sos_screen || curr == qr_screen || curr == scan_screen ||
+                    curr == tz_screen || curr == hour_screen || curr == sos_screen || curr == qr_screen || curr == scan_screen || curr == friends_screen ||
                     curr == msg_preview || isRadioScreen();
   if (rotaryEv == RotaryInputEvent::Prev && sub_screen && _display != NULL && _display->isOn()) {
     goBack();  // SF32: swipe right (finger left -> right) = back

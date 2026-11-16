@@ -178,6 +178,8 @@ public:
 
     unsigned long t = still ? 0 : millis();
     int m = mood(), react = reaction();
+    bool other = seed != 0;  // a friend's: calm, its own blinks, not looking at your finger
+    if (other) { m = CONTENT; react = 0; }
     float rk = react ? (t - _react_at) / (float)_react_len : 0;
     bool sleepy = m == SLEEPY;
 
@@ -212,7 +214,7 @@ public:
       flap = sinf(rk * 50) * 0.8f; tail_speed = 300;
     }
     if (m == HUNGRY && !still && (t % 6000) < 600) cx += sinf(t * 0.12f) * 0.8f;  // a tummy rumble
-    if (_gaze_at && t - _gaze_at < 3000) {
+    if (!other && _gaze_at && t - _gaze_at < 3000) {
       float dx = _gaze_x - cx, dy = _gaze_y - cy, l = sqrtf(dx * dx + dy * dy);
       if (l > 1) { gx = dx / l; gy = dy / l; }
     } else if (!act && !still) {
@@ -245,10 +247,13 @@ public:
         px = nx; py = ny;
       }
       sd.fillShaded(px + 1.5f, py - 1, 3.4f * size, 2.4f * size, deep, 0.4f, -0.6f + wag * 0.3f);
-    } else if (k == FLUFF) {  // a big fluffy tail curling up behind
-      for (int i = 0; i < 4; i++) {
-        float u = i / 3.0f, a = wag * 0.25f;
-        sd.fillShaded(cx + bw * 0.9f + u * 6 * size + sinf(a) * 3 * u, byc - u * 12 * size, (6.5f - u * 1.2f) * size, (7.5f - u * 1.5f) * size, i == 3 ? belly : body, 0.3f, 0.4f + a);
+    } else if (k == FLUFF) {  // a comet tail: glowing orbs trailing up behind, smaller and fainter
+      for (int i = 4; i >= 0; i--) {
+        float u = i / 4.0f, a = wag * 0.3f * u;
+        float ox = cx + bw * 0.8f + u * 9 * size + sinf(a) * 4, oy = byc - u * 15 * size;
+        float rr = (4.4f - u * 2.6f) * size;
+        sd.fillSoft(ox, oy, rr * 2.2f, rr * 2.2f, star, (int)(9 - u * 5));
+        sd.fillShaded(ox, oy, rr, rr, i == 0 ? body : star, 0.7f);
       }
     } else if (k == EMBER) {  // a short tail with a flickering flame tip
       float tx = cx + bw * 1.1f + wag * 2, ty = byc + bh * 0.1f;
@@ -267,10 +272,12 @@ public:
           sd.fillShaded(wx, wy, 5.2f * size, 9 * size, deep, 0.3f, a);
           d.setColor(hsvColor(hue, 0.6f, 0.55f));
           sd.drawLineAA(cx + side * bw * 0.8f, wy + 2, wx + side * sinf(fabsf(a)) * 7, wy - 7 * size, 0.9f);
-        } else {
-          ColorVal wc = hsvColor(fmodf(hue + 30, 360), 0.28f, 1.0f);
-          sd.fillShaded(wx, wy - 1, 6.5f * size, 8.5f * size, wc, 0.25f, a);
-          sd.fillShaded(wx + side * 1.5f, wy - 1, 2.2f * size, 2.2f * size, iris, 0.6f);  // an eye-spot
+        } else {  // GLIMMER: two petals each side, pointed, with a light vein
+          ColorVal wc = hsvColor(fmodf(hue + 30, 360), 0.3f, 1.0f), wc2 = hsvColor(fmodf(hue + 60, 360), 0.22f, 1.0f);
+          sd.fillShaded(wx + side * 1, wy - 3, 3.6f * size, 9.5f * size, wc, 0.5f, a - side * 0.25f);
+          sd.fillShaded(wx + side * 2, wy + 3, 3.0f * size, 7.0f * size, wc2, 0.5f, a + side * 0.55f);
+          d.setColor(hsvColor(fmodf(hue + 30, 360), 0.15f, 1.0f));
+          sd.drawLineAA(cx + side * bw * 0.9f, wy, wx + side * sinf(fabsf(a)) * 8, wy - 8 * size, 0.6f);
         }
       }
     }
@@ -295,27 +302,32 @@ public:
     for (int side = -1; side <= 1; side += 2) {
       float ex = hxc + side * hw * 0.6f, ey = hyc - hh * 0.7f;
       float tw = side > 0 ? twitch : 0;
-      if (k == FLUFF) {          // tall pointed ears with a fluffy inside
-        float a = side * (0.28f + droop) + tw + headtilt;
-        sd.fillShaded(ex + side * 1, ey - 5 * size, 5.2f * size, 11 * size, body, 0.3f, a);
-        sd.fillShaded(ex + side * 1, ey - 4 * size, 2.6f * size, 7 * size, belly, 0.1f, a);
-      } else if (k == EMBER) {   // small round ears
-        sd.fillShaded(ex, ey, 5.0f * size, 5.0f * size, body, 0.3f);
-        sd.fillShaded(ex, ey + 0.6f, 2.8f * size, 2.8f * size, pink, 0.1f);
+      if (k == FLUFF) {          // crystal ears: two glossy shards each side
+        float a = side * (0.3f + droop) + tw + headtilt;
+        ColorVal gem = hsvColor(fmodf(hue + 190, 360), 0.35f, 1.0f);
+        sd.fillShaded(ex + side * 1.5f, ey - 5 * size, 2.6f * size, 9.5f * size, gem, 1.0f, a);
+        sd.fillShaded(ex - side * 2.5f, ey - 3 * size, 1.9f * size, 6.5f * size, gem, 1.0f, a - side * 0.35f);
+        if (!still) sd.fillSoft(ex + side * 1.5f, ey - 8 * size, 3.5f * size, 4.5f * size, 0xFFFF, (int)(3 + 3 * glow));
+      } else if (k == EMBER) {   // flame tufts that flicker
+        float fl = still ? 0 : sinf(t * 0.03f + side * 1.7f) * 0.18f + sinf(t * 0.047f + side) * 0.1f;
+        sd.fillSoft(ex, ey - 3 * size, 5 * size, 7 * size, hsvColor(30, 0.8f, 1.0f), 6);
+        sd.fillShaded(ex, ey - 2.5f * size, 3.4f * size * (1 + fl), 6.0f * size * (1 - fl), hsvColor(22, 0.85f, 1.0f), 0.3f, side * 0.25f + fl);
+        sd.fillShaded(ex, ey - 1.5f * size, 1.8f * size, 3.6f * size * (1 + fl), hsvColor(48, 0.6f, 1.0f), 0.2f, side * 0.2f - fl);
       } else if (k == DRAKE) {   // little horns
         float a = side * 0.45f + headtilt;
         sd.fillShaded(ex - side * 1.5f, ey - 2 * size, 2.2f * size, 6 * size, hsvColor(40, 0.18f, 1.0f), 0.6f, a);
-      } else {                   // GLIMMER: feathery antennae
+      } else {                   // GLIMMER: curling light-stalks with glowing orb tips
         float sway = still ? 0 : sinf(t * 6.2832f / 2800 + side) * 1.5f;
         d.setColor(deep);
-        float x0 = hxc + side * hw * 0.3f, y0 = hyc - hh * 0.85f;
-        float x1 = x0 + side * 6 * size + sway, y1 = y0 - 12 * size;
-        sd.drawLineAA(x0, y0, x1, y1, 1.0f);
-        for (int f = 1; f <= 5; f++) {
-          float u = f / 6.0f, fx = x0 + (x1 - x0) * u, fy = y0 + (y1 - y0) * u;
-          sd.drawLineAA(fx, fy, fx + side * 2.6f * size * (1 - u * 0.4f), fy + 1.6f * size, 0.8f);
-          sd.drawLineAA(fx, fy, fx - side * 1.8f * size * (1 - u * 0.4f), fy + 1.4f * size, 0.8f);
+        float px = hxc + side * hw * 0.3f, py = hyc - hh * 0.85f;
+        for (int i = 1; i <= 6; i++) {  // a curl outward, then back in at the top
+          float u = i / 6.0f, a = u * 2.2f;
+          float nx = hxc + side * (hw * 0.3f + sinf(a) * 7 * size) + sway * u, ny = hyc - hh * 0.85f - u * 12 * size;
+          sd.drawLineAA(px, py, nx, ny, 1.2f - u * 0.4f);
+          px = nx; py = ny;
         }
+        sd.fillSoft(px, py, 5 * size, 5 * size, star, (int)(5 + 5 * glow));
+        sd.fillShaded(px, py, 2.0f * size, 2.0f * size, star, 0.9f);
       }
     }
 
@@ -334,7 +346,7 @@ public:
     float fy = hyc + hh * 0.08f, eg = 6.8f * size * sx;
     float exl = hxc - eg + gx * 1.2f, exr = hxc + eg + gx * 1.2f, eyy = fy + gy * 0.9f;
     float erx = 4.0f * size, ery = 4.8f * size;
-    bool blink = !still && blinking(t);
+    bool blink = !still && blinking(t, sd0);
     bool petted = react == 1, booped = react == 3;
     sd.fillSoft(hxc - eg - 4, fy + 5.5f, 4.0f, 2.4f, pink, (m == HAPPY || petted) ? 12 : 7);
     sd.fillSoft(hxc + eg + 4, fy + 5.5f, 4.0f, 2.4f, pink, (m == HAPPY || petted) ? 12 : 7);
@@ -462,9 +474,9 @@ private:
   void bump(uint8_t& v, int by) { v = v + by > 100 ? 100 : v + by; _dirty = true; }
   void react(int kind, unsigned long len) { _react = kind; _react_at = millis(); _react_len = len; }
   // a blink of ~140 ms every 2-6 s (from the time, no state)
-  bool blinking(unsigned long t) const {
+  bool blinking(unsigned long t, uint32_t seed) const {
     unsigned long slot = t / 4000;
-    uint32_t r = (uint32_t)(slot * 2654435761u) ^ _s.seed;
+    uint32_t r = (uint32_t)(slot * 2654435761u) ^ seed;
     unsigned long at = slot * 4000 + (r % 3000);
     return t >= at && t < at + 140;
   }
@@ -501,5 +513,90 @@ private:
     sd.drawLineAA(x - r, y, x + r, y, 0.7f);
     sd.drawLineAA(x, y - r, x, y + r, 0.7f);
   }
+public:
+  // the look of another node's Starlit, from its public key (the same rule as our own)
+  static uint32_t seedOf(const uint8_t* pub_key) {
+    uint32_t h = 2166136261u;
+    for (int i = 0; i < PUB_KEY_SIZE; i++) { h ^= pub_key[i]; h *= 16777619u; }
+    return h ? h : 1;
+  }
 };
 static PetGame pet;
+
+// Friends: the Starlits of the nodes you've heard (each drawn from its key; nothing is sent).
+// Four at a time, newest first; a tap shows the next four; swipe right or the button: back.
+class FriendsScreen : public UIScreen {
+public:
+  FriendsScreen(UITask* task) : _task(task) {}
+  void reset() {
+    _n = 0;
+    _page = 0;
+    struct E { uint32_t ts; int idx; } list[FRIENDS_MAX];
+    int total = the_mesh.getNumContacts();
+    for (int i = 0; i < total; i++) {
+      ContactInfo c;
+      if (!the_mesh.getContactByIdx(i, c)) continue;
+      E e = {c.last_advert_timestamp, i};
+      int k = _n < FRIENDS_MAX ? _n++ : FRIENDS_MAX - 1;
+      if (k == FRIENDS_MAX - 1 && _n == FRIENDS_MAX && e.ts <= list[k].ts) continue;
+      while (k > 0 && list[k - 1].ts < e.ts) { list[k] = list[k - 1]; k--; }
+      list[k] = e;
+    }
+    for (int i = 0; i < _n; i++) _idx[i] = list[i].idx;
+  }
+  void next() { int pages = (_n + 3) / 4; _page = pages ? (_page + 1) % pages : 0; }
+  int render(DisplayDriver& d) override {
+    themeHeader(d, "Friends", _task->getBattMilliVolts());
+    d.setTextSize(1);
+    if (_n == 0) {
+      d.setColor(UIColor::secondary_txt);
+      d.drawTextCentered(64, 50, "No other nodes yet");
+      d.drawTextCentered(64, 62, "the Starlits of the nodes");
+      d.drawTextCentered(64, 72, "you hear show up here");
+      return 5000;
+    }
+    bool still = _task->lowPower();
+    for (int q = 0; q < 4; q++) {
+      int i = _page * 4 + q;
+      if (i >= _n) break;
+      ContactInfo c;
+      if (!the_mesh.getContactByIdx(_idx[i], c)) continue;
+      float x = q % 2 ? 94 : 34, y = q < 2 ? 42 : 88;
+      pet.draw(d, x, y, 0.48f, still, PetGame::seedOf(c.id.pub_key));
+      char name[sizeof(c.name)];
+      d.translateUTF8ToBlocks(name, c.name, sizeof(name));
+      d.setColor(UIColor::secondary_txt);
+      if (d.getTextWidth(name) > 58) d.drawTextEllipsized((int)x - 29, (int)y + 13, 58, name);
+      else d.drawTextCentered((int)x, (int)y + 13, name);
+    }
+    char tmp[32];
+    int pages = (_n + 3) / 4;
+    if (pages > 1) sprintf(tmp, "tap: more  -  %d/%d", _page + 1, pages);
+    else strcpy(tmp, "swipe right: back");
+    d.setColor(THEME_DIM);
+    d.drawTextCentered(64, 114, tmp);
+    return still ? 60000 : 120;
+  }
+  bool handleInput(char c) override {  // the button: back
+    if (c == 0) return false;
+    _task->closeFriends();
+    return true;
+  }
+private:
+  static const int FRIENDS_MAX = 48;
+  UITask* _task;
+  int _idx[FRIENDS_MAX];
+  int _n = 0, _page = 0;
+};
+
+void UITask::openFriends() {
+  if (!friends_screen) friends_screen = new FriendsScreen(this);
+  ((FriendsScreen*)friends_screen)->reset();
+  _menu_return = NULL;
+  ((SF32Display*)_display)->setTransition(SF32Display::TRANSITION_LEFT);
+  setCurrScreen(friends_screen);
+}
+void UITask::closeFriends() {
+  ((SF32Display*)_display)->setTransition(SF32Display::TRANSITION_RIGHT);
+  setCurrScreen(home);
+}

@@ -574,6 +574,7 @@ void UITask::menuAction(uint8_t action) {
       showAlert("Pet reset", 1500);
       openMenu(_menu_kind);
       break;
+    case ACT_PET_FRIENDS: openFriends(); break;
     case ACT_PET_PLAY:
       closeMenu();
       pet.play();
@@ -739,7 +740,7 @@ void UITask::handleTouchMenus() {
   bool page_taps = curr == home && h->wantsTaps();
   bool editor = isRadioScreen() || curr == theme_screen || curr == about_screen || curr == logs_screen ||
                 curr == tz_screen || curr == hour_screen || curr == sos_screen ||
-                curr == qr_screen || curr == scan_screen;
+                curr == qr_screen || curr == scan_screen || curr == friends_screen;
   touch_input.setDirectTaps(curr == menu || editor || page_taps);
   if (_drag_on && (curr != home || _display == NULL || !_display->isOn())) {
     _drag_on = false;  // something else took over mid-drag: the next frame draws what's current
@@ -853,6 +854,7 @@ void UITask::handleTouchMenus() {
     else if (curr == sos_screen) {}  // only its button leaves it
     else if (curr == qr_screen) closeQr();
     else if (curr == scan_screen) closeScan();
+    else if (curr == friends_screen) closeFriends();
     else if (curr == menu) {
       // a panel goes back the way it came. The power menu came down from
       // the top: swipe up; menus that came up from the bottom: swipe down.
@@ -893,6 +895,9 @@ void UITask::handleTouchMenus() {
     ((TimezoneScreen*)tz_screen)->handleTap(x, y);
   } else if (curr == hour_screen) {
     ((HourScreen*)hour_screen)->handleTap(x, y);
+  } else if (curr == friends_screen) {
+    ((FriendsScreen*)friends_screen)->next();  // tap: the next four
+    _next_refresh = 0;
   } else if (curr == scan_screen) {
     ((ScanScreen*)scan_screen)->reset();  // tap: start over (clears the max hold)
   } else if (curr == qr_screen) {

@@ -198,7 +198,7 @@ on the clock. Long lists follow your finger and glide after a flick.
 | **Signal** | Signal tester and repeater finder |
 | **Activity** | Packets per hour over 24 h and how busy the channel is |
 | **Nodes** | Your favourite contacts: last heard, hops, battery on tap |
-| **Starlit** | A Starlit of your own: a little critter with a glowing star mark, one of four kinds (Drake, Fluff, Glimmer, Ember) with its colours and eyes from your node's key, so every node's is different. It's fed by the mesh traffic the radio hears, grows curious from adverts and new nodes, rests while the screen is off. Stroke it to pet it, tap it to boop it, hold it to play. It never transmits, never dies and never nags |
+| **Starlit** | A Starlit of your own: a little critter with a glowing star mark, one of four kinds (Drake, Fluff, Glimmer, Ember) with its colours and eyes from your node's key, so every node's is different. It's fed by the mesh traffic the radio hears, grows curious from adverts and new nodes, rests while the screen is off. Stroke it to pet it, tap it to boop it, hold it to play. Its menu's Friends shows the Starlits of the nodes you've heard (drawn from their keys). It never transmits, never dies and never nags |
 | **Power** | Hold the icon for the power menu |
 
 Pages can be hidden in **Settings > Pages** (the clock always shows).
