@@ -450,7 +450,21 @@ bool SF32Display::glassOn() const { return glassActive(); }
 void SF32Display::setGlassPaused(bool paused) { s_glass_paused = paused; }
 
 // Fill n pixels with one colour, two at a time (much faster than 16-bit stores).
+// Fill n pixels with one colour. Big fills (a frame, a layer, strips during slides) go by DMA,
+// so a theme's background (black or ChattaMesh's navy alike) costs the CPU almost nothing.
 static void fill16(uint16_t* p, ColorVal c, int n) {
+#ifdef SF32_GFX_HW
+  if (n >= 4096 && ((uintptr_t)p & 3) == 0 && (n & 1) == 0) {
+    static uint32_t word = 0;  // in RAM: not const (flash is very slow for DMA)
+    word = ((uint32_t)c << 16) | c;
+    mpu_dcache_clean(&word, 4);
+    mpu_dcache_clean((void*)p, n * 2);
+    if (EXT_DMA_Config(0, 1) == RT_EOK && EXT_DMA_TRANS_SYNC((uint32_t)&word, (uint32_t)p, n / 2, 200) == RT_EOK) {
+      mpu_dcache_invalidate((void*)p, n * 2);
+      return;
+    }
+  }
+#endif
   if (c == 0) { memset(p, 0, n * 2); return; }
   uint32_t two = ((uint32_t)c << 16) | c;
   uint32_t* q = (uint32_t*)p;  // frame buffers are 64-byte aligned, n even

@@ -335,8 +335,10 @@ static int drawMarquee(DisplayDriver& d, int x, int y, int w, const char* text) 
 }
 
 static void themeDots(DisplayDriver& d, int page, int count, int y = 121) {
-  int x = d.width() / 2 - 5 * (count - 1);
-  for (int i = 0; i < count; i++, x += 10) {
+  // 10 apart, closer with many pages: the row stays within ~92 of the 128 (clear of the edges)
+  int step = count > 1 && 92 / (count - 1) < 10 ? 92 / (count - 1) : 10;
+  int x = d.width() / 2 - step * (count - 1) / 2;
+  for (int i = 0; i < count; i++, x += step) {
     if (i == page) {
       d.setColor(THEME_ACCENT);
       d.fillRect(x - 1, y - 1, 4, 4);
