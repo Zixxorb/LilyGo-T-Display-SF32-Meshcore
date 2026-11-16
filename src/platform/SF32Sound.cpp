@@ -359,7 +359,9 @@ static bool start_thread() {
   if (s_started) return true;
   rt_event_init(&s_ev, "sndev", RT_IPC_FLAG_FIFO);
   rt_mb_init(&s_mb, "sndmb", s_mb_pool, 2, RT_IPC_FLAG_FIFO);
-  rt_thread_t t = rt_thread_create("sound", sound_thread, RT_NULL, 2048, 12, 10);
+  // priority 9: above the main (UI) thread (10), so a busy frame (the pet, Glass) can't starve the
+  // audio and make it stutter; it mostly waits, and fills a 10 ms chunk quickly when it runs
+  rt_thread_t t = rt_thread_create("sound", sound_thread, RT_NULL, 2048, 9, 10);
   if (!t) return false;
   rt_thread_startup(t);
   s_started = true;
@@ -367,6 +369,7 @@ static bool start_thread() {
 }
 
 bool SF32Sound::running() { return s_running; }
+bool SF32Sound::playing() { return s_busy; }
 
 bool SF32Sound::ready() {
   // open and past the DAC's volume ramp after unmuting (short sounds play at full level)

@@ -219,9 +219,9 @@ void UITask::glassLightLoop() {
   }
   if (!want || !motion.ready()) return;
   // never mid-swipe or mid-slide: a redraw then costs the slide (and the sound) its time
-  if (d->transitionPending() || touch_input.fingerDown()) return;
+  if (d->transitionPending() || touch_input.fingerDown() || sound.playing()) return;  // (nor while a sound plays: it needs the CPU)
   static unsigned long last = 0;
-  if (millis() - last < 100) return;
+  if (millis() - last < 200) return;  // (at most 5 redraws a second)
   last = millis();
   // The light moves with changes in tilt from how it's being held (a slow-following baseline),
   // so it responds the same held upright or lying flat, and drifts back to its resting place
@@ -236,7 +236,7 @@ void UITask::glassLightLoop() {
   ly += (ty - ly) * 0.5f;
   static int shown_x = -1000, shown_y = -1000;
   int x = (int)lx, y = (int)ly;
-  if (abs(x - shown_x) < 6 && abs(y - shown_y) < 6) return;
+  if (abs(x - shown_x) < 14 && abs(y - shown_y) < 14) return;  // real movement, not the hand's tremor
   shown_x = x;
   shown_y = y;
   d->setGlassLight(true, x, y);

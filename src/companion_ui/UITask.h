@@ -264,6 +264,7 @@ public:
   bool motionWanted() const { return !lowPower() && (_ui_prefs.lift_wake || _ui_prefs.flip_quiet || _ui_prefs.rotation == 2); }
   bool _glass_light_live = false;  // the tilt light is running (Glass shown, screen on): needs the motion sensor
   void glassLightLoop();
+  void petStroke();
   void applyMotion();
   void setLowPower(uint8_t mode);  // 0 off, 1 by hand, 2 auto
   void petSound(int kind);  // the pet's chirp: 1 petted, 2 playing (Settings > Games > Sounds)

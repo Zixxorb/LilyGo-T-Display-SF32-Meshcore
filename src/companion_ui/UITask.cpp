@@ -835,6 +835,8 @@ void UITask::loop() {
   if (rotaryEv == RotaryInputEvent::Next && curr == msg_preview && _display != NULL && _display->isOn()) {
     c = KEY_NEXT;  // SF32: in the messages, swipe left = the next one
   }
+  // SF32: on the home pages a page swipe must start near an edge (the middle is the page's own)
+  if (curr == home && !touch_input.edgeStart() && (rotaryEv == RotaryInputEvent::Next || rotaryEv == RotaryInputEvent::Prev)) rotaryEv = RotaryInputEvent::None;
   if (c == 0 && _display != NULL && _display->isOn() && !sub_screen) {  // SF32: pages only
     if (rotaryEv == RotaryInputEvent::Next) {
       c = KEY_NEXT;

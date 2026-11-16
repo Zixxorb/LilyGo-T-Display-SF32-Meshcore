@@ -638,10 +638,40 @@ bool MenuScreen::handleInput(char c) {
 #define PAGE_SWIPE_MIN   60     // panel px: a quick touch this far is a swipe, whatever was shown
 #define PAGE_SWIPE_MS    350
 #define MENU_SWIPE_MIN   60     // panel px up or down on a page: the menu opens, finger still down
+// The Games page: a finger moving over the pet strokes it (a pet every ~70 px of movement).
+// Taken over at once, so the stroke doesn't also open a menu or count as a tap.
+void UITask::petStroke() {
+  HomeScreen* h = (HomeScreen*)home;
+  static int lx = -1, ly = -1, moved = 0;
+  if (!h->gamesPage() || !touch_input.fingerDown()) { lx = -1; return; }
+  int x0, y0;
+  SF32Display::panelToLogical(touch_input.fingerX0(), touch_input.fingerY0(), x0, y0);
+  if (!h->iconHit(x0, y0)) return;  // not started on the pet
+  int px = touch_input.fingerX(), py = touch_input.fingerY();
+  if (lx < 0) { lx = px; ly = py; moved = 0; return; }
+  int step = abs(px - lx) + abs(py - ly);
+  lx = px; ly = py;
+  if (step == 0) return;
+  if (!touch_input.touchConsumed() && abs(px - touch_input.fingerX0()) + abs(py - touch_input.fingerY0()) < 14) return;  // (still: a tap or a hold)
+  touch_input.consumeTouch();
+  moved += step;
+  int fx, fy;
+  SF32Display::panelToLogical(px, py, fx, fy);
+  pet.look(fx, fy);
+  if (moved >= 70) {
+    moved = 0;
+    if (pet.pet()) petSound(1);
+    _next_refresh = 0;
+  }
+}
+
 void UITask::pageDrag() {
   HomeScreen* h = (HomeScreen*)home;
   SF32Display* d = (SF32Display*)_display;
   if (!_drag_on) {
+    // only from near an edge: the middle is the page's own (the Games page: stroking the pet)
+    if (touch_input.fingerDown() && !touch_input.edgeStart()) { if (_hold_frac == 0 && !_hold_done) petStroke(); return; }
+    petStroke();  // (resets it)
     if (!touch_input.fingerDown() || touch_input.touchConsumed() || _hold_frac > 0 || _hold_done) return;
     int dx = touch_input.fingerX() - touch_input.fingerX0(), dy = touch_input.fingerY() - touch_input.fingerY0();
     if (abs(dx) < PAGE_DRAG_SLOP || abs(dx) < 2 * abs(dy)) return;

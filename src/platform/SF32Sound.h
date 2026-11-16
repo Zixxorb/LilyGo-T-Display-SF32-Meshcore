@@ -21,6 +21,7 @@ public:
   // path is closed (back on for the next sound).
   void powerSave(bool on);
   bool ready();
+  bool playing();  // a sound is playing right now
   bool running();  // the audio path is open  // the path is open and up to full level (a short sound plays properly)
   // touch feedback (skipped while something else plays): style 1 click, 2 pop, 3 tick
   void tap(uint8_t style, Volume vol) {

@@ -508,6 +508,7 @@ public:
   // SF32: menus
   void showRadio() { _page = HomePage::RADIO; }
   int currentPage() const { return _page; }
+  bool gamesPage() const { return _page == HomePage::GAMES; }
 
   // Touch: pages with on-screen buttons take taps directly (see UITask::handleTouchMenus).
   void dragStep(int dir) { stepPage(dir); }  // a page being dragged in (UITask::pageDrag)
@@ -960,7 +961,7 @@ public:
       }
       display.setColor(THEME_DIM);
       char mtxt[32];
-      sprintf(mtxt, "%s  -  tap: pet, hold: play", PetGame::moodName(pet.mood()));
+      sprintf(mtxt, "%s  -  stroke: pet, hold: play", PetGame::moodName(pet.mood()));
       display.drawTextCentered(W / 2, 108, mtxt);
       next_render = still ? 60000 : (pet.reaction() ? 33 : 70);
     } else if (_page == HomePage::NODES) {

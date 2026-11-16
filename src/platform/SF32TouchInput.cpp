@@ -64,10 +64,12 @@ void SF32TouchInput::update() {
     } else if (kind == 2 || kind == 3) {
       if (display.isOn()) { _gesture = kind == 2 ? Gesture::SwipeUp : Gesture::SwipeDown; _click = 2; }
     } else if (kind == 4 || kind == 5) {
+      _remote_swipe = true;
       if (display.isOn()) { _pending = kind == 4 ? RotaryInputEvent::Next : RotaryInputEvent::Prev; _click = 2; }
     } else if (kind == 7) {  // finger down and held at (x, y) (hold gestures), until kind 8
       _down = true;
       _consumed = false;
+      _remote_swipe = false;  // (a drag: judged by where it starts, like a real one)
       _x0 = _x = (rc >> 12) & 0xFFF;
       _y0 = _y = rc & 0xFFF;
       _down_at = millis();
@@ -108,6 +110,7 @@ void SF32TouchInput::update() {
       if (!_down) {
         _down = true;
         _consumed = false;
+        _remote_swipe = false;
         _x0 = m.x;
         _y0 = m.y;
         _down_at = millis();

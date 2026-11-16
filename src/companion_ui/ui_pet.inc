@@ -274,7 +274,7 @@ public:
     sd.fillSoft(bx - eg - 3.5f, fy + 5, 4.2f, 2.6f, pink, (m == HAPPY || m == EXCITED) ? 12 : 7);
     sd.fillSoft(bx + eg + 3.5f, fy + 5, 4.2f, 2.6f, pink, (m == HAPPY || m == EXCITED) ? 12 : 7);
     d.setColor(ink);
-    if (m == HAPPY || m == EXCITED) {  // "^ ^"
+    if (m == EXCITED && react == 1) {  // "^ ^" while being petted (otherwise open: it looks at you)
       for (int s2 = 0; s2 < 2; s2++) arcLine(sd, s2 ? exr : exl, eyy + 1.2f, 3.0f * size, false, 1.9f);
     } else if (sleepy || blink) {      // closed: a gentle curve
       for (int s2 = 0; s2 < 2; s2++) arcLine(sd, s2 ? exr : exl, eyy - 0.6f, 2.8f * size, true, 1.6f);
