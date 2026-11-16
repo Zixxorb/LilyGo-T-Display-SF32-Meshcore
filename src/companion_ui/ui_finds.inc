@@ -77,6 +77,9 @@ private:
     load();
     uint32_t d = findsToday();
     if (d == _f.day) return;
+    // the time isn't known yet (after a reboot, until the phone or the mesh sets it): keep
+    // counting into the saved day rather than wiping it
+    if ((d & 0x80000000u) && _f.day && !(_f.day & 0x80000000u)) return;
     memset(&_f, 0, sizeof(_f));
     _f.magic = FINDS_MAGIC;
     _f.day = d;

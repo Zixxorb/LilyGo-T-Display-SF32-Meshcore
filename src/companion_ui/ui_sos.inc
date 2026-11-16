@@ -182,7 +182,10 @@ void UITask::sendSos() {
 #endif
   char line[48];
   snprintf(line, sizeof(line), "SOS %s %d/%d: %s", ok ? "sent" : "failed", _sos_sent + 1, SOS_SENDS, ch.name);
-  board.logEvent(line);
+  static uint8_t failed_logged = 0xFF;  // a failure is logged once per send, not every retry (the log keeps ~20)
+  if (_sos_state == SOS_COUNTDOWN) failed_logged = 0xFF;  // (a new SOS: its own first failure is logged)
+  if (ok || failed_logged != _sos_sent) board.logEvent(line);
+  if (!ok) failed_logged = _sos_sent;
   if (!ok) {  // not sent (MeshCore had no free packet): try again soon, and the screen says so
     _sos_t = millis() + SOS_RETRY_MS;
     _sos_state = SOS_ACTIVE;

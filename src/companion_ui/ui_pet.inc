@@ -33,10 +33,10 @@ public:
   bool note(const uint8_t* pub_key, uint8_t path_len) {
     uint8_t sz = (path_len >> 6) + 1, hops = path_len & 63;
     if (sz > 3) return false;                // reserved (MeshCore drops these anyway)
-    if (sz == 1 && hops == 0) return false;  // a direct advert: not known from this
     load();
     int at = find(pub_key);
-    if (at > 0) at = toFront(at);            // heard again: the newest (strangers don't push friends out)
+    if (at > 0) at = toFront(at);            // heard again, even directly: the newest (strangers don't push friends out)
+    if (sz == 1 && hops == 0) return false;  // a direct advert: its size isn't known from this
     if (at >= 0 && (_e[at].v & SIZE) == sz) return false;
     bool upgraded = at >= 0 && (_e[at].v & SIZE) == 1 && (_e[at].v & NUDGED) && sz >= 2;
     if (at < 0) at = add(pub_key);
