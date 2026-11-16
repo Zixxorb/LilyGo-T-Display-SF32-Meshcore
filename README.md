@@ -332,9 +332,10 @@ too.
   breathes, blinks, looks at your finger, and does little things on its own.
 - **Friends** (its swipe-up menu): the Starlits of your favourite nodes and the 5 others heard
   most recently, in a grid that scrolls; tap one to meet it.
-- **Path-hash size**: a Starlit whose node sends 2- or 3-byte path hashes wears a ring of light
-  round its star (yours too); the meet view says which, learnt from the node's adverts (no
-  messages needed). Kept in a tiny file (5 bytes a node, the newest 32).
+- **Path-hash size**: each Starlit glows with a faint aura for its node's path-hash size:
+  amber for 1-byte, cyan for 2-byte, violet for 3-byte (none until it's known; yours from your
+  setting). The meet view says it in words. Learnt from the node's adverts (no messages
+  needed), kept in a tiny file (5 bytes a node, the newest 32).
 - **Gentle by design**: it never dies or nags, and never transmits anything. While the screen is
   off it does nothing at all (no battery cost); time away is caught up when you look. It's
   saved on the board and survives reflashing. Sounds and Reset are in Settings > Starlit.
@@ -477,8 +478,9 @@ auto-replies.
   Glass style; Bluetooth advertises every 2 s instead of 500 ms while no phone is connected,
   and once a connected phone has been quiet for 30 s it's asked for a slower rhythm (messages
   from the phone then take up to ~0.4 s); the radio uses power-saving receive gain (about
-  0.7 mA less, a little less sensitive; the app's setting comes back afterwards).
-  The radio keeps listening and your phone can still connect. Your settings aren't changed:
+  0.7 mA less, a little less sensitive; the app's setting comes back afterwards). The
+  screen draws at most 30 frames a second (slides and scrolling included), and Starlits hold
+  still. The radio keeps listening and your phone can still connect. Your settings aren't changed:
   turning it off puts everything back. **Auto at** turns it on by itself when the battery
   reaches that level (once per discharge, not again if you turn it off), and USB power turns
   an automatic one back off. It saves power while the screen is on; with the screen off the

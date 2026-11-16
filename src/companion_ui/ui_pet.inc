@@ -211,7 +211,7 @@ public:
   int kind() const { return (_s.seed >> 3) & 3; }
 
   // (seed / kind_of: another look, e.g. a friend's pet; 0 / -1: this one's)
-  // hsz: its node's path-hash size (0 not known): 2-3 bytes put a ring of light round the star
+  // hsz: its node's path-hash size (0 not known): a faint aura in its colour
   void draw(DisplayDriver& d, float cx, float cy, float size, bool still, uint32_t seed = 0, int kind_of = -1, int hsz = 0) {
     SF32Display& sd = (SF32Display&)d;
     const uint32_t sd0 = seed ? seed : _s.seed;
@@ -294,6 +294,15 @@ public:
     else { byc = ground - bh - 2.5f * size - lift; hyc = byc - bh - hh * 0.5f; }
     float hxc = cx + sinf(headtilt) * 4;
 
+    // its node's path-hash size: a faint aura round all of it (1 byte amber, 2 cyan, 3 violet)
+    if (hsz >= 1 && hsz <= 3) {
+      static const float AURA_HUE[3] = {35, 185, 275};
+      // round its own head and body (not down to the ground), so it moves as it does: hops, bobs, sways, breathes
+      float top = hyc - hh, bot = hyc + hh > byc + bh ? hyc + hh : byc + bh;
+      float ay = (top + bot) / 2, ah = (bot - top) / 2 + 9 * size, aw = (hw > bw ? hw : bw) + 12 * size;
+      float pulse = still ? 1 : 0.85f + 0.15f * sinf(t * 6.2832f / 3000);
+      sd.fillSoft((hxc + cx) / 2, ay, aw, ah, hsvColor(AURA_HUE[hsz - 1], 0.8f, 1.0f), (int)(16 * pulse));
+    }
     // under it: a shadow (a soft glow for the floating Glimmer)
     float air = (lift + hover) / 8;
     if (k == GLIMMER) sd.fillSoft(cx, ground, 12 * size * (1 - air * 0.15f), 3.0f * size, star, (int)(7 * (1 - air * 0.3f)));
@@ -422,22 +431,6 @@ public:
     float stx = hxc, sty = hyc - hh * 0.62f;
     sd.fillSoft(stx, sty, 6 * size, 6 * size, star, (int)(10 * glow));
     starShape(sd, stx, sty, 2.6f * size, hsvColor(fmodf(hue + 200, 360), 0.25f + 0.25f * glow, 1.0f));
-    if (hsz >= 2) {  // multi-byte path hashes: a ring inlaid round the star, flattened to the head's curve
-      float rx = 5.0f * size, ry = 3.1f * size, ca = cosf(headtilt), sa = sinf(headtilt);
-      float gl = still ? -1 : fmodf(t * 0.0015f, 6.2832f);  // a gleam that travels round it
-      ColorVal shade = hsvColor(hue, 0.55f, 0.5f), rc = hsvColor(fmodf(hue + 200, 360), 0.35f, 1.0f);
-      for (int pass = 0; pass < 2; pass++) {  // a groove in the head (a little lower), then the light
-        float oy = pass == 0 ? 0.7f : 0, w = pass == 0 ? 1.1f * size : 0.6f * size + 0.2f;
-        for (int i = 0; i < 20; i++) {
-          float a0 = i * 0.31416f, a1 = a0 + 0.31416f;
-          float x0 = cosf(a0) * rx, y0 = sinf(a0) * ry, x1 = cosf(a1) * rx, y1 = sinf(a1) * ry;
-          float near = 0;  // the gleam: brighter near its angle
-          if (pass && gl >= 0) { float dd = fabsf(fmodf(a0 - gl + 9.4248f, 6.2832f) - 3.1416f); near = dd > 2.4f ? (dd - 2.4f) / 0.74f : 0; }
-          d.setColor(pass == 0 ? shade : (near > 0.3f ? hsvColor(fmodf(hue + 200, 360), 0.1f, 1.0f) : rc));
-          sd.drawLineAA(stx + x0 * ca - y0 * sa, sty + oy + x0 * sa + y0 * ca, stx + x1 * ca - y1 * sa, sty + oy + x1 * sa + y1 * ca, w);
-        }
-      }
-    }
 
     // ---- face ----
     float fy = hyc + hh * (k == DRAKE ? -0.12f : (k == FLUFF ? -0.06f : 0.06f)), eg = (k == EMBER ? 7.6f : 6.8f) * size * sx;
@@ -703,6 +696,7 @@ public:
       sd.beginLayer(rowsH() + 4);                                     // soon after opening, so a drag never waits
       for (int i = 0; i < _n; i++) drawFriend(d, i, (i / 2) * ROW_H + 24, true);
       sd.endLayer();
+      sd.layerSpans();
       _lgen = sd.layerGen();
       _layer_ok = ready = true;
     }

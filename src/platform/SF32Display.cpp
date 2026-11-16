@@ -479,12 +479,16 @@ void SF32Display::clear() {
 static uint16_t* s_saved_fb;
 static int s_saved_area_h, s_saved_offset_y;
 static int s_layer_h = 0;  // rows drawn in the last beginLayer()
+// each layer row's content, [x0, x1) panel px (x0 >= x1: none), when s_spans_ok (layerSpans)
+static uint16_t s_span0[LAYER_ROWS], s_span1[LAYER_ROWS];
+static bool s_spans_ok = false;
 
 static uint32_t s_layer_gen = 0;  // bumped each time the layer is cleared for a new list
 uint32_t SF32Display::layerGen() const { return s_layer_gen; }
 
 int SF32Display::beginLayer(int h, bool clear) {
   s_layer_gen++;
+  s_spans_ok = false;
   int rows = (int)lroundf(h * SCALE) + 4;
   if (rows > LAYER_ROWS) rows = LAYER_ROWS;
   s_layer_h = rows;
@@ -510,12 +514,26 @@ void SF32Display::clearRows(int y, int h) {
 }
 
 void SF32Display::resumeLayer() {
+  s_spans_ok = false;
   s_saved_fb = s_fb;
   s_saved_area_h = s_area_h;
   s_saved_offset_y = s_offset_y;
   s_fb = s_layer;
   s_offset_y = -s_shift_y;
   s_area_h = s_layer_h;
+}
+
+void SF32Display::layerSpans() {
+  const uint16_t bg = UIColor::window_bkg;
+  const uint32_t bg2 = ((uint32_t)bg << 16) | bg;
+  for (int r = 0; r < s_layer_h; r++) {
+    const uint32_t* row = (const uint32_t*)(s_layer + r * PANEL_W);
+    int a = 0, b = PANEL_W / 2;
+    while (a < b && (row[a] == bg2 || row[a] == 0)) a++;
+    while (b > a && (row[b - 1] == bg2 || row[b - 1] == 0)) b--;
+    s_span0[r] = a * 2; s_span1[r] = b * 2;
+  }
+  s_spans_ok = true;
 }
 
 void SF32Display::endLayer() {
@@ -558,10 +576,25 @@ void SF32Display::composeLayer(int x, int y, int w, int h, int src_px) {
       }
       const uint16_t* from = s_layer + src * PANEL_W;
       const uint16_t* frost = s_frost + py * PANEL_W;
-      for (int i = x0; i < x1; i++) {
+      int rx0 = x0, rx1 = x1;
+      if (s_spans_ok && !bare) {  // only where the row has something (the frame has the wallpaper)
+        if (s_span0[src] > rx0) rx0 = s_span0[src];
+        if (s_span1[src] < rx1) rx1 = s_span1[src];
+      }
+      // the layer's background (black, or a theme's colour such as ChattaMesh's navy) is bare
+      // wallpaper, already in the frame: skipped two pixels at a time (it was blended, ~47 ms)
+      const uint16_t bg = UIColor::window_bkg;
+      const uint32_t bg2 = ((uint32_t)bg << 16) | bg;
+      const uint32_t key2 = ((uint32_t)GLASS_KEY << 16) | GLASS_KEY;
+      for (int i = rx0; i < rx1; i++) {
+        if (!(i & 1) && i + 1 < rx1) {  // two at a time where they're plain pane or background
+          uint32_t v = *(const uint32_t*)(from + i);
+          if (v == key2) { *(uint32_t*)(dst + i) = *(const uint32_t*)(frost + i); i++; continue; }
+          if (v == bg2 || v == 0) { if (bare) *(uint32_t*)(dst + i) = *(const uint32_t*)(wall + i); i++; continue; }
+        }
         uint16_t p = from[i];
-        if (p == GLASS_KEY) dst[i] = frost[i];  // the commonest by far
-        else if (p == 0) { if (bare) dst[i] = wall[i]; }
+        if (p == GLASS_KEY) dst[i] = frost[i];
+        else if (p == 0 || p == bg) { if (bare) dst[i] = wall[i]; }
         else dst[i] = add565(frost[i], p);
       }
     }
@@ -699,6 +732,7 @@ void SF32Display::layerRowsDone(int y, int h) {
 
 // A slice of a menu's rows into the frame: panes frosting what's behind, then what's on them. On
 // a list frame (nothing drawn behind it) the wallpaper goes in first, band margins included.
+int SF32Display::listRows() { return glassActive() ? OVER_ROWS : s_layer_h; }
 bool SF32Display::composeList(int y, int h, int src_px) {
   const int x0 = px_x(4), x1 = x0 + OVER_W;
   int y0 = px_y(y), y1 = px_y(y + h);
@@ -706,7 +740,7 @@ bool SF32Display::composeList(int y, int h, int src_px) {
   if (y1 > PANEL_H) y1 = PANEL_H;
   if (src_px < 0 || y1 <= y0) return true;
   const int rows = glassActive() ? OVER_ROWS : s_layer_h;
-  if (src_px + (y1 - y0) > rows) y1 = y0 + rows - src_px;
+  if (src_px + (y1 - y0) > rows) return false;  // past what the hardware's copy holds: composeLayer does it
   if (y1 <= y0) return true;
   const int by0 = _list_frame ? (y0 - 6 < 0 ? 0 : y0 - 6) : y0;
   const int by1 = _list_frame ? (y1 + 6 > PANEL_H ? PANEL_H : y1 + 6) : y1;
@@ -743,6 +777,7 @@ bool SF32Display::composeList(int y, int h, int src_px) {
 #else
 void SF32Display::layerRowsDone(int, int) {}
 bool SF32Display::composeList(int, int, int) { return false; }
+int SF32Display::listRows() { return 0; }
 #endif
 
 
@@ -1510,8 +1545,15 @@ void SF32Display::animate(Transition dir) {
 }
 
 // One frame of a slide: the new frame `off` panel pixels in. The first part waits for the panel's sync.
+bool SF32Display::s_cap30 = false;
 void SF32Display::slideTo(Transition dir, int off) {
   const int W = PANEL_W, Hh = PANEL_H;
+  if (s_cap30) {  // low power mode: at most 30 frames a second (a slide is timed by the clock: same length)
+    static rt_tick_t last = 0;
+    int32_t wait = (int32_t)(last + rt_tick_from_millisecond(33) - rt_tick_get());
+    if (wait > 0 && wait < 40) rt_thread_delay(wait);
+    last = rt_tick_get();
+  }
   off &= ~1;  // the panel's windows start on even pixels
   if (dir == TRANSITION_LEFT) {          // new page comes in from the right
     sendPart(s_shown, off, 0, 0, 0, W - off, Hh, true);

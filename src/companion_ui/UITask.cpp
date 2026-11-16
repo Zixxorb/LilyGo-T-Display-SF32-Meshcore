@@ -895,18 +895,22 @@ void UITask::loop() {
   sf32_ui_animating = _display != NULL && _display->isOn() && (_drag_on || (long)(_next_refresh - millis()) <= 20);  // SF32
 
   if (_display != NULL && _display->isOn()) {
-    if (millis() >= _next_refresh && curr && !_drag_on) {
+    static unsigned long last_frame = 0;  // SF32: low power mode: at most 30 frames a second, however asked for
+    if (millis() >= _next_refresh && curr && !_drag_on && !(lowPower() && millis() - last_frame < 33)) {
       unsigned long frame_start = millis();  // SF32: pace animation from the frame's start
+      last_frame = frame_start;
 #ifdef SF32_FRAME_LOG
       rt_tick_t f0 = rt_tick_get();
 #endif
       ((SF32Display *) _display)->setGlassPaused(_aod);  // the always-on clock stays on black
       // left the list meanwhile, or a popup is up: a list frame sends only the list, and the
       // popup's band would replace it (stale header area, the list not sent)
-      if (curr != menu || millis() < _banner_expiry || millis() < _alert_expiry) ((SF32Display *) _display)->cancelListFrame();
+      bool list_screen = curr == menu || curr == about_screen || (curr == logs_screen && !((LogScreen*)logs_screen)->inDetail());
+      if (!list_screen || millis() < _banner_expiry || millis() < _alert_expiry) ((SF32Display *) _display)->cancelListFrame();
       _display->startFrame();
       ((SF32Display *) _display)->setSquareLayout(true);  // SF32: all screens are full-panel
       int delay_millis = curr->render(*_display);
+      if (lowPower() && delay_millis < 33) delay_millis = 33;  // SF32: low power mode: at most 30 fps
 #ifdef SF32_FRAME_LOG
       rt_tick_t f1 = rt_tick_get();
 #endif

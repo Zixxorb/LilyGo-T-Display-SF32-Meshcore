@@ -38,13 +38,21 @@ public:
   uint32_t layerGen() const;  // changes whenever beginLayer() starts a new layer: still ours?
   void endLayer();
   void composeLayer(int x, int y, int w, int h, int src_px);
+  // After drawing a layer that's mostly background (About, Logs, Friends): note where each row's
+  // content is, so composing skips the rest without reading it (the layer is in slow PSRAM).
+  // Any later drawing into the layer forgets it.
+  void layerSpans();
   // The same for a layer of things drawn on the plain background (no panes), such as Starlits:
   // only what differs from the background is copied (in Glass, the wallpaper shows behind).
   void composeSprites(int x, int y, int w, int h, int src_px);
+  // low power mode: slides at most 30 fps (the UI caps its own frames the same)
+  static bool s_cap30;
+  static void setCap30(bool on) { s_cap30 = on; }
   // The same for a menu's rows (x = 4..124), by the graphics hardware: faster. layerRowsDone after
   // drawing rows into the layer (logical). composeList returns false if it couldn't: use composeLayer.
   void layerRowsDone(int y, int h);
   bool composeList(int y, int h, int src_px);
+  static int listRows();  // how many layer rows (panel px) composeList can take
 
   // Only rows y..y+h (logical) changed in this frame (a scrolling list): send just that
   // band to the panel (faster). For the next endFrame() only; ignored with a transition.

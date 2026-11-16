@@ -122,6 +122,7 @@ void UITask::applyStyle() {
   glass = true;
 #endif
   applyTheme(i);
+  SF32Display::setCap30(lowPower());  // (applyStyle runs whenever low power mode changes)
   if (_display) ((SF32Display*)_display)->setGlass(glass && !lowPower(), THEMES[i].accent, THEMES[i].rainbow, _ui_prefs.glass_bg);
 }
 void UITask::openTheme() {
@@ -209,6 +210,7 @@ public:
         y += aboutLineH(l.kind);
       }
       sd.endLayer();
+      sd.layerSpans();
     } else if (moving || _ds.active) {
       sd.setFlushBand(LIST_Y, LIST_H);  // only the list moves: send just its band
     }
@@ -368,7 +370,7 @@ public:
 
   int render(DisplayDriver& d) override {
     if (_detail >= 0) { renderDetail(d); return 5000; }
-    themeHeader(d, "Logs", _task->getBattMilliVolts());
+    if (!((SF32Display&)d).listFrame()) themeHeader(d, "Logs", _task->getBattMilliVolts());  // (a list frame: just the list)
     _ds.max = maxScroll();
     bool moving = _ds.step();
     SF32Display& sd = (SF32Display&)d;
@@ -392,10 +394,17 @@ public:
         d.printWordWrap(_texts[i], 110);  // up to two lines
       }
       sd.endLayer();
+      sd.layerRowsDone(0, contentH() + 2);  // for the graphics hardware's copy (cards, as in the menus)
+      sd.layerSpans();
     } else if (moving || _ds.active) {
       sd.setFlushBand(LIST_Y, LIST_H);  // only the list moves: send just its band
     }
-    sd.composeLayer(4, LIST_Y, 120, LIST_H, (int)lroundf(_ds.pos * SF32Display::SCALE));
+    int src = (int)lroundf(_ds.pos * SF32Display::SCALE);
+    bool hw = sd.composeList(LIST_Y, LIST_H, src);  // the graphics hardware where it can (the first ~14)
+    if (!hw) sd.composeLayer(4, LIST_Y, 120, LIST_H, src);
+    if (sd.listFrame()) sd.setFlushBand(LIST_Y, LIST_H);
+    // still moving, by hardware, with room to spare: the next frame is just the list, as in the menus
+    if ((moving || _ds.active) && hw && src + (int)(LIST_H * SF32Display::SCALE) + 200 < SF32Display::listRows()) sd.nextFrameIsList();
     if (scrolls()) {
       int thumb = LIST_H * LIST_H / (LIST_H + maxScroll());
       int ty = LIST_Y + (int)((LIST_H - thumb) * (_ds.pos / maxScroll()));
