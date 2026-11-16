@@ -312,6 +312,10 @@ Settings > SOS to (default: **#emergency**, the shared hashtag channel, added to
 list when an SOS needs it; a chosen channel that has gone falls back to it), and repeats every 5 min, 6
 times in all, until you tap Stop. The location is the node's as set in the app.
 
+The first send also turns on **low power mode** (if it isn't on already), so the battery lasts
+as long as it can, but the radio keeps its full receive sensitivity, to hear any reply. Tapping
+Stop turns it back off; when the 6 sends are done it stays on.
+
 </details>
 
 ### Radio and mesh tools
@@ -329,7 +333,8 @@ too.
 - **It lives on the mesh**: it's fed by the packets your radio hears, grows curious from adverts
   and new nodes, and rests while the screen is off. Three bars show how it's doing; the line
   under them says its mood, and in turn **today's finds**: new nodes met, the farthest packet
-  (hops, and who sent it), adverts and packets heard (they start over at local midnight).
+  (hops, and who sent it), adverts and packets heard, and from the Signal page the finder's
+  strongest reply and the tester's best link (they start over at local midnight).
 - **Care**: stroke it to pet it (hearts), tap it to boop it, hold it to play (a star-ball). It
   breathes, blinks, looks at your finger, and does little things on its own.
 - **It reflects the device**: it holds an envelope when you have unread messages (tap it to read

@@ -178,9 +178,11 @@ private:
         rssi_hist[0] = (int8_t)constrain(_rssi, -128, 127);
         if (rssi_n < 4) rssi_n++;
         if (_rssi > best_rssi) best_rssi = _rssi;
+        today_finds.finder(lock_name, _rssi);  // the strongest reply today, for the Starlit's finds
         // pitch follows the signal strength: -120 dBm low, -40 high
         sound.tone(400 + (constrain(_rssi, -120, -40) + 120) * 20, 90, vol);
       } else {
+        today_finds.link(last_name, link);  // the best link today, for the Starlit's finds
         // pitch follows the link: -15 dB low, +10 dB high
         int hz = 500 + (int)((constrain(link, -15.0f, 10.0f) + 15.0f) * 60.0f);
         sound.tone(hz, 90, vol);

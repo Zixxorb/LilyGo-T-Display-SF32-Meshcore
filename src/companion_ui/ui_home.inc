@@ -977,7 +977,7 @@ public:
       else {
         int n = 0;
         char tmp[64];
-        while (n < 4 && today_finds.line(n, tmp, sizeof(tmp))) n++;
+        while (n < 6 && today_finds.line(n, tmp, sizeof(tmp))) n++;
         int slot = still ? 0 : (int)(((millis() - opened - 5000) / 4000) % (n + 1));
         if (slot == 0 || !today_finds.line(slot - 1, mtxt, sizeof(mtxt))) {
           const char* cl = pet.contextLine();  // the device's state comes before its mood

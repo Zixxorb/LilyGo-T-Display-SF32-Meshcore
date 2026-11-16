@@ -2,7 +2,8 @@
 // Mesh SOS: triple-press button A (or Send SOS in the swipe-down menu) starts a 5 s
 // countdown (beeping; tap or press A to cancel), then sends an SOS to the channel chosen
 // in Settings > SOS to with the node's location (as set in the app) and battery, and
-// repeats it every 5 min, 6 times in all, until stopped.
+// repeats it every 5 min, 6 times in all, until stopped. The first send turns on low power mode
+// (if it isn't on), so the battery lasts; stopping the SOS by hand turns it back off.
 
 #define SOS_COUNTDOWN_MS 5000UL
 #define SOS_REPEAT_MS    (5UL * 60 * 1000)
@@ -138,7 +139,11 @@ void UITask::stopSos() {
   uint8_t was = _sos_state;
   _sos_state = SOS_OFF;
   if (was == SOS_COUNTDOWN) { board.logEvent("SOS cancelled"); showAlert("SOS cancelled", 1500); }
-  else if (was == SOS_ACTIVE) { board.logEvent("SOS stopped"); showAlert("SOS stopped", 1500); }
+  else if (was == SOS_ACTIVE) {
+    board.logEvent("SOS stopped");
+    showAlert("SOS stopped", 1500);
+    if (_ui_prefs.low_power == 3) setLowPower(0);  // the SOS turned it on: off with it
+  }
   ((HomeScreen*)home)->showClock();
   ((SF32Display*)_display)->setTransition(SF32Display::TRANSITION_DOWN);
   setCurrScreen(home);
@@ -150,6 +155,10 @@ int UITask::sosSecondsLeft() const {
 }
 
 void UITask::sendSos() {
+  if (_sos_sent == 0 && !lowPower()) {  // the first send: low power mode, to last as long as it can
+    setLowPower(3);
+    showAlert("Low power on: saving battery", 2500);
+  }
   ChannelDetails ch;
   if (sosChannel(_ui_prefs.sos_chan, ch, true) < 0) {
     board.logEvent("SOS failed: no channel (list full)");

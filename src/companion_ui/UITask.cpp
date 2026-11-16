@@ -131,6 +131,7 @@ public:
 #include "ui_menu.inc"  // menu actions, drag scrolling, MenuScreen
 
 #include "ui_battery.inc"  // battery history (Battery page graph)
+#include "ui_finds.inc"  // today's finds (Starlit page): counted from the mesh and the signal tools
 #include "ui_signal.inc"  // signal tester (Signal page)
 #include "ui_meshtime.inc"  // time from the mesh (adverts) while the clock is unknown
 #include "ui_activity.inc"  // mesh activity (Activity page): packets per hour, channel use

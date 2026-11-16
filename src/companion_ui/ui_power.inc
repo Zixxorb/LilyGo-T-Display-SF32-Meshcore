@@ -244,6 +244,9 @@ void UITask::glassLightLoop() {
   _next_refresh = 0;  // redraw with it
 }
 
+// mode: 0 off, 1 on (by hand), 2 on by itself (battery level; USB turns it off), 3 on for an
+// SOS (as 1, but the radio keeps its full receive gain, to hear any reply; stopping the SOS by
+// hand turns it off; not kept over a reboot)
 void UITask::setLowPower(uint8_t mode) {
   if (mode == _ui_prefs.low_power) return;
   bool was = lowPower();
@@ -253,14 +256,14 @@ void UITask::setLowPower(uint8_t mode) {
   applyMotion();
   bluetooth_interface.setSlowAdvertising(lowPower());
   bluetooth_interface.setSlowLink(lowPower());
-  radio_driver.setLowPowerGain(lowPower());
+  radio_driver.setLowPowerGain(lowPower() && mode != 3);
   applyStyle();  // no Glass (it lights the whole panel)
   if (lowPower() && _aod) {  // the always-on clock: off now
     exitAOD();
     _display->turnOff();
     _display_off_at = millis();
   }
-  board.logEvent(lowPower() ? (mode == 2 ? "Low power mode on (battery)" : "Low power mode on") : "Low power mode off");
+  board.logEvent(lowPower() ? (mode == 2 ? "Low power mode on (battery)" : (mode == 3 ? "Low power mode on (SOS)" : "Low power mode on")) : "Low power mode off");
   _next_refresh = 0;
 }
 
