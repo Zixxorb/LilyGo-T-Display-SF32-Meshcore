@@ -8,6 +8,7 @@
 #define SOS_COUNTDOWN_MS 5000UL
 #define SOS_REPEAT_MS    (5UL * 60 * 1000)
 #define SOS_SENDS        6
+#define SOS_RETRY_MS     30000UL  // a send that failed: again this soon (it isn't counted)
 
 enum SosState : uint8_t { SOS_OFF, SOS_COUNTDOWN, SOS_ACTIVE, SOS_DONE };
 
@@ -91,7 +92,8 @@ public:
     display.setTextSize(2);
     display.setColor(st == SOS_DONE ? UIColor::primary_txt : THEME_RED);
     bool none = st == SOS_DONE && _task->sosSent() == 0;  // no channel to send to
-    display.drawTextCentered(64, 36, none ? "SOS not sent" : st == SOS_DONE ? "SOS finished" : "SOS sent");
+    bool trying = st == SOS_ACTIVE && _task->sosSent() == 0;  // none has gone out yet (retrying)
+    display.drawTextCentered(64, 36, none ? "SOS not sent" : st == SOS_DONE ? "SOS finished" : trying ? "SOS retrying" : "SOS sent");
     display.setTextSize(1);
     display.setColor(UIColor::secondary_txt);
     if (none) strcpy(tmp, "no channel set up: add one in the app");
@@ -155,15 +157,15 @@ int UITask::sosSecondsLeft() const {
 }
 
 void UITask::sendSos() {
-  if (_sos_sent == 0 && !lowPower()) {  // the first send: low power mode, to last as long as it can
-    setLowPower(3);
-    showAlert("Low power on: saving battery", 2500);
-  }
   ChannelDetails ch;
   if (sosChannel(_ui_prefs.sos_chan, ch, true) < 0) {
     board.logEvent("SOS failed: no channel (list full)");
     _sos_state = SOS_DONE;
     return;
+  }
+  if (_sos_sent == 0 && !lowPower()) {  // the first send: low power mode, to last as long as it can
+    setLowPower(3);
+    showAlert("Low power on: saving battery", 2500);
   }
   char text[MAX_TEXT_LEN + 1], loc[40];
   double lat = _node_prefs->node_lat, lon = _node_prefs->node_lon;
@@ -178,10 +180,15 @@ void UITask::sendSos() {
 #else
   bool ok = the_mesh.sendGroupMessage(ts, ch.channel, the_mesh.getNodeName(), text, strlen(text));
 #endif
-  _sos_sent++;
   char line[48];
-  snprintf(line, sizeof(line), "SOS %s %d/%d: %s", ok ? "sent" : "failed", _sos_sent, SOS_SENDS, ch.name);
+  snprintf(line, sizeof(line), "SOS %s %d/%d: %s", ok ? "sent" : "failed", _sos_sent + 1, SOS_SENDS, ch.name);
   board.logEvent(line);
+  if (!ok) {  // not sent (MeshCore had no free packet): try again soon, and the screen says so
+    _sos_t = millis() + SOS_RETRY_MS;
+    _sos_state = SOS_ACTIVE;
+    return;
+  }
+  _sos_sent++;
   sound.tone(2000, 400, SF32Sound::VOL_HIGH);
   _sos_t = millis() + SOS_REPEAT_MS;
   _sos_state = _sos_sent >= SOS_SENDS ? SOS_DONE : SOS_ACTIVE;

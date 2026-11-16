@@ -25,16 +25,18 @@ struct PetSave {
 // (and channel messages whose sender is a contact by name), and whether the bot nudged it: a sender
 // writes its own setting into the top two bits of path_len. Known for sure when those bits say 2-3
 // bytes, or say 1 byte on an advert that came through repeaters; a direct (zero-hop) advert with
-// them at 0 tells nothing. Remembered in a tiny file (5 bytes a node, the newest 32).
+// them at 0 tells nothing. Remembered in a tiny file (5 bytes a node, the 64 heard most recently).
 #define HSZ_FILE "/sf32_hsz"
 class HashSizes {
 public:
   // a node's path_len as heard; true if a node the bot nudged has just moved up from 1 byte
   bool note(const uint8_t* pub_key, uint8_t path_len) {
     uint8_t sz = (path_len >> 6) + 1, hops = path_len & 63;
+    if (sz > 3) return false;                // reserved (MeshCore drops these anyway)
     if (sz == 1 && hops == 0) return false;  // a direct advert: not known from this
     load();
     int at = find(pub_key);
+    if (at > 0) at = toFront(at);            // heard again: the newest (strangers don't push friends out)
     if (at >= 0 && (_e[at].v & SIZE) == sz) return false;
     bool upgraded = at >= 0 && (_e[at].v & SIZE) == 1 && (_e[at].v & NUDGED) && sz >= 2;
     if (at < 0) at = add(pub_key);
@@ -42,6 +44,7 @@ public:
     _dirty = true;
     return upgraded;
   }
+  void begin() { load(); }  // at boot (not lazily from a mesh hook while the screen is off)
   uint8_t get(const uint8_t* pub_key) { load(); int at = find(pub_key); return at >= 0 ? (_e[at].v & SIZE) : 0; }
   // the bot sent it a reminder (it sends 1-byte hashes)
   void setNudged(const uint8_t* pub_key) {
@@ -71,11 +74,17 @@ public:
 private:
   struct Entry { uint8_t key[4]; uint8_t v; };  // v: the size (1-3) in bits 0-1, bit 7 nudged
   static const uint8_t SIZE = 0x03, NUDGED = 0x80;
-  static const int N = 32;
+  static const int N = 64;
   Entry _e[N];
   uint8_t _n = 0;
   bool _loaded = false, _dirty = false;
   int find(const uint8_t* k) const { for (int i = 0; i < _n; i++) if (memcmp(_e[i].key, k, 4) == 0) return i; return -1; }
+  int toFront(int at) {  // (order only: saved with the next change)
+    Entry e = _e[at];
+    for (int i = at; i > 0; i--) _e[i] = _e[i - 1];
+    _e[0] = e;
+    return 0;
+  }
   int add(const uint8_t* k) {  // a new one: at the front, the oldest dropped
     if (_n < N) _n++;
     for (int i = _n - 1; i > 0; i--) _e[i] = _e[i - 1];
@@ -181,7 +190,7 @@ public:
   void onScreen(bool on) {  // screen on/off (UITask::powerCare): catch up, and save when it goes dark
     if (!_begun) return;
     update(on);
-    if (!on) { save(); today_finds.save(); }
+    if (!on) save();
   }
   void onAdvert(bool is_new) {  // from the mesh (any time): just counted, in RAM
     today_finds.advert(is_new);
@@ -709,20 +718,21 @@ public:
     _card_only = false;
     _layer_ok = false;
     _ds = DragScroll();
-    int recent[RECENT], nr = 0;
+    uint8_t recent[RECENT][KEY_LEN];
     uint32_t rts[RECENT];
-    int total = the_mesh.getNumContacts();
-    for (int i = 0; i < total && _n < FRIENDS_MAX; i++) {
-      ContactInfo c;
-      if (!the_mesh.getContactByIdx(i, c)) continue;
-      if (c.flags & 1) { _idx[_n++] = i; continue; }  // flags bit 0: favourite
+    int nr = 0;
+    // MeshCore's iterator (getContactByIdx() counts its reserved anonymous slots, getNumContacts() doesn't)
+    ContactInfo c;
+    ContactsIterator it = the_mesh.startContactsIterator();
+    while (it.hasNext(&the_mesh, c) && _n < FRIENDS_MAX) {
+      if (c.flags & 1) { memcpy(_keys[_n++], c.id.pub_key, KEY_LEN); continue; }  // flags bit 0: favourite
       uint32_t ts = c.last_advert_timestamp;  // the newest 5 of the rest, kept in order
       int k = nr < RECENT ? nr++ : RECENT;
       if (k == RECENT) { if (ts <= rts[RECENT - 1]) continue; k = RECENT - 1; }
-      while (k > 0 && rts[k - 1] < ts) { rts[k] = rts[k - 1]; recent[k] = recent[k - 1]; k--; }
-      rts[k] = ts; recent[k] = i;
+      while (k > 0 && rts[k - 1] < ts) { rts[k] = rts[k - 1]; memcpy(recent[k], recent[k - 1], KEY_LEN); k--; }
+      rts[k] = ts; memcpy(recent[k], c.id.pub_key, KEY_LEN);
     }
-    for (int i = 0; i < nr && _n < FRIENDS_MAX; i++) _idx[_n++] = recent[i];
+    for (int i = 0; i < nr && _n < FRIENDS_MAX; i++) memcpy(_keys[_n++], recent[i], KEY_LEN);
   }
   bool scrolls() const { return !_detail_on && maxScroll() > 0; }
   DragScroll& drag() { _ds.max = maxScroll(); return _ds; }
@@ -748,8 +758,8 @@ public:
     }
     if (y < TOP) return true;
     int row = (int)((y - TOP + _ds.pos) / ROW_H), i = row * 2 + (x >= 64 ? 1 : 0);
-    ContactInfo c;
-    if (i >= 0 && i < _n && the_mesh.getContactByIdx(_idx[i], c)) openCard(c, false);
+    ContactInfo* c = i >= 0 && i < _n ? the_mesh.lookupContactByPubKey(_keys[i], KEY_LEN) : NULL;
+    if (c) openCard(*c, false);
     return true;
   }
   bool back() {  // swipe right / the button: out of a card first (false: leave the screen)
@@ -834,8 +844,9 @@ public:
     return moving || _ds.active ? 16 : 60000;  // still: nothing to redraw
   }
   void drawFriend(DisplayDriver& d, int i, float y, bool still) {
-    ContactInfo c;
-    if (!the_mesh.getContactByIdx(_idx[i], c)) return;
+    ContactInfo* cp = the_mesh.lookupContactByPubKey(_keys[i], KEY_LEN);  // (by key: a list that changes can't shift it)
+    if (!cp) return;
+    const ContactInfo& c = *cp;
     float x = i % 2 ? 94 : 34;
     pet.draw(d, x, y, 0.6f, still, PetGame::seedOf(c.id.pub_key), -1, hash_sizes.get(c.id.pub_key));
     char name[sizeof(c.name)];
@@ -868,7 +879,8 @@ public:
 private:
   static const int FRIENDS_MAX = 24, RECENT = 5, TOP = 24, ROW_H = 58;
   UITask* _task;
-  int _idx[FRIENDS_MAX];
+  static const int KEY_LEN = 8;  // a public key prefix: plenty to tell contacts apart
+  uint8_t _keys[FRIENDS_MAX][KEY_LEN];
   int _n = 0, _page = 0, _detail = 0;
   bool _detail_on = false, _layer_ok = false, _card_only = false;
   uint8_t _card_key[PUB_KEY_SIZE] = {};

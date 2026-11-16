@@ -234,6 +234,8 @@ public:
   }
 };
 
+static UITask* s_finds_ui = nullptr;  // SF32: for findsToday()
+
 void UITask::begin(DisplayDriver* display, SensorManager* sensors, NodePrefs* node_prefs) {
   _display = display;
   _sensors = sensors;
@@ -283,7 +285,17 @@ void UITask::begin(DisplayDriver* display, SensorManager* sensors, NodePrefs* no
   motion.begin();                       // SF32: BHI260AP (background)
   InternalFS.remove("/sf32_steps");     // SF32: left over from the removed step counter
   batt_history.begin();                 // SF32
+  hash_sizes.begin();                   // SF32: read now, not first from a mesh hook with the screen off
+  today_finds.begin();
+  s_finds_ui = this;
   setCurrScreen(splash);
+}
+
+// SF32: the local day number for today's finds (uptime days while the time isn't known)
+static uint32_t findsToday() {
+  uint32_t utc = rtc_clock.getCurrentTime();
+  if (s_finds_ui && utc >= 1735689600UL && rtc_clock.timeKnown()) return (uint32_t)((int32_t)utc + s_finds_ui->localOffsetSecs(utc)) / 86400;
+  return 0x80000000u | (uint32_t)(millis() / 86400000UL);
 }
 
 #include "ui_screens.inc"  // Settings screens: themes, About, Logs, Time zone, always-on display, Night mode hours
@@ -913,7 +925,9 @@ void UITask::loop() {
 
   if (_display != NULL && _display->isOn()) {
     static unsigned long last_frame = 0;  // SF32: low power mode: at most 30 frames a second, however asked for
-    if (millis() >= _next_refresh && curr && !_drag_on && !(lowPower() && millis() - last_frame < 33)) {
+    bool lp_gate = lowPower() && millis() - last_frame < 33;
+    if (lp_gate && (long)(_next_refresh - (last_frame + 33)) < 0) _next_refresh = last_frame + 33;  // (so the loop sleeps until then)
+    if (millis() >= _next_refresh && curr && !_drag_on && !lp_gate) {
       unsigned long frame_start = millis();  // SF32: pace animation from the frame's start
       last_frame = frame_start;
 #ifdef SF32_FRAME_LOG

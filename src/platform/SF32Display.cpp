@@ -620,9 +620,14 @@ void SF32Display::composeSprites(int x, int y, int w, int h, int src_px) {
   for (int py = y0; py < y1; py++) {  // the frame already has the wallpaper: copy only what's drawn
     int src = src_px + (py - y0);
     if (py < 0 || py >= PANEL_H || src < 0 || src >= s_layer_h) continue;
-    const uint32_t* from = (const uint32_t*)(s_layer + src * PANEL_W + x0);
-    uint16_t* dst = s_fb + py * PANEL_W + x0;
-    for (int i = 0, n = (x1 - x0) / 2; i < n; i++) {
+    int rx0 = x0, rx1 = x1;
+    if (s_spans_ok) {  // only where the row has something (layerSpans)
+      if (s_span0[src] > rx0) rx0 = s_span0[src];
+      if (s_span1[src] < rx1) rx1 = s_span1[src];
+    }
+    const uint32_t* from = (const uint32_t*)(s_layer + src * PANEL_W + rx0);
+    uint16_t* dst = s_fb + py * PANEL_W + rx0;
+    for (int i = 0, n = (rx1 - rx0) / 2; i < n; i++) {
       uint32_t v = from[i];
       if (v == bg2) continue;  // the commonest by far
       uint16_t a = v & 0xFFFF, b = v >> 16;

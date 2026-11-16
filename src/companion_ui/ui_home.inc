@@ -143,8 +143,6 @@ class HomeScreen : public UIScreen {
   }
   // the line under it: every 4 s in turn, its state or mood, then today's finds (`since`: ms shown)
   void petLine(char* out, int n, bool still, unsigned long since) {
-    uint32_t utc = _rtc->getCurrentTime();
-    today_finds.setDay(timeIsSet(utc) ? (uint32_t)((int32_t)utc + _task->localOffsetSecs(utc)) / 86400 : 0x80000000u | (millis() / 86400000UL));
     int k = 0;
     char tmp[64];
     while (k < 7 && today_finds.line(k, tmp, sizeof(tmp))) k++;
@@ -181,7 +179,9 @@ class HomeScreen : public UIScreen {
     uint16_t mv = _task->getBattMilliVolts();
     petPrep(mv, false);
     pet.draw(d, 64, 79, 0.84f, false, 0, -1, _node_prefs->path_hash_mode + 1);
-    petLine(tmp, sizeof(tmp), false, millis());
+    char raw[64];
+    petLine(raw, sizeof(raw), false, millis());
+    d.translateUTF8ToBlocks(tmp, raw, sizeof(tmp));  // (node names in it: shown as the rest of the UI shows them)
     d.setTextSize(1);
     d.setColor(THEME_DIM);
     if (d.getTextWidth(tmp) > 120) d.drawTextEllipsized(4, 108, 120, tmp); else d.drawTextCentered(64, 108, tmp);
@@ -601,6 +601,9 @@ public:
   bool handleTap(int x, int y) {
     if (_page == HomePage::CLOCK) {  // the unread envelope (top left): the messages
       if (x < 64 && y < 30 && _task->getUnreadCount() > 0) { _task->showMessages(); return true; }
+      // the Starlit face: your Starlit holding mail ("tap it") opens it too
+      bool starlit_face = !_task->lowPower() && _task->uiPrefs().clock_face % NUM_CLOCK_FACES == 6 && timeIsSet(_rtc->getCurrentTime());
+      if (starlit_face && x >= 30 && x < 98 && y >= 50 && y < 106 && _task->getUnreadCount() > 0) { _task->showMessages(); return true; }
       return false;
     }
     if (_page == HomePage::GAMES) {  // the pet: pet it (it looks at where you touched)
@@ -1020,7 +1023,11 @@ public:
       last_seen = millis();
       char mtxt[64];
       if (millis() - opened < 5000) strcpy(mtxt, "stroke: pet, tap: boop, hold: play");
-      else petLine(mtxt, sizeof(mtxt), still, millis() - opened - 5000);
+      else {
+        char raw[64];
+        petLine(raw, sizeof(raw), still, millis() - opened - 5000);
+        display.translateUTF8ToBlocks(mtxt, raw, sizeof(mtxt));  // (node names in it)
+      }
       if (display.getTextWidth(mtxt) > W - 8) display.drawTextEllipsized(4, 108, W - 8, mtxt);
       else display.drawTextCentered(W / 2, 108, mtxt);
       // paced from this frame's start (not its end): ~18 fps idle, as fast as it draws (~28) in a reaction

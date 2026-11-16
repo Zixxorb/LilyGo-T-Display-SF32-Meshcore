@@ -317,7 +317,8 @@ times in all, until you tap Stop. The location is the node's as set in the app.
 
 The first send also turns on **low power mode** (if it isn't on already), so the battery lasts
 as long as it can, but the radio keeps its full receive sensitivity, to hear any reply. Tapping
-Stop turns it back off; when the 6 sends are done it stays on.
+Stop turns it back off; when the 6 sends are done it stays on. If a send can't go out (MeshCore has no free
+packet), the screen says "SOS retrying" and it tries again after 30 s.
 
 </details>
 
@@ -351,7 +352,7 @@ too.
   amber for 1-byte, cyan for 2-byte, violet for 3-byte (none until it's known; yours from your
   setting). The node's card says it in words. Learnt from the node's flooded adverts and
   messages, and channel messages whose sender is one of your contacts by name (nodes heard
-  only directly stay unknown for a while), kept in a tiny file (5 bytes a node, the newest 32).
+  only directly stay unknown for a while), kept in a tiny file (5 bytes a node, the 64 heard most recently).
 - **Mesh health**: a node the bot nudged about its 1-byte path hashes gets a small amber
   bubble in Friends ("nudged" on its card), and when it moves up to 2-byte, today's finds say
   so ("upgraded to 2-byte: NAME").

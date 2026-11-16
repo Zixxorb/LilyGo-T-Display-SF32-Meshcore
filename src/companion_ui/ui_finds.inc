@@ -4,20 +4,14 @@
 // in a tiny file, saved with the pet at screen-off, so a reboot doesn't lose the day.
 #define FINDS_FILE  "/sf32_finds"
 #define FINDS_MAGIC 0x33444E46  // "FND3"
+static uint32_t findsToday();  // UITask.cpp: the local day number (uptime days while the time isn't known)
 class TodayFinds {
 public:
-  // the day it is (local day number; or uptime days when the time isn't known): a new one starts over
-  void setDay(uint32_t day) {
-    load();
-    if (day == _f.day) return;
-    memset(&_f, 0, sizeof(_f));
-    _f.magic = FINDS_MAGIC;
-    _f.day = day;
-    _dirty = true;
-  }
-  void packets(uint32_t n) { if (n) { _f.packets += n; _dirty = true; } }
-  void advert(bool is_new) { if (_f.adverts < 60000) _f.adverts++; if (is_new && _f.new_nodes < 60000) _f.new_nodes++; _dirty = true; }
+  void begin() { load(); }  // at boot (not lazily from a mesh hook while the screen is off)
+  void packets(uint32_t n) { if (n) { roll(); _f.packets += n; _dirty = true; } }
+  void advert(bool is_new) { roll(); if (_f.adverts < 60000) _f.adverts++; if (is_new && _f.new_nodes < 60000) _f.new_nodes++; _dirty = true; }
   void hops(uint8_t h, const char* name) {  // a flood packet's hop count, and who sent it if known
+    roll();
     if (h <= _f.far_hops) return;
     _f.far_hops = h;
     StrHelper::strncpy(_f.far_name, name ? name : "", sizeof(_f.far_name));
@@ -25,12 +19,14 @@ public:
   }
   // the signal tools (Signal page): the finder's strongest reply today, the tester's best link
   void finder(const char* name, int rssi) {
+    roll();
     if (_f.find_rssi && rssi <= _f.find_rssi) return;
     _f.find_rssi = (int8_t)(rssi < -127 ? -127 : rssi);
     StrHelper::strncpy(_f.find_name, name, sizeof(_f.find_name));
     _dirty = true;
   }
   void link(const char* name, float db) {
+    roll();
     int q = (int)lroundf(db * 4);
     if (_f.link_set && q <= _f.link_q4) return;
     _f.link_set = 1;
@@ -39,11 +35,13 @@ public:
     _dirty = true;
   }
   void upgraded(const char* name) {  // a node the bot nudged moved up from 1-byte path hashes
+    roll();
     StrHelper::strncpy(_f.up_name, name, sizeof(_f.up_name));
     _dirty = true;
   }
   // its k-th find as a line (k from 0); false: no more
-  bool line(int k, char* out, int n) const {
+  bool line(int k, char* out, int n) {
+    roll();
     char tmp[64];
     int i = 0;
     for (int which = 0; which < 7; which++) {
@@ -74,9 +72,20 @@ private:
              char far_name[24], find_name[24], link_name[24], up_name[24]; };
   F _f = {};
   bool _loaded = false, _dirty = false;
+  // a new day (or the first use): start over
+  void roll() {
+    load();
+    uint32_t d = findsToday();
+    if (d == _f.day) return;
+    memset(&_f, 0, sizeof(_f));
+    _f.magic = FINDS_MAGIC;
+    _f.day = d;
+    _dirty = true;
+  }
   void load() {
     if (_loaded) return;
     _loaded = true;
+    _f.magic = FINDS_MAGIC;  // (no file yet: a fresh record; roll() gives it today)
     File f = InternalFS.open(FINDS_FILE, "r");
     F g;
     if (f && f.read((uint8_t*)&g, sizeof(g)) == (int)sizeof(g) && g.magic == FINDS_MAGIC) {
