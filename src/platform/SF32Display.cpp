@@ -267,7 +267,7 @@ static inline int glint_add(int x, int y) {  // 0..GLINT_MAX added to each chann
   const int R2 = GLINT_R * GLINT_R;
   if (d2 >= R2) return 0;
   int q = (R2 - d2) / (R2 / 64);  // 0..64
-  return q * q * 32 / (64 * 64);   // a soft peak, ~32 at the centre
+  return q * q * 24 / (64 * 64);   // a soft peak, ~24 at the centre
 }
 
 static inline void glass_screen(float* out, const float* c, float a) {  // lighter where they overlap, never clips

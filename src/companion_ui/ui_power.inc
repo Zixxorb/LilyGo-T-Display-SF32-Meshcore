@@ -213,7 +213,7 @@ void UITask::glassLightLoop() {
   if (!based) { bx = motion.ax; by = motion.ay; based = true; }
   bx += (motion.ax - bx) * 0.03f;  // ~3 s to settle
   by += (motion.ay - by) * 0.03f;
-  float tx = 150 + (motion.ax - bx) * 900, ty = 70 + (motion.ay - by) * 900;
+  float tx = 150 - (motion.ax - bx) * 550, ty = 70 - (motion.ay - by) * 550;  // (against the tilt: user's feel)
   if (tx < -60) tx = -60; if (tx > 540) tx = 540;
   if (ty < -60) ty = -60; if (ty > 540) ty = 540;
   lx += (tx - lx) * 0.5f;
