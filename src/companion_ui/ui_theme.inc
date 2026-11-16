@@ -21,6 +21,45 @@ static ColorVal hsvColor(float h, float s, float v) {
 // the Rainbow theme is on: each home page gets its own hue (HomeScreen::render)
 static bool g_rainbow_theme = false;
 
+// The Color clock face's ring and digits: the theme's own colours (applyTheme sets the stops;
+// Rainbow: none, the whole spectrum as always). deg as the rainbow used it: 0..360 around.
+static ColorVal g_ring_stops[3];
+static int g_ring_nstops = 0;
+static ColorVal mix565(ColorVal a, ColorVal b, float t) {
+  int ar = a >> 11, ag = (a >> 5) & 0x3F, ab = a & 0x1F, br = b >> 11, bg = (b >> 5) & 0x3F, bb = b & 0x1F;
+  int r = ar + (int)((br - ar) * t), g = ag + (int)((bg - ag) * t), bl = ab + (int)((bb - ab) * t);
+  return (ColorVal)((r << 11) | (g << 5) | bl);
+}
+static ColorVal ringColor(float deg, float sat, float val) {
+  if (!g_ring_nstops) return hsvColor(deg, sat, val);
+  float t = fmodf(deg, 360.0f);
+  if (t < 0) t += 360.0f;
+  t = t / 360.0f * g_ring_nstops;  // round the stops and back to the first
+  int k = (int)t;
+  float f = (t - k - 0.65f) / 0.35f;  // each colour solid for most of its part, a short blend into the next
+  f = f < 0 ? 0 : (f > 1 ? 1 : f);  // (a long blend between far-apart colours goes muddy)
+  ColorVal c = mix565(g_ring_stops[k % g_ring_nstops], g_ring_stops[(k + 1) % g_ring_nstops], f);
+  return val < 0.99f ? mix565(0, c, val) : c;  // (the unlit dots: dimmed)
+}
+// the stops for a theme: its accent and colours either side of its hue (greys for a grey accent)
+static void setRingTheme(bool rainbow, ColorVal accent, ColorVal second, ColorVal third) {
+  g_ring_nstops = 0;
+  if (rainbow) return;
+  g_ring_nstops = 3;
+  if (second && third) {  // a theme with its own extra colours (ChattaMesh: gold, green)
+    g_ring_stops[0] = accent; g_ring_stops[1] = second; g_ring_stops[2] = third;
+    return;
+  }
+  float r = (accent >> 11) / 31.0f, g = ((accent >> 5) & 0x3F) / 63.0f, b = (accent & 0x1F) / 31.0f;
+  float mx = fmaxf(r, fmaxf(g, b)), mn = fminf(r, fminf(g, b)), d = mx - mn, h = 0;
+  if (mx <= 0 || d / mx < 0.15f) {  // grey (Mono): light and darker greys
+    g_ring_stops[0] = accent; g_ring_stops[1] = mix565(0, accent, 0.55f); g_ring_stops[2] = mix565(accent, 0xFFFF, 0.5f);
+    return;
+  }
+  if (mx == r) h = 60 * fmodf((g - b) / d, 6); else if (mx == g) h = 60 * ((b - r) / d + 2); else h = 60 * ((r - g) / d + 4);
+  g_ring_stops[0] = hsvColor(h - 28, 0.8f, 1); g_ring_stops[1] = accent; g_ring_stops[2] = hsvColor(h + 28, 0.8f, 1);
+}
+
 static const ColorVal THEME_GOOD_DEFAULT = ((0x34 & 0xF8) << 8) | ((0xD3 & 0xFC) << 3) | (0x99 >> 3);
 static ColorVal THEME_GOOD = THEME_GOOD_DEFAULT;  // charging, strong signal (a theme may set its own: applyTheme)
 static const ColorVal THEME_RED = ((0xEF & 0xF8) << 8) | ((0x44 & 0xFC) << 3) | (0x44 >> 3);   // SOS

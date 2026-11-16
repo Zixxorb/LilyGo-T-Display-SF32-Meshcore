@@ -280,7 +280,7 @@ class HomeScreen : public UIScreen {
     for (int i = 0; i < 60; i++) {
       float a = i * PI2 / 60, x = cx + sinf(a) * R, y = cy - cosf(a) * R;
       bool lit = i <= tm.tm_min, five = i % 5 == 0;
-      d.setColor(hsvColor(i * 6 + rot, lit ? 0.85f : 0.9f, lit ? 1.0f : 0.28f));
+      d.setColor(ringColor(i * 6 + rot, lit ? 0.85f : 0.9f, lit ? 1.0f : 0.28f));  // the theme's colours (Rainbow: all)
       sd.drawLineAA(x, y, x, y, lit ? (five ? 4.2f : 3.0f) : (five ? 2.8f : 2.0f));
     }
     float ha = ((tm.tm_hour % 12) + tm.tm_min / 60.0f) * PI2 / 12;  // the hour: a white dot inside
@@ -293,13 +293,13 @@ class HomeScreen : public UIScreen {
     d.setCursor(64 - w / 2, 54);
     for (int k = 0; hm[k]; k++) {  // a colour per digit
       char ch[2] = {hm[k], 0};
-      d.setColor(hm[k] == ':' ? UIColor::primary_txt : hsvColor(rot + 40 + k * 55, 0.75f, 1.0f));
+      d.setColor(hm[k] == ':' ? UIColor::primary_txt : ringColor(rot + 40 + k * 55, 0.75f, 1.0f));
       d.print(ch);
     }
     dateText(tmp, tm, true);
     if (ampm[0]) { strcat(tmp, "  "); strcat(tmp, ampm); }
     d.setTextSize(1);
-    d.setColor(hsvColor(rot + 200, 0.5f, 1.0f));
+    d.setColor(ringColor(rot + 200, 0.5f, 1.0f));
     d.drawTextCentered(64, 82, tmp);
   }
 

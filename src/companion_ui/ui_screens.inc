@@ -44,6 +44,7 @@ static void applyTheme(int i) {
   UIColor::warning_txt = THEMES[i].warn ? THEMES[i].warn : WARN;
   THEME_GOOD = THEMES[i].good ? THEMES[i].good : THEME_GOOD_DEFAULT;
   g_rainbow_theme = THEMES[i].rainbow;
+  setRingTheme(THEMES[i].rainbow, THEMES[i].accent, THEMES[i].warn, THEMES[i].good);
 }
 
 // A 3x3 grid of swatches; tapping one applies it right away (live preview).

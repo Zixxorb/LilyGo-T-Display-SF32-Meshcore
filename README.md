@@ -49,7 +49,7 @@ device shows what's happening on the mesh, tests links, finds repeaters and keep
 | **Mesh SOS** | Triple-press A: location + battery to a channel, repeated |
 | **Extras** | Flashlight (white/red), share contact QR, auto adverts, mesh time, rotation |
 | **USB app** | MeshCore app protocol over USB too: PC tools and a raw-packet **observer** |
-| **Themes** | Normal or frosted Glass style, 9 colours plus Rainbow on each, night mode, always-on display, tap sounds |
+| **Themes** | Normal or frosted Glass style, 10 colours (including ChattaMesh) plus Rainbow on each, night mode, always-on display, tap sounds |
 
 ## Screenshots
 
@@ -244,7 +244,8 @@ Click a feature to expand it.
 <details>
 <summary><b>Clock faces</b></summary>
 
-- **Color**: a rainbow ring of minute dots filling up through the hour, a colour per digit, on true black.
+- **Color**: a ring of minute dots filling up through the hour and a colour per digit, in the
+  theme's colours (the whole rainbow with the Rainbow theme).
 - **Sun**: the day as an arc from sunrise to sunset with the sun on it, a pale moon below
   at night, the times and how long until the next. Worked out on the device from the
   node's location as set in the app (the sunrise equation; no network).

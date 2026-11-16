@@ -192,24 +192,32 @@ void UITask::applyMotion() { motion.setActive(motionWanted() || _glass_light_liv
 // accelerometer runs only then (unless a motion setting needs it anyway); smoothed, and a
 // redraw only when the glint has moved a few pixels (at most ~10 a second, the sensor's rate).
 void UITask::glassLightLoop() {
+  static float lx = 150, ly = 70, bx = 0, by = 0;
+  static bool based = false;
   SF32Display* d = (SF32Display*)_display;
   bool want = _ui_prefs.glass_light && _ui_prefs.glass && !lowPower() && d && d->isOn() && !_aod;
   if (want != _glass_light_live) {
     _glass_light_live = want;
+    based = false;  // a fresh baseline each time it starts
+    lx = 150; ly = 70;
     applyMotion();
     if (!want) d->setGlassLight(false, 0, 0);
   }
   if (!want || !motion.ready()) return;
-  static float lx = 150, ly = 70;
   static unsigned long last = 0;
   if (millis() - last < 100) return;
   last = millis();
-  // tilt (g) -> where the light sits on the panel: level = upper left, as the glass always lit
-  float tx = 150 + motion.ax * 320, ty = 70 + motion.ay * 320;
-  if (tx < -80) tx = -80; if (tx > 560) tx = 560;
-  if (ty < -80) ty = -80; if (ty > 560) ty = 560;
-  lx += (tx - lx) * 0.35f;
-  ly += (ty - ly) * 0.35f;
+  // The light moves with changes in tilt from how it's being held (a slow-following baseline),
+  // so it responds the same held upright or lying flat, and drifts back to its resting place
+  // (upper left, where the glass was always lit) when held still.
+  if (!based) { bx = motion.ax; by = motion.ay; based = true; }
+  bx += (motion.ax - bx) * 0.03f;  // ~3 s to settle
+  by += (motion.ay - by) * 0.03f;
+  float tx = 150 + (motion.ax - bx) * 900, ty = 70 + (motion.ay - by) * 900;
+  if (tx < -60) tx = -60; if (tx > 540) tx = 540;
+  if (ty < -60) ty = -60; if (ty > 540) ty = 540;
+  lx += (tx - lx) * 0.5f;
+  ly += (ty - ly) * 0.5f;
   static int shown_x = -1000, shown_y = -1000;
   int x = (int)lx, y = (int)ly;
   if (abs(x - shown_x) < 6 && abs(y - shown_y) < 6) return;
