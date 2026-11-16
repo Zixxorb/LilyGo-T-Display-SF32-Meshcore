@@ -224,17 +224,31 @@ public:
     float glow = still ? 0.6f : 0.6f + 0.4f * sinf(t * 6.2832f / 2400);  // the star's pulse
     if (sleepy) glow *= 0.4f;
 
-    // ---- proportions: a big head on a small body ----
+    // ---- its build: each kind its own shape, each one a little different (from its seed) ----
+    float vh = 0.92f + ((sd0 >> 12) % 5) * 0.04f, vb = 0.92f + ((sd0 >> 15) % 5) * 0.04f;
     float ground = cy + 22 * size;
-    float bw = 11.5f * size * sx, bh = 9.5f * size * sy;        // body half-sizes
-    float byc = ground - bh - 1.5f * size - lift;                 // body centre
-    float hw = 16.5f * size * sx, hh = 14.5f * size * sy;        // head half-sizes
-    float hyc = byc - bh - hh * 0.62f;                            // head centre (overlapping the body)
+    float hover = (k == GLIMMER && !still) ? 3 + sinf(t * 6.2832f / 1800) * 2.2f : (k == GLIMMER ? 3 : 0);
+    float bw, bh, hw, hh, byc, hyc;
+    if (k == DRAKE) {          // sturdy and upright: a big body, a snouted head
+      bw = 13 * vb; bh = 12 * vb; hw = 14 * vh; hh = 12.5f * vh;
+    } else if (k == FLUFF) {   // a puffball: head and body in one round orb
+      bw = 0; bh = 0; hw = 19 * vh; hh = 17.5f * vh;
+    } else if (k == GLIMMER) { // floats: a big head over a small tapering wisp
+      bw = 5.5f * vb; bh = 9 * vb; hw = 15.5f * vh; hh = 14.5f * vh;
+    } else {                   // EMBER: squat and wide, the head sunk into the body
+      bw = 18.5f * vb; bh = 10 * vb; hw = 15 * vh; hh = 12 * vh;
+    }
+    bw *= size * sx; bh *= size * sy; hw *= size * sx; hh *= size * sy;
+    if (k == FLUFF) { hyc = ground - hh - 2.5f * size - lift; byc = hyc + hh * 0.45f; }
+    else if (k == GLIMMER) { hyc = ground - 14 * size - hh * 0.62f - lift - hover; byc = hyc + hh * 0.72f + bh * 0.55f; }
+    else if (k == EMBER) { byc = ground - bh - 2.5f * size - lift; hyc = byc - bh * 0.5f - hh * 0.38f; }
+    else { byc = ground - bh - 2.5f * size - lift; hyc = byc - bh - hh * 0.5f; }
     float hxc = cx + sinf(headtilt) * 4;
 
-    // ground shadow
-    float air = lift / 8;
-    sd.fillSoft(cx, ground, 15 * size * (1 - air * 0.2f), 3.2f * size, 0x0000, (int)(11 * (1 - air * 0.4f)));
+    // under it: a shadow (a soft glow for the floating Glimmer)
+    float air = (lift + hover) / 8;
+    if (k == GLIMMER) sd.fillSoft(cx, ground, 12 * size * (1 - air * 0.15f), 3.0f * size, star, (int)(7 * (1 - air * 0.3f)));
+    else sd.fillSoft(cx, ground, (k == EMBER ? 19 : 15) * size * (1 - air * 0.2f), 3.2f * size, 0x0000, (int)(11 * (1 - air * 0.4f)));
 
     // ---- behind: tail, wings ----
     if (k == DRAKE) {  // a long tail curving out to a spade tip
@@ -264,10 +278,11 @@ public:
       sd.fillShaded(tx, ty - 3 * size, 3.4f * size * (1 + fl), 5.2f * size * (1 - fl), hsvColor(25, 0.85f, 1.0f), 0.3f, fl);
       sd.fillShaded(tx, ty - 2 * size, 1.8f * size, 3.0f * size * (1 + fl), hsvColor(50, 0.6f, 1.0f), 0.2f, -fl);
     }
-    if (k == DRAKE || k == GLIMMER) {  // wings behind the body
+    if (k == DRAKE || k == GLIMMER) {  // wings: the Drake's from its back, the Glimmer's from the sides of its head
+      if (k == GLIMMER && !still) flap += sinf(t * 6.2832f / 1300) * 0.35f;  // always a gentle flutter (it floats)
       for (int side = -1; side <= 1; side += 2) {
         float a = side * (0.9f + flap * 0.35f);
-        float wx = cx + side * (bw + 4 * size), wy = byc - bh * 0.4f;
+        float wx = k == DRAKE ? cx + side * (bw + 4 * size) : cx + side * (hw * 0.95f), wy = k == DRAKE ? byc - bh * 0.4f : hyc + hh * 0.35f;
         if (k == DRAKE) {
           sd.fillShaded(wx, wy, 5.2f * size, 9 * size, deep, 0.3f, a);
           d.setColor(hsvColor(hue, 0.6f, 0.55f));
@@ -277,22 +292,36 @@ public:
           sd.fillShaded(wx + side * 1, wy - 3, 3.6f * size, 9.5f * size, wc, 0.5f, a - side * 0.25f);
           sd.fillShaded(wx + side * 2, wy + 3, 3.0f * size, 7.0f * size, wc2, 0.5f, a + side * 0.55f);
           d.setColor(hsvColor(fmodf(hue + 30, 360), 0.15f, 1.0f));
-          sd.drawLineAA(cx + side * bw * 0.9f, wy, wx + side * sinf(fabsf(a)) * 8, wy - 8 * size, 0.6f);
+          sd.drawLineAA(cx + side * hw * 0.8f, wy, wx + side * sinf(fabsf(a)) * 8, wy - 8 * size, 0.6f);
         }
       }
     }
 
-    // ---- body, belly, paws, feet ----
-    sd.fillShaded(cx, byc, bw, bh, body, 0.4f, tilt);
-    sd.fillShaded(cx, byc + bh * 0.2f, bw * 0.62f, bh * 0.7f, belly, 0.2f);
-    for (int side = -1; side <= 1; side += 2) {
-      float step = act == 1 || react ? 0 : 0;
-      sd.fillShaded(cx + side * bw * 0.5f, ground - 2.2f * size - lift - step, 4.4f * size, 2.6f * size, deep, 0.3f);  // feet
-      sd.fillShaded(cx + side * bw * 0.8f, byc - bh * 0.05f, 2.6f * size, 3.6f * size, body, 0.3f, side * 0.4f);  // paws
+    // ---- the body ----
+    if (k == GLIMMER) {  // a tapering wisp that sways, a little glowing bead at its tip
+      float sw = still ? 0 : sinf(t * 6.2832f / 2200) * 0.25f;
+      sd.fillShaded(cx, byc, bw, bh, body, 0.4f, sw);
+      float tx = cx + sinf(sw) * bh * 0.9f, ty = byc + bh * 0.95f;
+      sd.fillSoft(tx, ty, 4 * size, 4 * size, star, (int)(5 + 4 * glow));
+      sd.fillShaded(tx, ty, 1.6f * size, 1.6f * size, star, 0.9f);
+    } else if (k != FLUFF) {
+      sd.fillShaded(cx, byc, bw, bh, body, 0.4f, tilt);
+      sd.fillShaded(cx, byc + bh * 0.2f, bw * 0.6f, bh * 0.68f, belly, 0.2f);
+      if (k == DRAKE) {  // belly scales
+        d.setColor(hsvColor(hue, 0.22f, 0.85f));
+        for (int i = 0; i < 3; i++) { float yy = byc + bh * (-0.1f + i * 0.28f); sd.drawLineAA(cx - bw * 0.4f, yy, cx + bw * 0.4f, yy, 0.7f); }
+      }
     }
-    if (k == GLIMMER) {  // a fuzzy collar where head meets body
-      ColorVal fz = hsvColor(hue, 0.12f, 1.0f);
-      for (int i = -3; i <= 3; i++) sd.fillShaded(cx + i * bw * 0.27f, byc - bh * 0.75f + fabsf((float)i) * 0.8f, 3.4f * size, 2.8f * size, fz, 0.15f);
+    if (k != GLIMMER) {  // feet (the Fluff's tiny), paws
+      float fw = k == EMBER ? 5.6f : (k == FLUFF ? 3.4f : 4.8f), fx = k == FLUFF ? hw * 0.38f : bw * 0.5f;
+      for (int side = -1; side <= 1; side += 2) {
+        sd.fillShaded(cx + side * fx, ground - 2.2f * size - lift, fw * size, 2.6f * size, deep, 0.3f);
+        if (k == DRAKE) {  // little claws
+          d.setColor(hsvColor(40, 0.15f, 1.0f));
+          for (int c2 = -1; c2 <= 1; c2++) sd.drawLineAA(cx + side * fx + c2 * 1.6f, ground - 1.0f - lift, cx + side * fx + c2 * 1.6f, ground - 1.0f - lift, 1.0f);
+        }
+        if (k != FLUFF) sd.fillShaded(cx + side * bw * 0.85f, byc - bh * 0.05f, 2.6f * size, 3.6f * size, body, 0.3f, side * 0.4f);
+      }
     }
 
     // ---- head features behind the head ----
@@ -333,9 +362,12 @@ public:
 
     // ---- head ----
     sd.fillShaded(hxc, hyc, hw, hh, body, 0.45f, headtilt);
-    if (k == FLUFF) {  // cheek tufts
-      for (int side = -1; side <= 1; side += 2)
-        sd.fillShaded(hxc + side * hw * 0.92f, hyc + hh * 0.35f, 4.2f * size, 3.2f * size, belly, 0.15f, side * 0.5f);
+    if (k == FLUFF) sd.fillShaded(hxc, hyc + hh * 0.48f, hw * 0.55f, hh * 0.38f, belly, 0.2f);  // the orb's light front
+    if (k == DRAKE) {  // a lighter snout with two nostrils
+      sd.fillShaded(hxc, hyc + hh * 0.42f, hw * 0.52f, hh * 0.36f, belly, 0.3f, headtilt);
+      d.setColor(deep);
+      sd.drawLineAA(hxc - 2, hyc + hh * 0.3f, hxc - 2, hyc + hh * 0.3f, 1.1f);
+      sd.drawLineAA(hxc + 2, hyc + hh * 0.3f, hxc + 2, hyc + hh * 0.3f, 1.1f);
     }
     // the star mark on the forehead, glowing
     float stx = hxc, sty = hyc - hh * 0.62f;
@@ -343,7 +375,7 @@ public:
     starShape(sd, stx, sty, 2.6f * size, hsvColor(fmodf(hue + 200, 360), 0.25f + 0.25f * glow, 1.0f));
 
     // ---- face ----
-    float fy = hyc + hh * 0.08f, eg = 6.8f * size * sx;
+    float fy = hyc + hh * (k == DRAKE ? -0.12f : (k == FLUFF ? -0.06f : 0.06f)), eg = (k == EMBER ? 7.6f : 6.8f) * size * sx;
     float exl = hxc - eg + gx * 1.2f, exr = hxc + eg + gx * 1.2f, eyy = fy + gy * 0.9f;
     float erx = 4.0f * size, ery = 4.8f * size;
     bool blink = !still && blinking(t, sd0);
@@ -376,7 +408,7 @@ public:
       }
     }
     // mouth
-    float my = fy + 7.0f * size;
+    float my = k == DRAKE ? hyc + hh * 0.52f : fy + 7.0f * size;
     d.setColor(ink);
     if (petted || booped || (m == HAPPY && react == 2) || (sleepy && !still && (t % 7000) < 1200)) {  // open (a yawn when sleepy)
       float o = sleepy ? 1.5f : (booped ? 0.8f : 1.0f);
@@ -523,26 +555,29 @@ public:
 };
 static PetGame pet;
 
-// Friends: the Starlits of the nodes you've heard (each drawn from its key; nothing is sent).
-// Four at a time, newest first; a tap shows the next four; swipe right or the button: back.
+// Friends: the Starlits of your favourite nodes and the 5 others heard most recently (each drawn
+// from its key; nothing is sent or stored). Four at a time; a tap shows the next four; swipe right or the button: back.
 class FriendsScreen : public UIScreen {
 public:
   FriendsScreen(UITask* task) : _task(task) {}
+  // favourites first (starred in the app), then the 5 others heard most recently
   void reset() {
     _n = 0;
     _page = 0;
-    struct E { uint32_t ts; int idx; } list[FRIENDS_MAX];
+    int recent[RECENT], nr = 0;
+    uint32_t rts[RECENT];
     int total = the_mesh.getNumContacts();
-    for (int i = 0; i < total; i++) {
+    for (int i = 0; i < total && _n < FRIENDS_MAX; i++) {
       ContactInfo c;
       if (!the_mesh.getContactByIdx(i, c)) continue;
-      E e = {c.last_advert_timestamp, i};
-      int k = _n < FRIENDS_MAX ? _n++ : FRIENDS_MAX - 1;
-      if (k == FRIENDS_MAX - 1 && _n == FRIENDS_MAX && e.ts <= list[k].ts) continue;
-      while (k > 0 && list[k - 1].ts < e.ts) { list[k] = list[k - 1]; k--; }
-      list[k] = e;
+      if (c.flags & 1) { _idx[_n++] = i; continue; }  // flags bit 0: favourite
+      uint32_t ts = c.last_advert_timestamp;  // the newest 5 of the rest, kept in order
+      int k = nr < RECENT ? nr++ : RECENT;
+      if (k == RECENT) { if (ts <= rts[RECENT - 1]) continue; k = RECENT - 1; }
+      while (k > 0 && rts[k - 1] < ts) { rts[k] = rts[k - 1]; recent[k] = recent[k - 1]; k--; }
+      rts[k] = ts; recent[k] = i;
     }
-    for (int i = 0; i < _n; i++) _idx[i] = list[i].idx;
+    for (int i = 0; i < nr && _n < FRIENDS_MAX; i++) _idx[_n++] = recent[i];
   }
   void next() { int pages = (_n + 3) / 4; _page = pages ? (_page + 1) % pages : 0; }
   int render(DisplayDriver& d) override {
@@ -583,7 +618,7 @@ public:
     return true;
   }
 private:
-  static const int FRIENDS_MAX = 48;
+  static const int FRIENDS_MAX = 24, RECENT = 5;
   UITask* _task;
   int _idx[FRIENDS_MAX];
   int _n = 0, _page = 0;
