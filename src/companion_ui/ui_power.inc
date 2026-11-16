@@ -30,6 +30,11 @@ void UITask::powerCare() {
   // motion: pick up to wake; laid face down turns the screen off
   motion.poll();
   glassLightLoop();
+  {  // the pet: caught up when the screen turns on, saved when it goes dark (nothing in between)
+    static bool pet_on = false;
+    bool on = _display && _display->isOn();
+    if (on != pet_on) { pet_on = on; pet.onScreen(on); }
+  }
   if (_ui_prefs.rotation == 2 && _display && _display->isOn()) applyRotation();
   bool picked = motion.takePickup();
   if (picked && _aod && _ui_prefs.lift_wake) exitAOD();
@@ -186,6 +191,15 @@ bool UITask::dndNow() const { return _ui_prefs.night_dnd && nightHours(); }   //
 // a minimal one. The radio keeps listening and Bluetooth stays available. On by hand (Power
 // menu, Settings > Low power) or by itself at a chosen battery level, in which case USB power
 // turns it back off. The saved settings are never changed.
+// The pet's chirps: pitch from its look, only if Sounds is on (not at night with do not
+// disturb, nor in low power mode).
+void UITask::petSound(int kind) {
+  if (!_ui_prefs.pet_sound || lowPower() || dndNow() || !_ui_prefs.sound) return;
+  uint16_t base = 700 + (pet.seed() % 6) * 90;
+  if (kind == 2) sound.tone(base + 200, 60, tapVolume(), 2);
+  else sound.tone(base, 70, tapVolume());
+}
+
 void UITask::applyMotion() { motion.setActive(motionWanted() || _glass_light_live); }
 
 // Glass's light follows the board's tilt while the screen is on (Theme > Tilt light): the
@@ -300,6 +314,7 @@ void UITask::exitAOD() {
 extern "C" void sf32_before_poweroff(int reason) {
   if (reason != 1) return;
   batt_history.save();
+  pet.save();
   display.turnOn();
   display.startFrame();
   display.setSquareLayout(true);

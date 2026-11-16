@@ -97,6 +97,7 @@ struct SF32UIPrefs {
   uint8_t low_power = 0;       // low power mode: 0 off, 1 on (by hand), 2 on (auto, at the battery level below)
   uint8_t lp_auto = 0;         // low power mode on by itself at LP_AUTO_LEVELS[] % (0: never)
   uint8_t glass_light = 1;     // Glass: a glint of light that follows the board's tilt (motion sensor, screen on)
+  uint8_t pet_sound = 1;       // the pet chirps when petted / played with (Settings > Games)
 };
 
 class UITask : public AbstractUITask {
@@ -244,12 +245,12 @@ public:
   bool showMessages();          // SF32: open the unread messages (false if none)
 
   // SF32: menus and settings
-  enum MenuKind { MENU_POWER, MENU_PAGE, MENU_SETTINGS, MENU_TIME, MENU_NIGHT, MENU_SOUND, MENU_DISPLAY, MENU_MOTION, MENU_PAGES, MENU_ADVERTS, MENU_THEME, MENU_BATTERY, MENU_BOT, MENU_POWER_OFF, MENU_LOW_POWER };
+  enum MenuKind { MENU_POWER, MENU_PAGE, MENU_SETTINGS, MENU_TIME, MENU_NIGHT, MENU_SOUND, MENU_DISPLAY, MENU_MOTION, MENU_PAGES, MENU_ADVERTS, MENU_THEME, MENU_BATTERY, MENU_BOT, MENU_POWER_OFF, MENU_LOW_POWER, MENU_GAMES };
   // the menu a submenu goes back to (MENU_PAGE: not a submenu)
   static MenuKind menuParent(MenuKind k) {
     return (k == MENU_NIGHT || k == MENU_TIME || k == MENU_SOUND || k == MENU_DISPLAY || k == MENU_MOTION ||
             k == MENU_PAGES || k == MENU_ADVERTS || k == MENU_THEME || k == MENU_BATTERY || k == MENU_BOT ||
-            k == MENU_LOW_POWER) ? MENU_SETTINGS : MENU_PAGE;
+            k == MENU_LOW_POWER || k == MENU_GAMES) ? MENU_SETTINGS : MENU_PAGE;
   }
   void openMenu(MenuKind kind);
   void closeMenu();
@@ -265,6 +266,7 @@ public:
   void glassLightLoop();
   void applyMotion();
   void setLowPower(uint8_t mode);  // 0 off, 1 by hand, 2 auto
+  void petSound(int kind);  // the pet's chirp: 1 petted, 2 playing (Settings > Games > Sounds)
   unsigned long autoOffMillis() const;
   int32_t localOffsetSecs(uint32_t utc) const;  // time zone + daylight saving
   void openRadioEditor();

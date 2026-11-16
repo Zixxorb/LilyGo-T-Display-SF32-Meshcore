@@ -63,6 +63,14 @@ void UITask::openMenu(MenuKind kind) {
       setCurrScreen(menu);
       return;
     }
+  } else if (kind == MENU_GAMES) {
+    m->begin("Games");
+    m->add("Sounds", ACT_PET_SOUND, _ui_prefs.pet_sound ? "On" : "Off");  // the pet's chirps
+    m->add("Reset pet", ACT_PET_RESET);  // fresh needs, the same look
+    m->add("Back", ACT_MENU_BACK);
+    m->setSelected(keep_sel);
+    setCurrScreen(menu);
+    return;
   } else if (kind == MENU_LOW_POWER) {
     m->begin("Low power");
     m->add("Mode", ACT_LOW_POWER, lowPower() ? "On" : "Off");
@@ -115,6 +123,7 @@ void UITask::openMenu(MenuKind kind) {
     m->add("Adverts", ACT_ADVERTS_MENU);  // scheduled adverts, what the Advert page's hold sends
     m->add("Bot", ACT_BOT_MENU);
     m->add("Low power", ACT_LP_MENU);  // low power mode: on now, or by itself at a battery level
+    m->add("Games", ACT_GAMES_MENU);  // the pet
     {
       ChannelDetails ch;
       m->add("SOS to", ACT_SOS_CHAN, sosChannelName(_ui_prefs.sos_chan, ch));
@@ -554,6 +563,22 @@ void UITask::menuAction(uint8_t action) {
       openMenu(_menu_kind);
       break;
     case ACT_LP_MENU: openMenu(MENU_LOW_POWER); break;
+    case ACT_GAMES_MENU: openMenu(MENU_GAMES); break;
+    case ACT_PET_SOUND:
+      _ui_prefs.pet_sound = !_ui_prefs.pet_sound;
+      saveUIPrefs();
+      openMenu(_menu_kind);
+      break;
+    case ACT_PET_RESET:
+      pet.reset();
+      showAlert("Pet reset", 1500);
+      openMenu(_menu_kind);
+      break;
+    case ACT_PET_PLAY:
+      closeMenu();
+      pet.play();
+      petSound(2);
+      break;
     case ACT_GLASS_LIGHT:
       _ui_prefs.glass_light = !_ui_prefs.glass_light;
       saveUIPrefs();

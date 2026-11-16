@@ -197,6 +197,7 @@ on the clock. Long lists follow your finger and glide after a flick.
 | **Signal** | Signal tester and repeater finder |
 | **Activity** | Packets per hour over 24 h and how busy the channel is |
 | **Nodes** | Your favourite contacts: last heard, hops, battery on tap |
+| **Games** | A pet of your own: its look comes from your node's key, so every node's is different. It's fed by the mesh traffic the radio hears, grows curious from adverts and new nodes, rests while the screen is off. Tap it to pet it, hold it to play. It never transmits, never dies and never nags |
 | **Power** | Hold the icon for the power menu |
 
 Pages can be hidden in **Settings > Pages** (the clock always shows).
@@ -222,6 +223,7 @@ Pages can be hidden in **Settings > Pages** (the clock always shows).
 | **USB app** | The app protocol over USB as well (off by default) |
 | **Adverts** | Nearby every 1/3/6/12 h, mesh every 12/24/48 h (both off by default), what the Advert page's hold sends |
 | **Bot** | Auto-reply, to DMs, channels, daily max (5/10/20/50), repeat per sender (12 h / 24 h / 7 d), gap between replies (1/5/15 min) |
+| **Games** | The pet's sounds, reset pet (fresh needs, the same look) |
 | **Low power** | Mode on / off, and Auto at (off / 10 / 15 / 20 / 30 % battery): see [Battery and power](#battery-and-power) |
 | **SOS to** | The channel Mesh SOS goes to (#emergency by default) |
 | **Sleep** | Let the chip sleep with the screen off (on by default) |

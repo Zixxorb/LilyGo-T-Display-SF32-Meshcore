@@ -384,7 +384,7 @@ void SF32SerialBLEInterface::linkPowerLoop() {
   uint8_t want = want_slow ? 2 : (_link_req == 2 ? 1 : _link_req);  // (fast again only if we slowed it)
   if (want == _link_req || (_link_req_at && now - _link_req_at < 5000)) return;  // (a request at most every 5 s)
   // interval in 1.25 ms units; supervision timeout 4 s (within Apple's accessory rules)
-  ble_gap_update_conn_param_t p = BLE_GAP_UPDATE_CONN_PARAM_INIT(_conn_idx, want == 2 ? 256 : 12, want == 2 ? 320 : 40, 0, 400);
+  ble_gap_update_conn_param_t p = BLE_GAP_UPDATE_CONN_PARAM_INIT(_conn_idx, (uint16_t)(want == 2 ? 256 : 12), (uint16_t)(want == 2 ? 320 : 40), 0, 400);
   uint8_t r = ble_gap_update_conn_param(&p);
   LOG_I("link: asking for %s: %d", want == 2 ? "320-400 ms" : "15-50 ms", r);
 #ifdef SF32_LINK_AB

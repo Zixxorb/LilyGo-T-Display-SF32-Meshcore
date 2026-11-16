@@ -24,6 +24,7 @@ class HomeScreen : public UIScreen {
     SIGNAL,    // SF32: signal tester (ui_signal.inc)
     ACTIVITY,  // SF32: packets heard per hour, channel use (ui_activity.inc)
     NODES,     // SF32: My Nodes: starred contacts (ui_nodes.inc)
+    GAMES,     // SF32: the pet (ui_pet.inc). (Before Power: older settings files move Power's hide bit, ui_prefs.inc)
 #ifndef UI_NO_HIBERNATE
     SHUTDOWN,
 #endif
@@ -345,6 +346,7 @@ public:
       case HomePage::SIGNAL: return "Signal";
       case HomePage::ACTIVITY: return "Activity";
       case HomePage::NODES: return "Nodes";
+      case HomePage::GAMES: return "Games";
 #ifndef UI_NO_HIBERNATE
       case HomePage::SHUTDOWN: return "Power";
 #endif
@@ -514,6 +516,7 @@ public:
   // goes to the next page.
   bool iconHoldPage() const {
     return _page == HomePage::BLUETOOTH || _page == HomePage::ADVERT || _page == HomePage::BOT || _page == HomePage::SIGNAL
+        || _page == HomePage::GAMES  // hold the pet: play
 #if UI_DISCOVER_SCREEN
         || _page == HomePage::DISCOVERY
 #endif
@@ -527,6 +530,7 @@ public:
 #if UI_DISCOVER_SCREEN
     if (_page == HomePage::DISCOVERY && disc_nodes_count > 0) return true;
 #endif
+    if (_page == HomePage::GAMES) return x >= 30 && x < 98 && y >= 24 && y < 88;  // the pet
     return x >= 32 && x < 96 && y >= 24 && y < 86;
   }
   void iconAction() {
@@ -538,13 +542,20 @@ public:
   bool wantsTaps() const {
     return iconHoldPage()  // a touch held elsewhere isn't a long press: only where it says
         || (_page == HomePage::CLOCK && _task->getUnreadCount() > 0)  // the envelope opens messages
-        || _page == HomePage::NODES;  // a row: ask that node for its battery
+        || _page == HomePage::NODES  // a row: ask that node for its battery
+        || _page == HomePage::GAMES;  // tap the pet: pet it
   }
   // true if the tap hit something; otherwise it acts as a normal tap (next page)
   bool handleTap(int x, int y) {
     if (_page == HomePage::CLOCK) {  // the unread envelope (top left): the messages
       if (x < 64 && y < 30 && _task->getUnreadCount() > 0) { _task->showMessages(); return true; }
       return false;
+    }
+    if (_page == HomePage::GAMES) {  // the pet: pet it (it looks at where you touched)
+      if (x < 30 || x >= 98 || y < 24 || y >= 88) return false;
+      pet.look(x, y);
+      if (pet.pet()) _task->petSound(1);
+      return true;
     }
     if (_page == HomePage::NODES) {  // a node's row: ask it for its battery
       ContactInfo fav[NODES_MAX];
@@ -630,6 +641,11 @@ public:
         m.add("Band scan", ACT_BAND_SCAN);
         m.add("Send nearby", ACT_ADVERT);
         m.add("Send to mesh", ACT_ADVERT_MESH);
+        break;
+      case HomePage::GAMES:
+        m.begin("Games");
+        m.add("Play", ACT_PET_PLAY);
+        m.add("Games menu", ACT_GAMES_MENU);  // the same submenu as Settings > Games
         break;
 #ifndef UI_NO_HIBERNATE
       case HomePage::SHUTDOWN:
@@ -923,6 +939,30 @@ public:
       } else {
         drawBatteryGraph(display, 10, 60, 108, 40, BATT_GRAPH_HOURS[_task->uiPrefs().batt_graph % NUM_BATT_GRAPH]);
       }
+    } else if (_page == HomePage::GAMES) {
+      themeHeader(display, "Games", mv);
+      bool still = _task->lowPower();
+      pet.update(true);
+      pet.draw(display, 64, 56, 1.0f, still);
+      // its needs: three small bars
+      const PetSave& ps = pet.stats();
+      static const char* const L[] = {"Fed", "Curious", "Rested"};
+      uint8_t v[3] = {ps.fed, ps.curious, ps.rested};
+      for (int k = 0; k < 3; k++) {
+        int bx = 6 + k * 41;
+        display.setTextSize(1);
+        display.setColor(UIColor::secondary_txt);
+        display.drawTextCentered(bx + 18, 90, L[k]);
+        display.setColor(THEME_DIM);  // (not the card colour: Glass would make it a frosted pane)
+        display.fillRect(bx, 100, 36, 3);
+        display.setColor(v[k] < 25 ? UIColor::warning_txt : THEME_ACCENT);
+        display.fillRect(bx, 100, (36 * v[k] + 50) / 100, 3);
+      }
+      display.setColor(THEME_DIM);
+      char mtxt[32];
+      sprintf(mtxt, "%s  -  tap: pet, hold: play", PetGame::moodName(pet.mood()));
+      display.drawTextCentered(W / 2, 108, mtxt);
+      next_render = still ? 60000 : (pet.reaction() ? 40 : 160);
     } else if (_page == HomePage::NODES) {
       themeHeader(display, "Nodes", mv);
       ContactInfo fav[NODES_MAX];
@@ -1254,6 +1294,11 @@ public:
       return true;
     }
 #endif
+    if (c == KEY_ENTER && _page == HomePage::GAMES) {  // hold the pet (or the button's long press): play
+      pet.play();
+      _task->petSound(2);
+      return true;
+    }
 #ifndef UI_NO_HIBERNATE
     if (c == KEY_ENTER && _page == HomePage::SHUTDOWN) {
       _task->openMenu(UITask::MENU_POWER);  // the button's long press as the icon's hold: the Power menu

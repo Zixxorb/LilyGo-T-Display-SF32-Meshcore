@@ -137,6 +137,7 @@ public:
 #include "ui_sun.inc"  // sunrise / sunset from the node's location (Sun and Info clock faces)
 #include "ui_adverts.inc"  // send adverts now / on a schedule (Settings > Auto advert)
 #include "ui_nodes.inc"  // My Nodes (Nodes page): starred contacts, battery on request
+#include "ui_pet.inc"  // the pet (Games page): its look, needs, mesh feeding, drawing
 
 #include "ui_home.inc"  // HomeScreen: the pages (clock, status, heard, radio, bluetooth, advert, discover, power)
 
@@ -465,6 +466,7 @@ void UITask::onQueueSizeChanged(int msgcount) {
 }
 
 void UITask::onDiscoveredContact(ContactInfo &contact, bool is_new, uint8_t path_len, const uint8_t* path) {
+  pet.onAdvert(is_new);  // SF32: the pet grows curious (just counted; nothing while the screen is off)
   // SF32: time from the mesh. Only nodes already in the contacts count: brand-new
   // identities cost nothing to make, so a stranger can't outvote them.
   if (_ui_prefs.mesh_time && !is_new && !rtc_clock.timeKnown()) {
@@ -535,6 +537,7 @@ void UITask::setCurrScreen(UIScreen* c) {
 */
 void UITask::shutdown(bool restart){
   batt_history.save();  // SF32
+  pet.save();
 
   #ifdef PIN_BUZZER
   /* note: we have a choice here -
