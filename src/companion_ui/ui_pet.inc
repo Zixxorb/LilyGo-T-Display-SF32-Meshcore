@@ -21,29 +21,47 @@ struct PetSave {
   uint32_t sum;      // check
 };
 
-// Which path-hash size each node uses (1, 2 or 3 bytes), learnt from its flood adverts: a sender
+// Which path-hash size each node uses (1, 2 or 3 bytes), learnt from its flood adverts and messages
+// (and channel messages whose sender is a contact by name), and whether the bot nudged it: a sender
 // writes its own setting into the top two bits of path_len. Known for sure when those bits say 2-3
 // bytes, or say 1 byte on an advert that came through repeaters; a direct (zero-hop) advert with
 // them at 0 tells nothing. Remembered in a tiny file (5 bytes a node, the newest 32).
 #define HSZ_FILE "/sf32_hsz"
 class HashSizes {
 public:
-  void note(const uint8_t* pub_key, uint8_t path_len) {
+  // a node's path_len as heard; true if a node the bot nudged has just moved up from 1 byte
+  bool note(const uint8_t* pub_key, uint8_t path_len) {
     uint8_t sz = (path_len >> 6) + 1, hops = path_len & 63;
-    if (sz == 1 && hops == 0) return;  // a direct advert: not known from this
+    if (sz == 1 && hops == 0) return false;  // a direct advert: not known from this
     load();
     int at = find(pub_key);
-    if (at >= 0 && _e[at].size == sz) return;
-    if (at < 0) {  // a new one: at the front, the oldest dropped
-      if (_n < N) _n++;
-      for (int i = _n - 1; i > 0; i--) _e[i] = _e[i - 1];
-      at = 0;
-      memcpy(_e[0].key, pub_key, 4);
-    }
-    _e[at].size = sz;
+    if (at >= 0 && (_e[at].v & SIZE) == sz) return false;
+    bool upgraded = at >= 0 && (_e[at].v & SIZE) == 1 && (_e[at].v & NUDGED) && sz >= 2;
+    if (at < 0) at = add(pub_key);
+    _e[at].v = (_e[at].v & NUDGED) | sz;
+    _dirty = true;
+    return upgraded;
+  }
+  uint8_t get(const uint8_t* pub_key) { load(); int at = find(pub_key); return at >= 0 ? (_e[at].v & SIZE) : 0; }
+  // the bot sent it a reminder (it sends 1-byte hashes)
+  void setNudged(const uint8_t* pub_key) {
+    load();
+    int at = find(pub_key);
+    if (at < 0) { at = add(pub_key); _e[at].v = 1; }
+    if (_e[at].v & NUDGED) return;
+    _e[at].v |= NUDGED;
     _dirty = true;
   }
-  uint8_t get(const uint8_t* pub_key) { load(); int at = find(pub_key); return at >= 0 ? _e[at].size : 0; }
+  bool nudged(const uint8_t* pub_key) { load(); int at = find(pub_key); return at >= 0 && (_e[at].v & NUDGED); }
+  // the mesh's health, of the nodes known: on 2-3 bytes, on 1 byte, nudged by the bot
+  void counts(int& multi, int& one, int& nudges) {
+    load();
+    multi = one = nudges = 0;
+    for (int i = 0; i < _n; i++) {
+      if ((_e[i].v & SIZE) >= 2) multi++; else if ((_e[i].v & SIZE) == 1) one++;
+      if (_e[i].v & NUDGED) nudges++;
+    }
+  }
   void save() {
     if (!_dirty) return;
     File f = InternalFS.open(HSZ_FILE, "w", true);
@@ -51,12 +69,20 @@ public:
     _dirty = false;
   }
 private:
-  struct Entry { uint8_t key[4]; uint8_t size; };
+  struct Entry { uint8_t key[4]; uint8_t v; };  // v: the size (1-3) in bits 0-1, bit 7 nudged
+  static const uint8_t SIZE = 0x03, NUDGED = 0x80;
   static const int N = 32;
   Entry _e[N];
   uint8_t _n = 0;
   bool _loaded = false, _dirty = false;
   int find(const uint8_t* k) const { for (int i = 0; i < _n; i++) if (memcmp(_e[i].key, k, 4) == 0) return i; return -1; }
+  int add(const uint8_t* k) {  // a new one: at the front, the oldest dropped
+    if (_n < N) _n++;
+    for (int i = _n - 1; i > 0; i--) _e[i] = _e[i - 1];
+    memcpy(_e[0].key, k, 4);
+    _e[0].v = 0;
+    return 0;
+  }
   void load() {
     if (_loaded) return;
     _loaded = true;
@@ -64,7 +90,10 @@ private:
     if (!f) return;
     uint8_t n = 0;
     if (f.read(&n, 1) == 1 && n <= N && f.read((uint8_t*)_e, n * sizeof(Entry)) == (int)(n * sizeof(Entry))) _n = n;
-    for (int i = 0; i < _n; i++) if (_e[i].size < 1 || _e[i].size > 3) _n = i;  // (damaged: keep what's sound)
+    for (int i = 0; i < _n; i++) {  // (damaged: keep what's sound)
+      uint8_t sz = _e[i].v & SIZE;
+      if (sz < 1 || (_e[i].v & ~(SIZE | NUDGED))) { _n = i; break; }
+    }
   }
 };
 static HashSizes hash_sizes;
@@ -753,7 +782,8 @@ public:
       else if (hops == 0) sprintf(tmp, "heard %s  -  direct", heard);
       else sprintf(tmp, "heard %s  -  %d hop%s", heard, hops, hops == 1 ? "" : "s");
       d.drawTextCentered(64, 92, tmp);
-      if (hs) sprintf(tmp, "%d-byte path hashes", hs); else strcpy(tmp, "path hash size not known yet");
+      if (hs) sprintf(tmp, "%d-byte path hashes%s", hs, hs == 1 && hash_sizes.nudged(c.id.pub_key) ? ", nudged" : "");
+      else strcpy(tmp, "path hash size not known yet");
       d.setColor(hs >= 2 ? THEME_ACCENT : (hs == 1 ? UIColor::warning_txt : THEME_DIM));
       d.drawTextCentered(64, 102, tmp);
       // the Battery button: asks it (once, when tapped); shows the answer
@@ -814,6 +844,13 @@ public:
     d.setColor((c.flags & 1) ? UIColor::primary_txt : UIColor::secondary_txt);  // favourites a little brighter
     if (d.getTextWidth(name) > 58) d.drawTextEllipsized((int)x - 29, (int)y + 16, 58, name);
     else d.drawTextCentered((int)x, (int)y + 16, name);
+    if (hash_sizes.nudged(c.id.pub_key) && hash_sizes.get(c.id.pub_key) == 1) {  // the bot nudged it: a small amber bubble
+      SF32Display& sd = (SF32Display&)d;
+      float bx = x + 15, by = y - 13;
+      sd.fillShaded(bx, by, 3.6f, 2.8f, UIColor::warning_txt, 0.2f);
+      d.setColor(UIColor::warning_txt);
+      sd.drawLineAA(bx - 1.6f, by + 2.2f, bx - 2.8f, by + 4.2f, 1.1f);  // its tail
+    }
   }
   void scrollBar(DisplayDriver& d) {  // as in the menus
     if (maxScroll() <= 0) return;

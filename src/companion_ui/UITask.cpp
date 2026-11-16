@@ -412,7 +412,7 @@ void UITask::onMessageRecv(mesh::Packet *pkt, const ContactInfo &from, uint8_t t
   showNewMessage(true);  // SF32: direct
   botCheck(pkt, &from, NULL, text);  // SF32
   if (pkt->isRouteFlood()) {  // SF32: a flood message carries its sender's hash size too, and how far it came
-    hash_sizes.note(from.id.pub_key, pkt->path_len);
+    if (hash_sizes.note(from.id.pub_key, pkt->path_len)) today_finds.upgraded(from.name);
     today_finds.hops(pkt->getPathHashCount(), from.name);
   }
 
@@ -438,6 +438,16 @@ void UITask::onChannelMessageRecv(mesh::Packet *pkt, ChannelDetails& channel_det
   ((MsgPreviewScreen *) msg_preview)->addPreview(path_len, channel_details.name, text);
   showNewMessage(false);  // SF32: channel
   botCheck(pkt, NULL, &channel_details, text);  // SF32
+  if (pkt->isRouteFlood()) {  // SF32: a channel message carries its sender's hash size: if the name is a contact's, note it
+    const char* sep = strstr(text, ": ");
+    char name[32];
+    if (sep && sep > text && sep - text < (int)sizeof(name)) {
+      memcpy(name, text, sep - text);
+      name[sep - text] = 0;
+      ContactInfo* c = the_mesh.searchContactsByPrefix(name);
+      if (c && strcmp(c->name, name) == 0 && hash_sizes.note(c->id.pub_key, pkt->path_len)) today_finds.upgraded(c->name);
+    }
+  }
 
   if (_display != NULL) {
 #ifndef SF32_LINK_AB  // battery test: the screen stays dark
@@ -472,7 +482,7 @@ void UITask::onQueueSizeChanged(int msgcount) {
 
 void UITask::onDiscoveredContact(ContactInfo &contact, bool is_new, uint8_t path_len, const uint8_t* path) {
   pet.onAdvert(is_new);  // SF32: the pet grows curious (just counted; nothing while the screen is off)
-  hash_sizes.note(contact.id.pub_key, path_len);  // SF32: its path-hash size, for its Starlit (RAM; saved at screen-off)
+  if (hash_sizes.note(contact.id.pub_key, path_len)) today_finds.upgraded(contact.name);  // SF32: its path-hash size, for its Starlit; a nudged node upgraded
   today_finds.hops(path_len & 63, contact.name);  // SF32: the farthest today (a direct advert: 0 hops)
   // SF32: time from the mesh. Only nodes already in the contacts count: brand-new
   // identities cost nothing to make, so a stranger can't outvote them.

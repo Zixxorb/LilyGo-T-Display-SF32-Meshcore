@@ -346,8 +346,12 @@ too.
   the node's details and its battery on request, as from the Nodes page).
 - **Path-hash size**: each Starlit glows with a faint aura for its node's path-hash size:
   amber for 1-byte, cyan for 2-byte, violet for 3-byte (none until it's known; yours from your
-  setting). The meet view says it in words. Learnt from the node's flooded adverts and
-  messages (nodes heard only directly, with no flood yet, stay unknown for a while), kept in a tiny file (5 bytes a node, the newest 32).
+  setting). The node's card says it in words. Learnt from the node's flooded adverts and
+  messages, and channel messages whose sender is one of your contacts by name (nodes heard
+  only directly stay unknown for a while), kept in a tiny file (5 bytes a node, the newest 32).
+- **Mesh health**: a node the bot nudged about its 1-byte path hashes gets a small amber
+  bubble in Friends ("nudged" on its card), and when it moves up to 2-byte, today's finds say
+  so ("upgraded to 2-byte: NAME").
 - **Gentle by design**: it never dies or nags, and never transmits anything. While the screen is
   off it does nothing at all (no battery cost); time away is caught up when you look. It's
   saved on the board and survives reflashing. Sounds and Reset are in Settings > Starlit.
@@ -475,6 +479,10 @@ page's menu > Bot menu): **Auto-reply**, **To DMs**, and **Channels** (off / DM 
 the channel), and its limits: by default each sender gets it at most once a day (**Repeat**),
 at most one reply a minute (**Gap**) and 20 a day in all (**Daily max**); never to
 auto-replies.
+
+The Bot page also shows your local mesh's health: of the nodes whose path-hash size is known,
+how many are on 2-byte and on 1-byte, and how many the bot has nudged (they're marked in
+Starlit > Friends).
 
 </details>
 

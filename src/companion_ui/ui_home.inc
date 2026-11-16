@@ -977,7 +977,7 @@ public:
       else {
         int n = 0;
         char tmp[64];
-        while (n < 6 && today_finds.line(n, tmp, sizeof(tmp))) n++;
+        while (n < 7 && today_finds.line(n, tmp, sizeof(tmp))) n++;
         int slot = still ? 0 : (int)(((millis() - opened - 5000) / 4000) % (n + 1));
         if (slot == 0 || !today_finds.line(slot - 1, mtxt, sizeof(mtxt))) {
           const char* cl = pet.contextLine();  // the device's state comes before its mood
@@ -1190,12 +1190,22 @@ public:
         int nw = display.getTextWidth(filtered);
         if (tw + nw > 116) nw = 116 - tw;
         int x = (W - tw - nw) / 2;
-        display.setCursor(x, 104);
+        display.setCursor(x, 99);
         display.print(tmp);
         display.setColor(UIColor::primary_txt);
-        display.drawTextEllipsized(x + tw, 104, nw, filtered);
+        display.drawTextEllipsized(x + tw, 99, nw, filtered);
       } else {
-        display.drawTextCentered(W / 2, 104, on ? "hold icon: turn off" : "hold icon: turn on");
+        display.drawTextCentered(W / 2, 99, on ? "hold icon: turn off" : "hold icon: turn on");
+      }
+      {  // the mesh's health: the nodes whose path-hash size is known
+        int multi, one, nudges;
+        hash_sizes.counts(multi, one, nudges);
+        if (multi + one > 0) {
+          if (nudges) sprintf(tmp, "2-byte: %d  1-byte: %d  nudged: %d", multi, one, nudges);
+          else sprintf(tmp, "known: %d on 2-byte, %d on 1-byte", multi, one);
+          display.setColor(one ? UIColor::warning_txt : THEME_DIM);
+          display.drawTextCentered(W / 2, 108, tmp);
+        }
       }
 #if UI_DISCOVER_SCREEN
     } else if (_page == HomePage::DISCOVERY) {

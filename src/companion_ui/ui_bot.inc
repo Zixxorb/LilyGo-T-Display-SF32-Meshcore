@@ -109,6 +109,14 @@ void UITask::botLoop() {
       ok = the_mesh.sendMessage(*c, ts, 0, BOT_DM_TEXT, expected_ack, est_timeout) != MSG_SEND_FAILED;
     }
   }
+  if (ok) {  // remember it was nudged (its Starlit shows it; an upgrade later shows in today's finds)
+    ContactInfo* c = the_mesh.lookupContactByPubKey(_bot_reply.pub_key, PUB_KEY_SIZE);
+    if (!c && _bot_reply.in_channel) {  // a channel reply: by name, if it's a contact
+      c = the_mesh.searchContactsByPrefix(_bot_reply.name);
+      if (c && strcmp(c->name, _bot_reply.name) != 0) c = NULL;
+    }
+    if (c) hash_sizes.setNudged(c->id.pub_key);
+  }
   _bot_last_sent = millis();
   if (!_bot_day_start) { _bot_day_start = millis() | 1; _bot_day_n = 0; }
   _bot_day_n++;
