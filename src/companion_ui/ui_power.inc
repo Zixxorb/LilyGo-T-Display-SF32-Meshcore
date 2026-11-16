@@ -29,6 +29,7 @@ void UITask::powerCare() {
 
   // motion: pick up to wake; laid face down turns the screen off
   motion.poll();
+  glassLightLoop();
   if (_ui_prefs.rotation == 2 && _display && _display->isOn()) applyRotation();
   bool picked = motion.takePickup();
   if (picked && _aod && _ui_prefs.lift_wake) exitAOD();
@@ -185,7 +186,38 @@ bool UITask::dndNow() const { return _ui_prefs.night_dnd && nightHours(); }   //
 // a minimal one. The radio keeps listening and Bluetooth stays available. On by hand (Power
 // menu, Settings > Low power) or by itself at a chosen battery level, in which case USB power
 // turns it back off. The saved settings are never changed.
-void UITask::applyMotion() { motion.setActive(motionWanted()); }
+void UITask::applyMotion() { motion.setActive(motionWanted() || _glass_light_live); }
+
+// Glass's light follows the board's tilt while the screen is on (Theme > Tilt light): the
+// accelerometer runs only then (unless a motion setting needs it anyway); smoothed, and a
+// redraw only when the glint has moved a few pixels (at most ~10 a second, the sensor's rate).
+void UITask::glassLightLoop() {
+  SF32Display* d = (SF32Display*)_display;
+  bool want = _ui_prefs.glass_light && _ui_prefs.glass && !lowPower() && d && d->isOn() && !_aod;
+  if (want != _glass_light_live) {
+    _glass_light_live = want;
+    applyMotion();
+    if (!want) d->setGlassLight(false, 0, 0);
+  }
+  if (!want || !motion.ready()) return;
+  static float lx = 150, ly = 70;
+  static unsigned long last = 0;
+  if (millis() - last < 100) return;
+  last = millis();
+  // tilt (g) -> where the light sits on the panel: level = upper left, as the glass always lit
+  float tx = 150 + motion.ax * 320, ty = 70 + motion.ay * 320;
+  if (tx < -80) tx = -80; if (tx > 560) tx = 560;
+  if (ty < -80) ty = -80; if (ty > 560) ty = 560;
+  lx += (tx - lx) * 0.35f;
+  ly += (ty - ly) * 0.35f;
+  static int shown_x = -1000, shown_y = -1000;
+  int x = (int)lx, y = (int)ly;
+  if (abs(x - shown_x) < 6 && abs(y - shown_y) < 6) return;
+  shown_x = x;
+  shown_y = y;
+  d->setGlassLight(true, x, y);
+  _next_refresh = 0;  // redraw with it
+}
 
 void UITask::setLowPower(uint8_t mode) {
   if (mode == _ui_prefs.low_power) return;

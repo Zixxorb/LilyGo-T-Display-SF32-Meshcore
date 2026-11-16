@@ -210,7 +210,7 @@ Pages can be hidden in **Settings > Pages** (the clock always shows).
 
 | Menu | Contains |
 |---|---|
-| **Theme** | Style (Normal / Glass), Color (each style keeps its own), Backdrop for Glass (Aurora / Dunes / Blend / None), Battery (Color: red / yellow / green by charge, or Plain) |
+| **Theme** | Style (Normal / Glass), Color (each style keeps its own), Backdrop for Glass (Aurora / Dunes / Blend / None), Tilt light for Glass (a glint of light on the glass that follows how you tilt the board; on by default, uses the motion sensor only while the screen is on, off in low power mode), Battery (Color: red / yellow / green by charge, or Plain) |
 | **Display** | Brightness, timeout, always-on, tap to wake, rotation (Normal / Auto / Right / Flipped / Left) |
 | **Pages** | Show or hide each home page |
 | **Clock** | Face, zone, daylight saving (off/US/EU), 12/24 h, mesh time, reset clock |

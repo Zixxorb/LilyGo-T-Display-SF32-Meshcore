@@ -255,6 +255,21 @@ static uint32_t glass_sum() {  // a quick sample of both pictures (setGlass, gla
   return sum;
 }
 
+// The light on the glass (setGlassLight): a soft glint in the frost, centred at a panel point
+// that follows how the board is tilted. Baked into the frost, so every pane shows it in the
+// right place whatever draws it (direct, list layers, the hardware compose).
+#define GLINT_R 175
+static bool s_light_on = false;
+static int s_light_x = 150, s_light_y = 70;
+static inline int glint_add(int x, int y) {  // 0..GLINT_MAX added to each channel (0..255)
+  if (!s_light_on) return 0;
+  int dx = x - s_light_x, dy = y - s_light_y, d2 = dx * dx + dy * dy;
+  const int R2 = GLINT_R * GLINT_R;
+  if (d2 >= R2) return 0;
+  int q = (R2 - d2) / (R2 / 64);  // 0..64
+  return q * q * 32 / (64 * 64);   // a soft peak, ~32 at the centre
+}
+
 static inline void glass_screen(float* out, const float* c, float a) {  // lighter where they overlap, never clips
   for (int k = 0; k < 3; k++) {
     float v = c[k] * a;
@@ -276,6 +291,36 @@ static const float DUNE_Y[4] = {165, 245, 325, 410}, DUNE_AMP[4] = {42, 36, 30, 
                    DUNE_PHASE[4] = {1.1f, 3.6f, 5.2f, 0.4f}, DUNE_AMP2[4] = {12, 14, 10, 9}, DUNE_FREQ2[4] = {0.029f, 0.024f, 0.035f, 0.041f},
                    DUNE_V[4] = {0.50f, 0.42f, 0.34f, 0.24f};
 static const uint8_t DUNE_COLOR[4] = {1, 0, 2, 0};
+
+static int s_frost_tint[3] = {0, 0, 0};
+// The frost's pixels in a rectangle, from the blurred grid: the veil, a fine grain (from the
+// position, so a region can be redone exactly) and the light's glint.
+static void frost_region(int x0, int y0, int x1, int y1) {
+  if (x0 < 0) x0 = 0;
+  if (y0 < 0) y0 = 0;
+  if (x1 > PANEL_W) x1 = PANEL_W;
+  if (y1 > PANEL_H) y1 = PANEL_H;
+  for (int y = y0; y < y1; y++) {
+    int gy = y / 4, ty = y & 3;
+    const uint8_t* row0 = s_glass_grid + gy * GLASS_GRID * 3;
+    const uint8_t* row1 = row0 + GLASS_GRID * 3;
+    uint16_t* f = s_frost + y * PANEL_W + x0;
+    for (int x = x0; x < x1; x++) {
+      int gx = x / 4, tx = x & 3;
+      const uint8_t* a = row0 + gx * 3, *b = row1 + gx * 3;
+      uint32_t h = (uint32_t)(x * 73856093) ^ (uint32_t)(y * 19349663);
+      h ^= h >> 13; h *= 0x5bd1e995; h ^= h >> 15;
+      int n = (int)(h & 7) - 3 + glint_add(x, y);  // a fine grain, and the light
+      int c[3];
+      for (int k = 0; k < 3; k++) {
+        int top = a[k] * (4 - tx) + a[k + 3] * tx, bot = b[k] * (4 - tx) + b[k + 3] * tx;
+        c[k] = (top * (4 - ty) + bot * ty) / 16;
+        c[k] = c[k] * 12 / 16 + 24 + s_frost_tint[k] + n;  // the veil
+      }
+      *f++ = glass_pixel(x, y, c[0], c[1], c[2]);
+    }
+  }
+}
 
 static void glass_build() {
   float r0 = ((s_glass_accent >> 11) & 0x1F) / 31.0f, g0 = ((s_glass_accent >> 5) & 0x3F) / 63.0f, b0 = (s_glass_accent & 0x1F) / 31.0f;
@@ -380,26 +425,8 @@ static void glass_build() {
   int tint[3] = {0, 0, 0};
   // (Rainbow gives each page its own colour, so one tint would be wrong on all of them: none.)
   if (s_glass_bg == 3 && !s_glass_multi) for (int k = 0; k < 3; k++) tint[k] = (int)(unit[0][k] * 0.07f);
-  uint16_t* f = s_frost;
-  uint32_t grain = 0x2545F491;
-  for (int y = 0; y < PANEL_H; y++) {
-    int gy = y / 4, ty = y & 3;
-    const uint8_t* row0 = s_glass_grid + gy * GLASS_GRID * 3;
-    const uint8_t* row1 = row0 + GLASS_GRID * 3;
-    for (int x = 0; x < PANEL_W; x++) {
-      int gx = x / 4, tx = x & 3;
-      const uint8_t* a = row0 + gx * 3, *b = row1 + gx * 3;
-      int c[3];
-      for (int k = 0; k < 3; k++) {
-        int top = a[k] * (4 - tx) + a[k + 3] * tx, bot = b[k] * (4 - tx) + b[k + 3] * tx;
-        c[k] = (top * (4 - ty) + bot * ty) / 16;
-        c[k] = c[k] * 12 / 16 + 24 + tint[k];  // the veil
-      }
-      grain ^= grain << 13; grain ^= grain >> 17; grain ^= grain << 5;
-      int n = (int)(grain & 7) - 3;  // a fine grain
-      *f++ = glass_pixel(x, y, c[0] + n, c[1] + n, c[2] + n);
-    }
-  }
+  for (int k = 0; k < 3; k++) s_frost_tint[k] = tint[k];
+  frost_region(0, 0, PANEL_W, PANEL_H);
   s_glass_sum = glass_sum();
   mpu_dcache_clean((void*)s_wall, FB_PIXELS * 2);  // the hardware reads these directly
   mpu_dcache_clean((void*)s_frost, FB_PIXELS * 2);
@@ -1022,6 +1049,29 @@ void SF32Display::glassPopup(int x0, int y0, int x1, int y1, int radius) {
   if (radius) glassRim(x0, y0, x1, y1, radius, true);
 }
 
+// Move (or turn on/off) the light on the glass: only the frost around the old and the new
+// glint is redone (a few ms), then the next frame shows it.
+void SF32Display::setGlassLight(bool on, int x, int y) {
+  if (on == s_light_on && (!on || (x == s_light_x && y == s_light_y))) return;
+  bool was = s_light_on;
+  int ox = s_light_x, oy = s_light_y;
+  s_light_on = on;
+  s_light_x = x;
+  s_light_y = y;
+  if (!s_glass_on) return;  // (glass_build uses it when Glass comes on)
+  int r0 = PANEL_H, r1 = 0;
+  if (was) { frost_region(ox - GLINT_R, oy - GLINT_R, ox + GLINT_R, oy + GLINT_R); r0 = oy - GLINT_R; r1 = oy + GLINT_R; }
+  if (on) {
+    frost_region(x - GLINT_R, y - GLINT_R, x + GLINT_R, y + GLINT_R);
+    if (y - GLINT_R < r0) r0 = y - GLINT_R;
+    if (y + GLINT_R > r1) r1 = y + GLINT_R;
+  }
+  if (r0 < 0) r0 = 0;
+  if (r1 > PANEL_H) r1 = PANEL_H;
+  if (r1 > r0) mpu_dcache_clean((void*)(s_frost + r0 * PANEL_W), (r1 - r0) * PANEL_W * 2);  // the hardware reads it
+  s_glass_sum = glass_sum();
+}
+
 // A round pane behind a big icon (logical x, y, diameter).
 void SF32Display::glassBadge(int x, int y, int d) {
   int x0 = px_x(x), y0 = px_y(y), x1 = px_x(x + d), y1 = px_y(y + d), r = (x1 - x0) / 2;
@@ -1039,8 +1089,20 @@ void SF32Display::glassRim(int x0, int y0, int x1, int y1, int radius, bool popu
   _color = 0xFFFF;
   int boost = popup ? 3 : 0;
   const float rim_fade = popup ? s_popup_fade : 1;
+  // the light on the glass: the edge brightens where it's near (not in a scrolling list's
+  // layer, whose rows aren't where they'll be shown)
+  const bool lit = s_light_on && s_fb != s_layer;
+  auto lb = [&](int px, int py, int a) {
+    if (lit) {
+      int dx = px - s_light_x, dy = py - s_light_y, d2 = dx * dx + dy * dy;
+      const int R2 = (GLINT_R * 2) * (GLINT_R * 2);
+      if (d2 < R2) a += (R2 - d2) * 7 / R2;
+    }
+    return a > 15 ? 15 : a;
+  };
   for (int py = y0; py < y1; py++) {
     int a = (int)((2 + boost + (9 * (y1 - py)) / (h * 2)) * rim_fade + 0.5f);  // the sides: fading downward
+    if (s_light_on && !popup) a /= 2;  // with the light on, the edges glow near it rather than all round
     int cy_d = py < y0 + radius ? y0 + radius - py : (py >= y1 - radius ? py - (y1 - radius) + 1 : 0);
     if (cy_d) {
       for (int side = 0; side < 2; side++) {
@@ -1049,7 +1111,8 @@ void SF32Display::glassRim(int x0, int y0, int x1, int y1, int radius, bool popu
           float out = radius - d + 0.5f, in = d - (radius - RIM) + 0.5f;
           float cov = (out > 1 ? 1 : out) * (in > 1 ? 1 : in);
           if (out <= 0 || in <= 0) continue;
-          blendPixel(side ? x1 - 1 - i : x0 + i, py, (int)(a * cov + 0.5f));
+          int px = side ? x1 - 1 - i : x0 + i;
+          blendPixel(px, py, (int)(lb(px, py, a) * cov + 0.5f));
         }
       }
       int rows = py < y0 + radius ? py - y0 : y1 - 1 - py;
@@ -1057,13 +1120,15 @@ void SF32Display::glassRim(int x0, int y0, int x1, int y1, int radius, bool popu
         bool top = py < y0 + radius;
         for (int px = x0 + radius; px < x1 - radius; px++) {
           int along = (int)((top ? 11 + boost - (6 * (px - x0)) / w : 3 + boost) * rim_fade + 0.5f);
-          blendPixel(px, py, rows == 0 ? along : along / 2);
+          if (s_light_on && !popup) along /= 2;
+          int al = lb(px, py, along);
+          blendPixel(px, py, rows == 0 ? al : al / 2);
         }
       }
     } else {
       for (int i = 0; i < (int)RIM; i++) {
-        blendPixel(x0 + i, py, a);
-        blendPixel(x1 - 1 - i, py, a);
+        blendPixel(x0 + i, py, lb(x0 + i, py, a));
+        blendPixel(x1 - 1 - i, py, lb(x1 - 1 - i, py, a));
       }
     }
   }

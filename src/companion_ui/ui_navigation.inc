@@ -129,6 +129,7 @@ void UITask::openMenu(MenuKind kind) {
     if (_ui_prefs.glass) {
       static const char* const BG_NAMES[] = {"Aurora", "Dunes", "Blend", "None"};
       m->add("Backdrop", ACT_THEME_BG, BG_NAMES[_ui_prefs.glass_bg % 4]);
+      m->add("Tilt light", ACT_GLASS_LIGHT, _ui_prefs.glass_light ? "On" : "Off");  // a glint that follows the tilt
     }
     m->add("Battery", ACT_BATT_COLORS, _ui_prefs.batt_colors ? "Color" : "Plain");  // short: longer rows scroll
     m->add("Back", ACT_MENU_BACK);
@@ -553,6 +554,11 @@ void UITask::menuAction(uint8_t action) {
       openMenu(_menu_kind);
       break;
     case ACT_LP_MENU: openMenu(MENU_LOW_POWER); break;
+    case ACT_GLASS_LIGHT:
+      _ui_prefs.glass_light = !_ui_prefs.glass_light;
+      saveUIPrefs();
+      openMenu(_menu_kind);
+      break;
     case ACT_LP_AUTO:
       _ui_prefs.lp_auto = (_ui_prefs.lp_auto + 1) % NUM_LP_AUTO;
       saveUIPrefs();

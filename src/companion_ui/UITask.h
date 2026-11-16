@@ -96,6 +96,7 @@ struct SF32UIPrefs {
   uint8_t tap_wake = 0;        // taps wake the dark screen (touch keeps scanning: ~60% more drain)
   uint8_t low_power = 0;       // low power mode: 0 off, 1 on (by hand), 2 on (auto, at the battery level below)
   uint8_t lp_auto = 0;         // low power mode on by itself at LP_AUTO_LEVELS[] % (0: never)
+  uint8_t glass_light = 1;     // Glass: a glint of light that follows the board's tilt (motion sensor, screen on)
 };
 
 class UITask : public AbstractUITask {
@@ -260,6 +261,8 @@ public:
   uint8_t tapSnd() const { return lowPower() ? 0 : _ui_prefs.touch_snd; }
   bool botOn() const { return _ui_prefs.bot_on && !lowPower(); }
   bool motionWanted() const { return !lowPower() && (_ui_prefs.lift_wake || _ui_prefs.flip_quiet || _ui_prefs.rotation == 2); }
+  bool _glass_light_live = false;  // the tilt light is running (Glass shown, screen on): needs the motion sensor
+  void glassLightLoop();
   void applyMotion();
   void setLowPower(uint8_t mode);  // 0 off, 1 by hand, 2 auto
   unsigned long autoOffMillis() const;

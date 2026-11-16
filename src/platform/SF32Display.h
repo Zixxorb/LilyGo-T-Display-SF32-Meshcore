@@ -91,6 +91,8 @@ public:
   void setGlass(bool on, uint16_t accent, bool multi, uint8_t background);
   bool glassOn() const;
   void setGlassPaused(bool paused);  // plain black meanwhile (the always-on clock)
+  // a glint of light on the glass at panel point (x, y) (it follows the board's tilt: UITask)
+  void setGlassLight(bool on, int x, int y);
   void setPopupFade(float fade);     // 0..1: how far a Glass popup has faded in
   void glassBadge(int x, int y, int d);  // a round pane behind a big icon
   bool transitionPending() const { return _transition != TRANSITION_NONE; }
