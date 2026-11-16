@@ -400,6 +400,7 @@ public:
       display.setColor(UIColor::warning_txt);
       themeBolt(display, bx - 3 - tw - 11, 6);
     }
+    if (g_low_power_icon) themeLeaf(display, bx - 3 - tw - (board.isExternalPowered() ? 22 : 11), 6);  // low power mode
     // do not disturb (night hours): always in the bottom left corner, just above the page dots
     if (_task->dndNow()) {
       display.setTextSize(1);
@@ -942,6 +943,7 @@ public:
         drawBatteryGraph(display, 10, 60, 108, 40, BATT_GRAPH_HOURS[_task->uiPrefs().batt_graph % NUM_BATT_GRAPH]);
       }
     } else if (_page == HomePage::GAMES) {
+      unsigned long pet_t0 = millis();
       themeHeader(display, "Starlit", mv);
       bool still = _task->lowPower();
       pet.update(true);
@@ -969,7 +971,9 @@ public:
       if (millis() - opened < 5000) strcpy(mtxt, "stroke: pet, tap: boop, hold: play");
       else sprintf(mtxt, "your Starlit is %s", PetGame::moodName(pet.mood()));
       display.drawTextCentered(W / 2, 108, mtxt);
-      next_render = still ? 60000 : (pet.reaction() ? 33 : 70);
+      // paced from this frame's start (not its end): ~18 fps idle, as fast as it draws (~28) in a reaction
+      int period = pet.reaction() ? 16 : 55, left = period - (int)(millis() - pet_t0);
+      next_render = still ? 60000 : (left > 16 ? left : 16);
     } else if (_page == HomePage::NODES) {
       themeHeader(display, "Nodes", mv);
       ContactInfo fav[NODES_MAX];

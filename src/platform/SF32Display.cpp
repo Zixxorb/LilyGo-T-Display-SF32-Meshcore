@@ -898,25 +898,57 @@ void SF32Display::drawLineAA(float x0, float y0, float x1, float y1, float width
 // A shaded ellipse (logical units, rotated by rot radians): lit as a rounded 3D surface, from the
 // upper left and towards the viewer, with a glossy highlight (gloss 0..1) and an anti-aliased
 // edge. Used for soft figures (the pet).
+// the FPU's square root, one instruction (sqrtf is a library call: it also sets errno)
+static inline float fsqrt(float x) { float r; __asm__("vsqrt.f32 %0, %1" : "=t"(r) : "t"(x)); return r; }
+
 void SF32Display::fillShaded(float cx, float cy, float rx, float ry, uint16_t base, float gloss, float rot) {
   float acx = OFFSET_X + cx * SCALE, acy = OFFSET_Y + cy * SCALE, arx = rx * SCALE, ary = ry * SCALE;
   if (arx < 0.5f || ary < 0.5f) return;
-  float cr = cosf(rot), sr = sinf(rot), R = fmaxf(arx, ary) + 1.5f, mr = fminf(arx, ary);
-  int minx = (int)floorf(acx - R), maxx = (int)ceilf(acx + R), miny = (int)floorf(acy - R), maxy = (int)ceilf(acy + R);
-  int br = (base >> 11) << 3, bgc = ((base >> 5) & 0x3F) << 2, bb = (base & 0x1F) << 3;
+  const float cr = cosf(rot), sr = sinf(rot), mr = fminf(arx, ary), iax = 1 / arx, iay = 1 / ary;
+  const float LIM = 1.06f;  // drawn out to here (the anti-aliased rim)
+  // the rotated ellipse's exact extent: rows from its bounding box, each row's stretch from
+  // the quadratic in x (so nothing outside it is visited)
+  const float A = cr * cr * iax * iax + sr * sr * iay * iay;
+  const float Bk = 2 * cr * sr * (iax * iax - iay * iay);
+  const float Ck = sr * sr * iax * iax + cr * cr * iay * iay;
+  const float hh = sqrtf(LIM * (arx * arx * sr * sr + ary * ary * cr * cr));
+  int y0 = (int)floorf(acy - hh), y1 = (int)ceilf(acy + hh);
+  int cy0 = OFFSET_Y, cy1 = OFFSET_Y + AREA_H, cx0 = CLIP_X0, cx1 = CLIP_X1;
+  if (_clip_on) {
+    if (_clip_y0 > cy0) cy0 = _clip_y0;
+    if (_clip_y1 < cy1) cy1 = _clip_y1;
+    if (_clip_x0 > cx0) cx0 = _clip_x0;
+    if (_clip_x1 < cx1) cx1 = _clip_x1;
+  }
+  if (y0 < cy0) y0 = cy0;
+  if (y1 > cy1 - 1) y1 = cy1 - 1;
+  const int br = (base >> 11) << 3, bgc = ((base >> 5) & 0x3F) << 2, bb = (base & 0x1F) << 3;
   const float lx = -0.45f, ly = -0.62f, lz = 0.64f;            // the light
   const float hx = -0.2f, hy = -0.276f, hz = 0.94f;            // half-way to the viewer (normalised)
-  uint16_t saved = _color;
-  for (int py = miny; py <= maxy; py++) {
-    for (int px = minx; px <= maxx; px++) {
-      float qx = px + 0.5f - acx, qy = py + 0.5f - acy;
-      float ux = (qx * cr + qy * sr) / arx, uy = (-qx * sr + qy * cr) / ary;
+  const float solid = mr > 1 ? (1 - 0.5f / mr) * (1 - 0.5f / mr) : 0;  // d2 below this: fully covered
+  const float dux = cr * iax, duy = -sr * iay;                  // one pixel right, in the ellipse's units
+  for (int py = y0; py <= y1; py++) {
+    float qy = py + 0.5f - acy;
+    float b = Bk * qy, c = Ck * qy * qy - LIM, disc = b * b - 4 * A * c;
+    if (disc <= 0) continue;
+    float sq = fsqrt(disc), inv = 1 / (2 * A);
+    int x0 = (int)floorf(acx + (-b - sq) * inv), x1 = (int)ceilf(acx + (-b + sq) * inv);
+    if (x0 < cx0) x0 = cx0;
+    if (x1 > cx1 - 1) x1 = cx1 - 1;
+    uint16_t* row = s_fb + py * PANEL_W;
+    float qx = x0 + 0.5f - acx;
+    float ux = (qx * cr + qy * sr) * iax, uy = (-qx * sr + qy * cr) * iay;
+    for (int px = x0; px <= x1; px++, ux += dux, uy += duy) {
       float d2 = ux * ux + uy * uy;
-      if (d2 >= 1.06f) continue;
-      float dd = sqrtf(d2);
-      float cov = (1 - dd) * mr + 0.5f;
-      if (cov <= 0) continue;
-      float nz = d2 < 1 ? sqrtf(1 - d2) : 0;
+      if (d2 >= LIM) continue;
+      int a = 15;
+      if (d2 > solid) {  // the rim: coverage from the distance
+        float cov = (1 - fsqrt(d2)) * mr + 0.5f;
+        if (cov <= 0) continue;
+        if (cov < 1) a = (int)(cov * 15 + 0.5f);
+        if (a <= 0) continue;
+      }
+      float nz = d2 < 1 ? fsqrt(1 - d2) : 0;
       float nx = ux * cr - uy * sr, ny = ux * sr + uy * cr;
       float lam = nx * lx + ny * ly + nz * lz;
       if (lam < 0) lam = 0;
@@ -925,31 +957,61 @@ void SF32Display::fillShaded(float cx, float cy, float rx, float ry, uint16_t ba
       sp = sp > 0 ? sp : 0;
       sp *= sp; sp *= sp; sp *= sp; sp *= sp; sp *= sp;  // ^32: a tight highlight
       int add = (int)(sp * gloss * 230);
-      int r = (int)(br * shade) + add, g = (int)(bgc * shade) + add, b = (int)(bb * shade) + add;
-      r = r > 255 ? 255 : r; g = g > 255 ? 255 : g; b = b > 255 ? 255 : b;
-      _color = (uint16_t)(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3));
-      blendPixel(px, py, cov >= 1 ? 15 : (int)(cov * 15 + 0.5f));
+      int r = (int)(br * shade) + add, g = (int)(bgc * shade) + add, bl = (int)(bb * shade) + add;
+      r = r > 255 ? 255 : r; g = g > 255 ? 255 : g; bl = bl > 255 ? 255 : bl;
+      uint16_t col = (uint16_t)(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (bl >> 3));
+      if (a >= 15) { row[px] = col; continue; }
+      uint16_t bg = row[px];
+      int rr = (((col >> 11) & 0x1F) * a + ((bg >> 11) & 0x1F) * (15 - a)) / 15;
+      int gg = (((col >> 5) & 0x3F) * a + ((bg >> 5) & 0x3F) * (15 - a)) / 15;
+      int bb2 = ((col & 0x1F) * a + (bg & 0x1F) * (15 - a)) / 15;
+      row[px] = (uint16_t)((rr << 11) | (gg << 5) | bb2);
     }
   }
-  _color = saved;
 }
 
 // A soft spot: colour c fading out from the centre (alpha 0..15 at the middle): shadows, blush, glow.
 void SF32Display::fillSoft(float cx, float cy, float rx, float ry, uint16_t c, int alpha) {
   float acx = OFFSET_X + cx * SCALE, acy = OFFSET_Y + cy * SCALE, arx = rx * SCALE, ary = ry * SCALE;
   if (arx < 0.5f || ary < 0.5f || alpha <= 0) return;
-  int minx = (int)floorf(acx - arx), maxx = (int)ceilf(acx + arx), miny = (int)floorf(acy - ary), maxy = (int)ceilf(acy + ary);
-  uint16_t saved = _color;
-  _color = c;
-  for (int py = miny; py <= maxy; py++) {
-    for (int px = minx; px <= maxx; px++) {
-      float ux = (px + 0.5f - acx) / arx, uy = (py + 0.5f - acy) / ary, d2 = ux * ux + uy * uy;
-      if (d2 >= 1) continue;
-      float f = 1 - d2;
-      blendPixel(px, py, (int)(alpha * f * f + 0.5f));
+  // a pixel shows only where alpha * (1 - d2)^2 rounds to 1 or more: d2 < lim (the faint rim is skipped)
+  const float lim = 1 - sqrtf(0.5f / alpha);
+  if (lim <= 0) return;
+  int y0 = (int)floorf(acy - ary * sqrtf(lim)), y1 = (int)ceilf(acy + ary * sqrtf(lim));
+  int cy0 = OFFSET_Y, cy1 = OFFSET_Y + AREA_H, cx0 = CLIP_X0, cx1 = CLIP_X1;
+  if (_clip_on) {
+    if (_clip_y0 > cy0) cy0 = _clip_y0;
+    if (_clip_y1 < cy1) cy1 = _clip_y1;
+    if (_clip_x0 > cx0) cx0 = _clip_x0;
+    if (_clip_x1 < cx1) cx1 = _clip_x1;
+  }
+  if (y0 < cy0) y0 = cy0;
+  if (y1 > cy1 - 1) y1 = cy1 - 1;
+  const float iarx = 1 / arx, iary = 1 / ary;
+  const int fr = (c >> 11) & 0x1F, fg = (c >> 5) & 0x3F, fb = c & 0x1F;
+  for (int py = y0; py <= y1; py++) {
+    float uy = (py + 0.5f - acy) * iary, rest = lim - uy * uy;
+    if (rest <= 0) continue;
+    float half = fsqrt(rest) * arx;  // this row's stretch, worked out once
+    int x0 = (int)floorf(acx - half), x1 = (int)ceilf(acx + half);
+    if (x0 < cx0) x0 = cx0;
+    if (x1 > cx1 - 1) x1 = cx1 - 1;
+    uint16_t* row = s_fb + py * PANEL_W;
+    const float uy2 = uy * uy;
+    float ux = (x0 + 0.5f - acx) * iarx;
+    for (int px = x0; px <= x1; px++, ux += iarx) {
+      float f = 1 - (ux * ux + uy2);
+      if (f <= 0) continue;
+      int a = (int)(alpha * f * f + 0.5f);
+      if (a <= 0) continue;
+      if (a >= 15) { row[px] = c; continue; }
+      uint16_t bg = row[px];
+      int r = (fr * a + ((bg >> 11) & 0x1F) * (15 - a)) / 15;
+      int g = (fg * a + ((bg >> 5) & 0x3F) * (15 - a)) / 15;
+      int b = (fb * a + (bg & 0x1F) * (15 - a)) / 15;
+      row[px] = (uint16_t)((r << 11) | (g << 5) | b);
     }
   }
-  _color = saved;
 }
 
 // Rotation by the panel itself (CO5300 MADCTL: bit 7 MY rows mirrored, bit 6 MX columns

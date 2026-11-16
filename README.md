@@ -473,7 +473,8 @@ auto-replies.
   audio chip powers down; the LoRa radio keeps listening all the time (about 5 mA of that).
 - **Low power mode** (Power menu, or Settings > Low power): for when only the mesh matters,
   say someone lost. The clock page becomes a minimal one (dimmer time on black, "Low power"
-  under the date), and it turns off tap and swipe sounds (message chimes stay), the
+  under the date), a small green leaf shows by the battery (clock and page headers), and it
+  turns off tap and swipe sounds (message chimes stay), the
   auto-reply bot, the motion sensor (button A wakes the screen), the always-on clock and the
   Glass style; Bluetooth advertises every 2 s instead of 500 ms while no phone is connected,
   and once a connected phone has been quiet for 30 s it's asked for a slower rhythm (messages

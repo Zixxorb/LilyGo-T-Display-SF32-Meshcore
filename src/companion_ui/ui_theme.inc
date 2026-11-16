@@ -222,6 +222,18 @@ static void themeBolt(DisplayDriver& display, int x, int y) {
   d.drawLineAA(x + 1.6f, y + 4.4f, x + 6.2f, y + 3.6f, 1.5f);
   d.drawLineAA(x + 6.2f, y + 3.6f, x + 2.6f, y + 7.7f, 1.5f);
 }
+// low power mode is on: a small leaf by the battery (clock and page headers)
+static bool g_low_power_icon = false;
+static void themeLeaf(DisplayDriver& display, int x, int y) {  // 8x8, from its stem (bottom left) to its tip
+  SF32Display& d = (SF32Display&)display;
+  d.setColor(THEME_GOOD);
+  const float x0 = x + 1.0f, y0 = y + 7.4f, x1 = x + 7.6f, y1 = y + 0.6f;
+  for (int i = 0; i < 6; i++) {  // tapered strokes along the midrib: a filled leaf
+    float a = i / 6.0f, b = (i + 1) / 6.0f, m = (a + b) / 2;
+    d.drawLineAA(x0 + (x1 - x0) * a, y0 + (y1 - y0) * a, x0 + (x1 - x0) * b, y0 + (y1 - y0) * b, 0.6f + 3.4f * sinf(m * 3.1416f));
+  }
+  d.drawLineAA(x0 - 0.6f, y0 + 0.6f, x0 + 0.8f, y0 - 0.8f, 1.0f);  // the stem
+}
 static void themeEnvelope(DisplayDriver& display, int x, int y, const uint8_t* envelope) {
   SF32Display& d = (SF32Display&)display;
   if (!d.glassOn()) { display.drawXbm(x, y, envelope, 16, 12); return; }
@@ -289,6 +301,7 @@ static void themeHeader(DisplayDriver& d, const char* title, uint16_t mv) {
     d.setColor(UIColor::warning_txt);
     themeBolt(d, x, by);
   }
+  if (g_low_power_icon && x - 11 >= title_end) themeLeaf(d, x - 11, by);  // low power mode
 }
 
 // a size-2 value with a small unit after it, on the same baseline
