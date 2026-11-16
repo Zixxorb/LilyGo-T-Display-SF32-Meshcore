@@ -378,7 +378,9 @@ void SF32SerialBLEInterface::linkPowerLoop() {
 #endif
   if (!_connected) { _link_req = 0; return; }
   unsigned long now = millis();
-  bool want_slow = slow_ok && now - _connected_at > 45000 && now - _last_activity > 30000 && _send_len == 0;
+  // quiet = nothing from the phone for 30 s (the board's own notifications, e.g. each packet
+  // heard, don't count: they just wait for the next slot)
+  bool want_slow = slow_ok && now - _connected_at > 45000 && now - _last_activity > 30000;
   uint8_t want = want_slow ? 2 : (_link_req == 2 ? 1 : _link_req);  // (fast again only if we slowed it)
   if (want == _link_req || (_link_req_at && now - _link_req_at < 5000)) return;  // (a request at most every 5 s)
   // interval in 1.25 ms units; supervision timeout 4 s (within Apple's accessory rules)
@@ -413,7 +415,7 @@ size_t SF32SerialBLEInterface::checkRecvFrame(uint8_t dest[]) {
     int w = sibles_write_value(_conn_idx, &value);
     LOG_D("notify %d bytes -> %d", value.len, w);
     if (w == value.len) {  // 0 = stack busy, retry later
-      _last_write = _last_activity = millis();
+      _last_write = millis();  // (the board's own updates don't speed the link up: they wait for a slow slot)
       _send_len--;
       for (int i = 0; i < _send_len; i++) _send_queue[i] = _send_queue[i + 1];
     }

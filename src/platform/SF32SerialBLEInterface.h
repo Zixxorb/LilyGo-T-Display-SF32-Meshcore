@@ -23,9 +23,9 @@ public:
   // Low power mode: advertise every 2 s instead of 500 ms while no phone is connected (the
   // first 30 s after a disconnect stay fast). A connected phone isn't affected.
   void setSlowAdvertising(bool slow);
-  // Low power mode: once a connected phone has been quiet for 30 s (and not in the first 45 s
+  // Low power mode: once a connected phone has sent nothing for 30 s (and not in the first 45 s
   // of a connection), ask it for a slow connection rhythm (320-400 ms); fast again as soon as
-  // frames flow. Messages from the phone then wait up to ~0.4 s.
+  // it sends something (the board's own notifications just wait for a slow slot). Messages from the phone then wait up to ~0.4 s.
   void setSlowLink(bool on) { _slow_link = on; }
   uint16_t connIntervalUnits() const { return _conn_intv; }  // last granted (1.25 ms units), 0 unknown
 
@@ -87,6 +87,6 @@ private:
   uint8_t _link_req = 0;                     // 0 the phone's choice, 1 fast asked, 2 slow asked
   unsigned long _link_req_at = 0;
   volatile unsigned long _connected_at = 0;  // when the link became encrypted (millis)
-  volatile unsigned long _last_activity = 0; // last frame either way (millis)
+  volatile unsigned long _last_activity = 0; // last frame from the phone (millis)
   volatile uint16_t _conn_intv = 0;
 };
