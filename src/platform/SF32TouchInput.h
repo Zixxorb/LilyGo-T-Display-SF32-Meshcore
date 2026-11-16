@@ -48,7 +48,7 @@ public:
   bool touchConsumed() const { return _consumed; }
   // the touch started near the left or right edge (home pages change only with such a swipe,
   // which frees the middle for the page's own touches); remote test swipes count as edge swipes
-  bool edgeStart() const { return _remote_swipe || _x0 < 110 || _x0 >= 370; }
+  bool edgeStart() const { return _remote_swipe || _x0 < 150 || _x0 >= 330; }
   void click(uint8_t c) { _click = c; }  // touch feedback for what took the touch over
   // a press held in place (hold gestures): how long, 0 if not touching or it moved
   unsigned long stillHeldMs();

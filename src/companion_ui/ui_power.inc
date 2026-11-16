@@ -197,6 +197,7 @@ void UITask::petSound(int kind) {
   if (!_ui_prefs.pet_sound || lowPower() || dndNow() || !_ui_prefs.sound) return;
   uint16_t base = 700 + (pet.seed() % 6) * 90;
   if (kind == 2) sound.tone(base + 200, 60, tapVolume(), 2);
+  else if (kind == 3) sound.tone(base + 420, 35, tapVolume(), 2);  // a boop: a quick high giggle
   else sound.tone(base, 70, tapVolume());
 }
 

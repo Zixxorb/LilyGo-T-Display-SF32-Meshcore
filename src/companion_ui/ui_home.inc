@@ -555,7 +555,7 @@ public:
     if (_page == HomePage::GAMES) {  // the pet: pet it (it looks at where you touched)
       if (x < 30 || x >= 98 || y < 24 || y >= 88) return false;
       pet.look(x, y);
-      if (pet.pet()) _task->petSound(1);
+      if (pet.boop()) _task->petSound(3);  // a tap: a boop (stroking it is petting)
       return true;
     }
     if (_page == HomePage::NODES) {  // a node's row: ask it for its battery
@@ -944,7 +944,7 @@ public:
       themeHeader(display, "Games", mv);
       bool still = _task->lowPower();
       pet.update(true);
-      pet.draw(display, 64, 60, 1.0f, still);
+      pet.draw(display, 64, 58, 1.0f, still);
       // its needs: three small bars
       const PetSave& ps = pet.stats();
       static const char* const L[] = {"Fed", "Curious", "Rested"};
