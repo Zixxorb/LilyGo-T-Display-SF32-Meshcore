@@ -128,13 +128,14 @@ public:
   void drawXbm(int x, int y, const uint8_t* bits, int w, int h) override;
   uint16_t getTextWidth(const char* str) override;
   // UTF-8 to what the font has (printable ASCII): curly quotes, dashes, accented letters and
-  // the like become their plain versions; anything else (emoji) one placeholder block (0xDB).
+  // the like become their plain versions; common emoji two bytes (0xF8 + i >> 6, 0x80 + i & 63:
+  // SF32Emoji.h); anything else one placeholder block (0xDB).
   // Text that's already translated passes through unchanged.
   void translateUTF8ToBlocks(char* dest, const char* src, size_t dest_size) override;
   void endFrame() override;
 
 private:
-  int drawChar(int pen16, int y, unsigned char c);  // returns the advance (1/16 px)
+  int drawChar(int pen16, int y, unsigned char c, unsigned char next = 0);  // returns the advance (1/16 px); next: an emoji's 2nd byte
   int charAdvance(unsigned char c) const;            // 1/16 px
   void blendPixel(int px, int py, int alpha);  // alpha 0..15, _color over the frame
   // the drawable area (panel, bleed and any clip), as inclusive pixel bounds; false: nothing

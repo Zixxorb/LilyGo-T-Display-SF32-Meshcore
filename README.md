@@ -322,6 +322,9 @@ sender and the start of the text. Tap the envelope on the clock to read; swipe l
 next, right to go back. Messages count as read once the phone app downloads them, or when
 viewed on the device. **Do not disturb** (Settings > Night) keeps them silent and dark.
 
+The ~120 most used emoji show in colour (the rest as a small block); curly quotes, dashes
+and accented letters show as their plain versions.
+
 **Muted channels** (Settings > Sound > Channels): a muted channel's messages make no sound,
 don't light the screen and aren't kept as unread on the device; the phone still gets them.
 The app's own channel mute stays on the phone (MeshCore doesn't send it to the device), so

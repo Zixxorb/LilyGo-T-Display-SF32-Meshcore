@@ -5,6 +5,7 @@
 #include "mem_section.h"
 #include "bf0_hal.h"  // system_bf0_ap.h: mpu_dcache_clean
 #include "SF32Font.h"
+#include "SF32Emoji.h"  // the common emoji (tools/gen_emoji.py)
 // The chip's graphics hardware: much faster on PSRAM than the CPU going through its cache
 // (measured, one 480x480 frame: copy 15.5 ms by CPU, 5.2 by DMA; a blend 38 by CPU, 8 by EPIC).
 // On the SF32LB52 the panel controller has one layer only, and EPIC 2 layers plus a mask at a time.
@@ -1414,14 +1415,55 @@ static const SF32Glyph* find_glyph(int text_size, unsigned char c, const uint8_t
   return nullptr;
 }
 
+// an emoji in translated text: a lead byte 0xF8.. and a second byte 0x80..0xBF
+static inline bool emoji_lead(unsigned char c) { return c >= 0xF8 && c <= 0xF8 + ((SF32_EMOJI_N - 1) >> 6); }
+static inline bool emoji_tail(unsigned char c) { return c >= 0x80 && c <= 0xBF; }
+
 int SF32Display::charAdvance(unsigned char c) const {
   if (c == 0xDB) return (int)(6 * _text_size * SCALE * 16);
+  if (emoji_lead(c)) return (SF32_EMOJI_PX + 2) * _text_size * 16;
+  if (emoji_tail(c)) return 0;
   const SF32Glyph* g = find_glyph(_text_size, c, nullptr);
   return g ? g->adv : 0;
 }
 
-int SF32Display::drawChar(int pen16, int y, unsigned char c) {
+int SF32Display::drawChar(int pen16, int y, unsigned char c, unsigned char next) {
   int ox = (pen16 + 8) >> 4, oy = px_y(y);
+  if (emoji_lead(c)) {  // a colour picture, scaled up for bigger text
+    int idx = ((c - 0xF8) << 6) | (next & 0x3F);
+    int k = _text_size < 1 ? 1 : _text_size, n = SF32_EMOJI_PX * k;
+    if (!emoji_tail(next) || idx >= SF32_EMOJI_N) return charAdvance(c);
+    int ex = ox + k, ey = oy + ((int)(8 * k * SCALE) - n) / 2;
+    int cx0 = CLIP_X0, cx1 = CLIP_X1, cy0 = OFFSET_Y, cy1 = OFFSET_Y + AREA_H;
+    if (_clip_on) {
+      if (_clip_x0 > cx0) cx0 = _clip_x0;
+      if (_clip_x1 < cx1) cx1 = _clip_x1;
+      if (_clip_y0 > cy0) cy0 = _clip_y0;
+      if (_clip_y1 < cy1) cy1 = _clip_y1;
+    }
+    const uint16_t* rgb = sf32_emoji_rgb + idx * SF32_EMOJI_PX * SF32_EMOJI_PX;
+    const uint8_t* al = sf32_emoji_a + idx * SF32_EMOJI_PX * SF32_EMOJI_PX;
+    for (int j = 0; j < n; j++) {
+      int py = ey + j;
+      if (py < cy0 || py >= cy1) continue;
+      int sj = (j / k) * SF32_EMOJI_PX;
+      uint16_t* d = &s_fb[py * PANEL_W];
+      for (int i = 0; i < n; i++) {
+        int px = ex + i;
+        if (px < cx0 || px >= cx1) continue;
+        int a = al[sj + i / k];
+        if (a == 0) continue;
+        uint16_t fg = rgb[sj + i / k];
+        if (a == 255) { d[px] = fg; continue; }
+        uint16_t bg = d[px];
+        int r = (((fg >> 11) & 0x1F) * a + ((bg >> 11) & 0x1F) * (255 - a)) / 255;
+        int g = (((fg >> 5) & 0x3F) * a + ((bg >> 5) & 0x3F) * (255 - a)) / 255;
+        int b = ((fg & 0x1F) * a + (bg & 0x1F) * (255 - a)) / 255;
+        d[px] = (uint16_t)((r << 11) | (g << 5) | b);
+      }
+    }
+    return charAdvance(c);
+  }
   if (c == 0xDB) {  // translateUTF8ToBlocks' placeholder for non-ASCII: a soft block
     int u = (int)(_text_size * SCALE);
     fillPhys(ox + u, oy + u, ox + 5 * u, oy + 7 * u, 3);
@@ -1473,7 +1515,7 @@ void SF32Display::print(const char* str) {
       pen = px_x(0) * 16;
       continue;
     }
-    pen += drawChar(pen, _cy, (unsigned char)*p);
+    pen += drawChar(pen, _cy, (unsigned char)*p, (unsigned char)p[1]);
   }
   _pen16 = pen;
   _pen_valid = true;
@@ -1502,7 +1544,7 @@ void SF32Display::printWordWrap(const char* str, int max_width) {
     int take = n;
     if (p[n] && p[n] != '\n' && p[n] != ' ' && last_space > 0) take = last_space;
     int pen = left;
-    for (int i = 0; i < take; i++) pen += drawChar(pen, _cy, (unsigned char)p[i]);
+    for (int i = 0; i < take; i++) pen += drawChar(pen, _cy, (unsigned char)p[i], (unsigned char)p[i + 1]);
     _pen16 = pen;
     p += take;
     while (*p == ' ') p++;
@@ -1584,8 +1626,14 @@ void SF32Display::translateUTF8ToBlocks(char* dest, const char* src, size_t dest
     }
     uint32_t cp;
     int n = utf8_decode(s + i, &cp);
-    if (!n) {  // not UTF-8: already translated (the placeholder), or broken: one placeholder
-      dest[j++] = (char)0xDB;
+    if (!n) {  // not UTF-8: already translated (the placeholder, an emoji), or broken
+      if (emoji_lead(c) && emoji_tail(s[i + 1])) {  // an emoji: both bytes, or none (no room)
+        if (j + 2 < dest_size) { dest[j++] = c; dest[j++] = s[i + 1]; }
+        i += 2;
+        continue;
+      }
+      if (emoji_tail(c) || c >= 0xF8) { i++; continue; }  // half an emoji (cut short): nothing
+      dest[j++] = (char)0xDB;  // the placeholder, or a broken character
       i++;
       while ((s[i] & 0xC0) == 0x80) i++;
       continue;
@@ -1605,7 +1653,17 @@ void SF32Display::translateUTF8ToBlocks(char* dest, const char* src, size_t dest
       continue;
     }
     const char* plain = plain_for(cp);
-    if (!plain) { dest[j++] = (char)0xDB; continue; }
+    if (!plain) {
+      int e = -1;
+      for (int k = 0; k < SF32_EMOJI_N; k++) if (sf32_emoji_cp[k] == cp) { e = k; break; }
+      if (e >= 0) {  // a picture (two bytes), if there's room for both
+        if (j + 2 < dest_size) { dest[j++] = (char)(0xF8 + (e >> 6)); dest[j++] = (char)(0x80 + (e & 63)); }
+        else j = dest_size - 1;
+      } else {
+        dest[j++] = (char)0xDB;
+      }
+      continue;
+    }
     for (; *plain && j + 1 < dest_size; plain++) dest[j++] = *plain;
   }
   dest[j] = 0;
