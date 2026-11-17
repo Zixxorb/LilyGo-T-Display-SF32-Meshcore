@@ -69,7 +69,7 @@ struct SF32UIPrefs {
   uint8_t bot_on = 0;          // bot: auto-reply to 1-byte path hash messages
   uint8_t bot_dm = 1;          //   reply to direct messages
   uint8_t bot_chan = 1;        //   channel messages: 0 ignore, 1 DM the sender (if a contact), 2 reply in the channel (@[name])
-  uint8_t touch_snd = 1;       // a sound on taps and swipes: 0 off, 1 click, 2 pop, 3 tick
+  uint8_t touch_snd = 1;       // a sound on taps and swipes: 0 off, 1 click, 2 pop, 3 tick, 4 thump, 5 bubble, 6 chirp, 7 type, 8 the theme's
   uint8_t sig_interval = 1;    // signal tester: SIG_INTERVALS index (15 s)
   uint8_t sos_chan = 0xFF;     // SOS: channel index, 0xFF #emergency (SOS_CHAN_EMERGENCY)
   uint8_t mesh_time = 1;       // set the clock from mesh adverts while it isn't known
@@ -267,7 +267,9 @@ public:
   // Low power mode (ui_power.inc): what the settings come to while it's on. The saved settings
   // are never changed, so turning it off puts everything back.
   bool lowPower() const { return _ui_prefs.low_power != 0; }
-  uint8_t tapSnd() const { return lowPower() ? 0 : _ui_prefs.touch_snd; }
+  uint8_t tapStyle() const { return _ui_prefs.touch_snd == 8 ? SF32Sound::themeTap(_snd_theme) : _ui_prefs.touch_snd; }
+  uint8_t tapSnd() const { return lowPower() ? 0 : tapStyle(); }
+  void eventSound(SF32Sound::Chime kind);  // ui_sounds.inc
   bool botOn() const { return _ui_prefs.bot_on && !lowPower(); }
   bool motionWanted() const { return !lowPower() && (_ui_prefs.lift_wake || _ui_prefs.flip_quiet || _ui_prefs.rotation == 2); }
   bool _glass_light_live = false;  // the tilt light is running (Glass shown, screen on): needs the motion sensor
@@ -339,6 +341,13 @@ private:
   uint8_t _mute_rows[20];               // Settings > Sound > Channels: each row's channel index
   int _mute_n = 0;
   static bool thirdLevel(MenuKind k) { return k == MENU_MUTE || k == MENU_BATT_USE || k == MENU_PAGE_ORDER; }
+  // sounds (ui_sounds.inc): theme, message chimes (0: the theme's), event sounds on
+  uint8_t _snd_theme = 0, _snd_direct = 0, _snd_channel = 0, _snd_events = 1;
+  void loadSoundPrefs();
+  void saveSoundPrefs();
+  void eventLoop();
+  UIScreen* _down_screen = NULL;  // the screen when the finger went down
+  bool _was_down = false;
   int _order_pick = -1;                 // Settings > Pages > Order: the page picked up (its position), -1 none
   int _mute_back_sel = 0;               //   and Settings' row while it's open (any third-level menu)
   // battery use since unplugged (ui_usage.inc): estimated mAh per part

@@ -19,19 +19,61 @@ extern "C" void sf32_cpu_full_speed();  // SF32Board.cpp: audio needs the full c
 
 SF32Sound sound;
 
-struct Note { uint16_t hz, ms; };
-// a rising two-note chime for direct messages, one short note for channels
-static Note CHIME_NOTES[][3] = {
-  {{1319, 90}, {1760, 160}, {0, 0}},  // direct: E6, A6
-  {{1568, 110}, {0, 0}, {0, 0}},      // channel: G6
-  {{1047, 90}, {1319, 90}, {1568, 160}},  // test: C6 E6 G6
-  {{0, 0}, {0, 0}, {0, 0}},               // custom: set by tone()
-  // touch feedback
-  {{1600, 35}, {0, 0}, {0, 0}},           // click
-  {{1000, 60}, {0, 0}, {0, 0}},           // pop: lower, longer
-  {{2400, 12}, {0, 0}, {0, 0}},           // tick: very short
-  {{0, 0}, {0, 0}, {0, 0}},               // swish: synthesised (fill_tap)
-  {{659, 110}, {988, 110}, {1319, 380}},  // startup: E5 B5 E6, each ringing out
+// A tone: hz (0: the end, 1: a silent gap), gliding to hz2 if set, for ms; a waveform and an
+// envelope; amp 0 = full, else out of 255 (soft blips).
+enum Wave : uint8_t { W_SINE, W_TRI, W_SQR, W_NOISE };
+enum Env : uint8_t { E_BELL, E_PLUCK, E_SOFT, E_FLAT };
+struct Tone { uint16_t hz, hz2, ms; uint8_t wave, env, amp; };
+#define T_END {0, 0, 0, 0, 0, 0}
+#define T_GAP(ms) {1, 0, ms, 0, 0, 0}
+
+// the sounds now (the theme's, the chosen chimes); taps and the swish are synthesised (fill_tap)
+static Tone s_snd[SF32Sound::CHIME_N][4];
+static bool s_snd_set = false;
+
+// message chimes to choose from (index 1..CHIMES)
+static const char* const CHIME_NAMES[SF32Sound::CHIMES + 1] = {"Theme", "Chime", "Note", "Marimba", "Ding-dong", "Ping", "Retro", "Bird", "Drop", "Bubbles", "Blip"};
+static const Tone CHIMES_T[SF32Sound::CHIMES + 1][4] = {
+  {T_END, T_END, T_END, T_END},
+  {{1319, 0, 90, W_SINE, E_BELL, 0}, {1760, 0, 160, W_SINE, E_BELL, 0}, T_END, T_END},  // E6 A6 (the original direct)
+  {{1568, 0, 110, W_SINE, E_BELL, 0}, T_END, T_END, T_END},                               // G6 (the original channel)
+  {{1047, 0, 110, W_TRI, E_PLUCK, 0}, {1568, 0, 220, W_TRI, E_PLUCK, 0}, T_END, T_END},  // wooden
+  {{1319, 0, 220, W_SINE, E_BELL, 0}, {1047, 0, 380, W_SINE, E_BELL, 0}, T_END, T_END},  // a doorbell
+  {{2093, 0, 200, W_SINE, E_PLUCK, 0}, T_END, T_END, T_END},                              // one bright ping
+  {{1047, 0, 60, W_SQR, E_FLAT, 0}, {1319, 0, 60, W_SQR, E_FLAT, 0}, {1568, 0, 60, W_SQR, E_FLAT, 0}, {2093, 0, 120, W_SQR, E_FLAT, 0}},  // 8-bit
+  {{2600, 3600, 90, W_SINE, E_SOFT, 0}, T_GAP(40), {2900, 4200, 110, W_SINE, E_SOFT, 0}, T_END},  // two chirps
+  {{1700, 650, 150, W_SINE, E_SOFT, 0}, T_END, T_END, T_END},                             // a water drop
+  {{500, 1400, 70, W_SINE, E_SOFT, 0}, T_GAP(30), {650, 1700, 80, W_SINE, E_SOFT, 0}, T_END},  // two bubbles
+  {{1760, 0, 60, W_SQR, E_FLAT, 0}, T_GAP(30), {1760, 0, 60, W_SQR, E_FLAT, 0}, T_END},      // 8-bit double blip
+};
+
+// themes: their message chimes, startup, voice for the events, and tap style
+struct Theme { const char* name; uint8_t direct, channel; Tone startup[4]; uint8_t wave, env; float transpose, slide; uint8_t tap; };
+static const Theme THEMES_T[SF32Sound::THEMES] = {
+  {"Classic", 1, 2, {{659, 0, 110, W_SINE, E_BELL, 0}, {988, 0, 110, W_SINE, E_BELL, 0}, {1319, 0, 380, W_SINE, E_BELL, 0}, T_END},
+   W_SINE, E_BELL, 1.0f, 0, 1},
+  {"Soft", 3, 8, {{523, 0, 140, W_TRI, E_PLUCK, 0}, {659, 0, 140, W_TRI, E_PLUCK, 0}, {784, 0, 420, W_TRI, E_PLUCK, 0}, T_END},
+   W_TRI, E_PLUCK, 0.75f, 0, 4},
+  {"Retro", 6, 10, {{523, 0, 90, W_SQR, E_FLAT, 0}, {659, 0, 90, W_SQR, E_FLAT, 0}, {784, 0, 90, W_SQR, E_FLAT, 0}, {1047, 0, 240, W_SQR, E_FLAT, 0}},
+   W_SQR, E_FLAT, 1.0f, 0, 3},
+  {"Nature", 7, 9, {{2400, 3400, 110, W_SINE, E_SOFT, 0}, T_GAP(50), {2800, 4000, 130, W_SINE, E_SOFT, 0}, {3000, 4400, 160, W_SINE, E_SOFT, 0}},
+   W_SINE, E_SOFT, 1.6f, 1.25f, 6},
+};
+
+// the event sounds' shapes, sung in the theme's voice (hz2: a glide whatever the voice)
+struct EvShape { uint8_t kind; Tone t[4]; };
+static const EvShape EVENTS[] = {
+  {SF32Sound::CHIME_TEST,       {{1047, 0, 90}, {1319, 0, 90}, {1568, 0, 160}, T_END}},
+  {SF32Sound::CHIME_ADVERT,     {{784, 0, 70}, {1047, 0, 70}, {1319, 0, 140}, T_END}},        // out it goes
+  {SF32Sound::CHIME_CONNECT,    {{880, 0, 90}, {1319, 0, 160}, T_END, T_END}},                // up: hello
+  {SF32Sound::CHIME_DISCONNECT, {{1319, 0, 90}, {880, 0, 160}, T_END, T_END}},                // down: bye
+  {SF32Sound::CHIME_PLUG,       {{600, 1400, 150}, T_END, T_END, T_END}},                     // charging up
+  {SF32Sound::CHIME_UNPLUG,     {{1400, 600, 150}, T_END, T_END, T_END}},
+  {SF32Sound::CHIME_LOWBATT,    {{988, 0, 120}, T_GAP(60), {740, 0, 240}, T_END}},            // a falling warning
+  {SF32Sound::CHIME_BOT,        {{1568, 0, 60}, T_GAP(40), {1568, 0, 60}, T_END}},
+  {SF32Sound::CHIME_VISIT,      {{1047, 0, 80}, {1319, 0, 80}, {1568, 0, 80}, {2093, 0, 200}}},  // a happy run up
+  {SF32Sound::CHIME_MENU_OPEN,  {{900, 1500, 45, 0, E_SOFT, 110}, T_END, T_END, T_END}},     // soft blips
+  {SF32Sound::CHIME_MENU_CLOSE, {{1500, 900, 45, 0, E_SOFT, 110}, T_END, T_END, T_END}},
 };
 
 static rt_device_t s_prc, s_codec;
@@ -104,21 +146,37 @@ static void stream(int cmd) {
 }
 
 // one 10 ms chunk of the sequence starting at sample n; false after the end
-static bool fill(int16_t* buf, const Note* notes, uint32_t n) {
+static bool fill(int16_t* buf, const Tone* notes, uint32_t n) {
   const int count = CHUNK / 2;
+  static uint32_t rng = 0x2468ACE;
   bool any = false;
   for (int i = 0; i < count; i++, n++) {
     uint32_t t = n, start = 0;
     float v = 0;
-    for (int k = 0; k < 3 && notes[k].hz; k++) {
-      uint32_t len = (uint32_t)notes[k].ms * SAMPLE_RATE / 1000;
+    for (int k = 0; k < 4 && notes[k].hz; k++) {
+      const Tone& nt = notes[k];
+      uint32_t len = (uint32_t)nt.ms * SAMPLE_RATE / 1000;
       if (t < start + len) {
-        float x = (float)(t - start) / SAMPLE_RATE;
-        if (notes[k].hz == 1) { any = true; break; }  // a gap
-        float env = expf(-x * 18.0f) * fminf(1.0f, (t - start) / 48.0f);  // bell: soft attack, decay
-        if (notes[k].ms <= 15) env = fminf(1.0f, (len - (t - start)) / 24.0f) * fminf(1.0f, (t - start) / 8.0f);  // tick
-        v = env * sinf(2 * (float)M_PI * notes[k].hz * x);
         any = true;
+        if (nt.hz == 1) break;  // a gap
+        float x = (float)(t - start) / SAMPLE_RATE, T = (float)nt.ms / 1000;
+        float env;
+        switch (nt.env) {
+          case E_PLUCK: env = expf(-x * 38.0f) * fminf(1.0f, (t - start) / 24.0f); break;          // struck: quick decay
+          case E_SOFT:  env = sinf((float)M_PI * x / T); break;                                     // swells and fades
+          case E_FLAT:  env = fminf(1.0f, (t - start) / 48.0f) * fminf(1.0f, (len - (t - start)) / 160.0f) * 0.62f; break;  // 8-bit: held
+          default:      env = expf(-x * 18.0f) * fminf(1.0f, (t - start) / 48.0f); break;          // bell: soft attack, decay
+        }
+        float f1 = nt.hz2 ? nt.hz2 : nt.hz;
+        float ph = 2 * (float)M_PI * (nt.hz * x + (f1 - nt.hz) * x * x / (2 * T));  // a linear glide
+        float s;
+        switch (nt.wave) {
+          case W_TRI: s = asinf(sinf(ph)) * 0.6366f; break;
+          case W_SQR: { float q = sinf(ph) * 2.5f; s = q > 1 ? 1 : (q < -1 ? -1 : q); break; }  // rounded square
+          case W_NOISE: rng = rng * 1664525u + 1013904223u; s = (float)(rng >> 8) / 8388608.0f - 1.0f; break;
+          default: s = sinf(ph); break;
+        }
+        v = env * s * (nt.amp ? nt.amp / 255.0f : 1.0f);
         break;
       }
       start += len;
@@ -126,6 +184,48 @@ static bool fill(int16_t* buf, const Note* notes, uint32_t n) {
     buf[i] = (int16_t)(v * 14000);
   }
   return any;
+}
+
+const char* SF32Sound::themeName(int t) { return THEMES_T[(t < 0 || t >= THEMES) ? 0 : t].name; }
+int SF32Sound::themeTap(int t) { return THEMES_T[(t < 0 || t >= THEMES) ? 0 : t].tap; }
+const char* SF32Sound::chimeName(int c) { return CHIME_NAMES[(c < 0 || c > CHIMES) ? 0 : c]; }
+
+// the theme's sounds into s_snd (taps and the swish stay synthesised in fill_tap)
+void SF32Sound::setTheme(int theme, int direct_chime, int channel_chime) {
+  const Theme& th = THEMES_T[(theme < 0 || theme >= THEMES) ? 0 : theme];
+  int d = direct_chime >= 1 && direct_chime <= CHIMES ? direct_chime : th.direct;
+  int c = channel_chime >= 1 && channel_chime <= CHIMES ? channel_chime : th.channel;
+  static Tone tmp[SF32Sound::CHIME_N][4];  // (static: ~1 KB, kept off the callers' stacks)
+  memcpy(tmp, s_snd, sizeof(tmp));
+  memcpy(tmp[CHIME_DIRECT], CHIMES_T[d], sizeof(tmp[0]));
+  memcpy(tmp[CHIME_CHANNEL], CHIMES_T[c], sizeof(tmp[0]));
+  memcpy(tmp[CHIME_STARTUP], th.startup, sizeof(tmp[0]));
+  for (const EvShape& e : EVENTS) {
+    for (int k = 0; k < 4; k++) {
+      Tone t = e.t[k];
+      if (t.hz > 1) {
+        float tr = (e.kind == CHIME_MENU_OPEN || e.kind == CHIME_MENU_CLOSE) ? 1.0f : th.transpose;
+        t.hz = (uint16_t)(t.hz * tr);
+        if (t.hz2) t.hz2 = (uint16_t)(t.hz2 * tr);
+        else if (th.slide > 0) t.hz2 = (uint16_t)(t.hz * th.slide);  // Nature: everything chirps
+        t.wave = th.wave;
+        if (!t.amp) t.env = th.env;  // (the soft blips keep their own)
+      }
+      tmp[e.kind][k] = t;
+    }
+  }
+  rt_base_t level = rt_hw_interrupt_disable();  // (the sound thread reads it)
+  memcpy(s_snd, tmp, sizeof(s_snd));
+  s_snd_set = true;
+  rt_hw_interrupt_enable(level);
+}
+
+void SF32Sound::previewChime(int c, Volume vol) {
+  if (c < 1 || c > CHIMES) return;
+  rt_base_t level = rt_hw_interrupt_disable();
+  memcpy(s_snd[CHIME_CUSTOM], CHIMES_T[c], sizeof(s_snd[0]));
+  rt_hw_interrupt_enable(level);
+  chime(CHIME_CUSTOM, vol);
 }
 
 
@@ -190,10 +290,31 @@ static bool fill_tap(int16_t* buf, int style, uint32_t n) {
     }
     return any;
   }
+  if (style == 8) {  // type: a typewriter clack, a short noise burst with a wooden knock under it
+    const float T = 0.022f;
+    static uint32_t rng;
+    if (n == 0) rng = 0x13579BD;
+    bool any = false;
+    for (int i = 0; i < CHUNK / 2; i++) {
+      float t = (float)(n + i) / SAMPLE_RATE, v = 0;
+      if (t < T) {
+        any = true;
+        rng = rng * 1664525u + 1013904223u;
+        float noise = (float)(rng >> 8) / 8388608.0f - 1.0f;
+        v = 0.75f * noise * expf(-t / 0.0025f) + 0.5f * sinf(2 * (float)M_PI * 1100 * t) * expf(-t / 0.006f);
+        v = v > 1 ? 1 : (v < -1 ? -1 : v);
+      }
+      buf[i] = (int16_t)(v * 16000);
+    }
+    return any;
+  }
   float T, f0, f1, tau, amp;
   switch (style) {
     case 1:  T = 0.030f; f0 = 950;  f1 = 650;  tau = 0.006f;  amp = 0.80f; break;
     case 2:  T = 0.045f; f0 = 380;  f1 = 950;  tau = 0;       amp = 0.85f; break;  // tau 0: sine window
+    case 5:  T = 0.045f; f0 = 240;  f1 = 130;  tau = 0.012f;  amp = 1.00f; break;  // thump: low and soft
+    case 6:  T = 0.040f; f0 = 600;  f1 = 1900; tau = 0;       amp = 0.90f; break;  // bubble: a quick rise
+    case 7:  T = 0.032f; f0 = 3400; f1 = 2200; tau = 0.008f;  amp = 0.90f; break;  // chirp: a little bird
     default: T = 0.018f; f0 = 2600; f1 = 2600; tau = 0.0035f; amp = 1.00f; break;  // (as loud as the click: was ~10 dB under)
   }
   bool any = false;
@@ -215,7 +336,7 @@ static void sound_thread(void*) {
   static int16_t bufs[2][CHUNK / 2];  // alternating: the device queue keeps a pointer, not a copy
   int16_t* buf = bufs[0];
   uint32_t since_start = 0;  // samples since the stream started
-  const Note* notes = NULL;  // the sound playing, if any
+  const Tone* notes = NULL;  // the sound playing, if any
   int tap_style = 0;         // or a synthesised tap sound (1..3)
   uint32_t snd_n = 0, snd_delay = 0;
   int cur_volume = 0;
@@ -267,8 +388,9 @@ static void sound_thread(void*) {
         cur_volume = volume;
       }
       if (kind != MSG_OPEN) {
-        notes = CHIME_NOTES[kind];
-        tap_style = kind >= SF32Sound::CHIME_CLICK && kind <= SF32Sound::CHIME_SWISH ? kind - SF32Sound::CHIME_CLICK + 1 : 0;
+        notes = s_snd[kind < SF32Sound::CHIME_N ? kind : SF32Sound::CHIME_TEST];
+        tap_style = kind >= SF32Sound::CHIME_CLICK && kind <= SF32Sound::CHIME_SWISH ? kind - SF32Sound::CHIME_CLICK + 1
+                  : (kind >= SF32Sound::CHIME_THUMP && kind <= SF32Sound::CHIME_TYPE ? kind - SF32Sound::CHIME_THUMP + 5 : 0);
         snd_n = 0;
         snd_delay = 0;
 #ifdef SF32_SOUND_LOG
@@ -356,6 +478,7 @@ static void sound_thread(void*) {
 }
 
 static bool start_thread() {
+  if (!s_snd_set) sound.setTheme(0, 0, 0);  // Classic until the UI chooses (here, in the caller's thread)
   if (s_started) return true;
   rt_event_init(&s_ev, "sndev", RT_IPC_FLAG_FIFO);
   rt_mb_init(&s_mb, "sndmb", s_mb_pool, 2, RT_IPC_FLAG_FIFO);
@@ -394,11 +517,12 @@ void SF32Sound::keepOpen(bool on, Volume vol) {
 
 void SF32Sound::tone(uint16_t hz, uint16_t ms, Volume vol, uint8_t count) {
   // like chime(): may replace a tap sound, nothing else (its notes are rewritten here)
-  if (vol == VOL_OFF || (s_busy && !(s_cur_kind >= CHIME_CLICK && s_cur_kind <= CHIME_SWISH))) return;
-  Note* n = CHIME_NOTES[CHIME_CUSTOM];
-  n[0] = {hz, ms};
-  n[1] = count > 1 ? Note{1, ms} : Note{0, 0};   // gap
-  n[2] = count > 1 ? Note{hz, ms} : Note{0, 0};
+  if (vol == VOL_OFF || (s_busy && !isTapKind(s_cur_kind))) return;
+  Tone t[4] = {{hz, 0, ms, W_SINE, E_BELL, 0}, T_END, T_END, T_END};
+  if (count > 1) { t[1] = T_GAP(ms); t[2] = t[0]; }
+  rt_base_t level = rt_hw_interrupt_disable();
+  memcpy(s_snd[CHIME_CUSTOM], t, sizeof(t));
+  rt_hw_interrupt_enable(level);
   chime(CHIME_CUSTOM, vol);
 }
 
@@ -414,8 +538,8 @@ void SF32Sound::chime(Chime kind, Volume vol) {
   if (vol == VOL_OFF) return;
   // busy: skipped, except that a chime (message, test, startup, beeps) replaces a tap sound
   // still playing (the thread takes a new sound at any time)
-  bool tap_playing = s_cur_kind >= CHIME_CLICK && s_cur_kind <= CHIME_SWISH;
-  bool is_tap = kind >= CHIME_CLICK && kind <= CHIME_SWISH;
+  bool tap_playing = isTapKind(s_cur_kind);
+  bool is_tap = isTapKind(kind);
   if (s_busy && (is_tap || !tap_playing)) return;
   if (!start_thread()) return;
   int volume = volume_half_db(vol);

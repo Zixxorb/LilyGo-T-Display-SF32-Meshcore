@@ -242,7 +242,7 @@ space is short the bolt, leaf and moon come before the %, mail and Bluetooth aft
 | **Pages** | Show or hide each home page; **Order**: tap a page to pick it up, then tap where it goes (the clock stays first), or reset the order |
 | **Clock** | Face, zone, daylight saving (off/US/EU), 12/24 h, mesh time, reset clock |
 | **Battery** | Show (icon + % / % only), graph span (6/12/24/48 h), low alert (10/15/20/30 % / off), charge to (100/90/80 %), **Usage**: what used the battery since it was unplugged (screen, system, radio listening and sending, tap to wake, kept awake, Bluetooth) as shares, and the average draw. An estimate: time in each state times a typical current |
-| **Sound** | Volume, new-message alerts (all / direct / off), taps (click / pop / tick / off), **Channels** (mute single channels) |
+| **Sound** | Volume, new-message alerts (all / direct / off), taps (click / pop / tick / thump / bubble / chirp / type / the theme's), **Theme** (Classic / Soft / Retro / Nature: all the sounds together), **Direct** and **Channel** message chimes (the theme's, or one of 10), **Events** (advert sent, phone connected or gone, charger in or out, low battery, bot replied, a Starlit visit; quiet in do not disturb), **Channels** (mute single channels) |
 | **Night** | From, until, dim and how far, do not disturb |
 | **Motion** | Lift to wake, flip to quiet |
 | **Bluetooth** | On / off (remembered) |

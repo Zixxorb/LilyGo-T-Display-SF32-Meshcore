@@ -1508,7 +1508,8 @@ public:
     if (c == KEY_ENTER && _page == HomePage::ADVERT) {
       _task->notify(UIEventType::ack);
       bool mesh_wide = _task->uiPrefs().adv_page_mesh;
-      if (!_task->sendAdvert(mesh_wide)) _task->showAlert("Advert failed", 1000);  // (sent: the chime says it)
+      if (!_task->sendAdvert(mesh_wide)) _task->showAlert("Advert failed", 1000);
+      else _task->eventSound(SF32Sound::CHIME_ADVERT);  // (Events on: its sound)
       return true;
     }
 #if ENV_INCLUDE_GPS == 1

@@ -229,7 +229,7 @@ void UITask::loadUIPrefs() {
   if (_ui_prefs.brightness_idx >= sizeof(BRIGHTNESS_STEPS)) _ui_prefs.brightness_idx = 2;
   if (_ui_prefs.timeout_idx >= sizeof(TIMEOUT_SECS) / sizeof(TIMEOUT_SECS[0])) _ui_prefs.timeout_idx = 0;
   if (_ui_prefs.bot_chan > 2) _ui_prefs.bot_chan = 1;
-  if (_ui_prefs.touch_snd > 3) _ui_prefs.touch_snd = 1;
+  if (_ui_prefs.touch_snd > 8) _ui_prefs.touch_snd = 1;  // (0 off, 1..7 a style, 8 the theme's)
   if (_ui_prefs.sig_interval >= NUM_SIG_INTERVALS) _ui_prefs.sig_interval = 1;
   if (_ui_prefs.sos_chan >= MAX_GROUP_CHANNELS && _ui_prefs.sos_chan != 0xFF) _ui_prefs.sos_chan = 0xFF;
   if (_ui_prefs.dst_rule >= DST_RULES) _ui_prefs.dst_rule = DST_OFF;

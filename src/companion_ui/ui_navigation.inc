@@ -221,12 +221,16 @@ void UITask::openMenu(MenuKind kind) {
     return;
   } else if (kind == MENU_SOUND) {
     static const char* const SOUND_NAMES[] = {"Off", "Low", "High", "Mid"};  // by stored value
-    static const char* const TAP_NAMES[] = {"Off", "Click", "Pop", "Tick"};
+    static const char* const TAP_NAMES[] = {"Off", "Click", "Pop", "Tick", "Thump", "Bubble", "Chirp", "Type", "Theme"};
     static const char* const ALERT_NAMES[] = {"All", "Direct", "Off"};
     m->begin("Sound");
     m->add("Volume", ACT_SET_SOUND, SOUND_NAMES[_ui_prefs.sound % 4]);
     m->add("Alerts", ACT_SET_ALERTS, ALERT_NAMES[_ui_prefs.alerts % 3]);  // which messages chime
-    m->add("Taps", ACT_SET_TOUCH_SND, TAP_NAMES[_ui_prefs.touch_snd % 4]);
+    m->add("Taps", ACT_SET_TOUCH_SND, TAP_NAMES[_ui_prefs.touch_snd % 9]);
+    m->add("Theme", ACT_SND_THEME, SF32Sound::themeName(_snd_theme));  // all the sounds together (ui_sounds.inc)
+    m->add("Direct", ACT_SND_DIRECT, SF32Sound::chimeName(_snd_direct));  // its chime ("Theme": the theme's)
+    m->add("Channel", ACT_SND_CHANNEL, SF32Sound::chimeName(_snd_channel));
+    m->add("Events", ACT_SND_EVENTS, _snd_events ? "On" : "Off");  // advert sent, phone, charger, low battery, bot, visits
     int muted = channel_mutes.count();
     if (muted) sprintf(tmp, "%d muted", muted); else strcpy(tmp, "All on");
     m->add("Channels", ACT_MUTE_MENU, tmp);  // muted channels: no sound, wake or unread
@@ -355,12 +359,12 @@ void UITask::menuAction(uint8_t action) {
     case ACT_ADVERT:
       closeMenu();
       notify(UIEventType::ack);
-      if (!sendAdvert(false)) showAlert("Advert failed", 1000);
+      if (!sendAdvert(false)) showAlert("Advert failed", 1000); else eventSound(SF32Sound::CHIME_ADVERT);
       break;
     case ACT_ADVERT_MESH:
       closeMenu();
       notify(UIEventType::ack);
-      if (!sendAdvert(true)) showAlert("Advert failed", 1000);
+      if (!sendAdvert(true)) showAlert("Advert failed", 1000); else eventSound(SF32Sound::CHIME_ADVERT);
       break;
     case ACT_ADVERTS_MENU: openMenu(MENU_ADVERTS); break;
     case ACT_MUTE_MENU: openMenu(MENU_MUTE); break;
@@ -526,8 +530,31 @@ void UITask::menuAction(uint8_t action) {
       openMenu(MENU_NIGHT);
       break;
     case ACT_POWER_MENU: openMenu(MENU_POWER); break;
-    case ACT_SET_TOUCH_SND:  // Off -> Click -> Pop -> Tick, each played once to compare
-      _ui_prefs.touch_snd = (_ui_prefs.touch_snd + 1) % 4;
+    case ACT_SND_THEME:  // Classic -> Soft -> Retro -> Nature: its startup sound to hear it
+      _snd_theme = (_snd_theme + 1) % SF32Sound::THEMES;
+      saveSoundPrefs();
+      _audio_grace_until = millis() + 60000;
+      sound.chime(SF32Sound::CHIME_STARTUP, tapVolume());
+      openMenu(_menu_kind);
+      break;
+    case ACT_SND_DIRECT:
+    case ACT_SND_CHANNEL: {  // Theme -> each chime in turn, played once to compare
+      uint8_t& c = action == ACT_SND_DIRECT ? _snd_direct : _snd_channel;
+      c = (c + 1) % (SF32Sound::CHIMES + 1);
+      saveSoundPrefs();
+      _audio_grace_until = millis() + 60000;
+      sound.chime(action == ACT_SND_DIRECT ? SF32Sound::CHIME_DIRECT : SF32Sound::CHIME_CHANNEL, tapVolume());
+      openMenu(_menu_kind);
+      break;
+    }
+    case ACT_SND_EVENTS:
+      _snd_events = !_snd_events;
+      saveSoundPrefs();
+      if (_snd_events) sound.chime(SF32Sound::CHIME_ADVERT, tapVolume());  // a sample
+      openMenu(_menu_kind);
+      break;
+    case ACT_SET_TOUCH_SND:  // Off -> Click -> Pop -> Tick -> Thump -> Bubble -> Chirp -> Type -> Theme, each played once
+      _ui_prefs.touch_snd = (_ui_prefs.touch_snd + 1) % 9;
       _audio_grace_until = millis() + 60000;
       saveUIPrefs();
       // play it once the audio is up (from Off it starts now: its pop and fade-in would
@@ -818,6 +845,9 @@ void UITask::pageDrag() {
 // Touch: vertical swipes open/close menus; in a menu, taps choose a row directly.
 void UITask::handleTouchMenus() {
   HomeScreen* h = (HomeScreen*)home;
+  bool fd = touch_input.fingerDown();
+  if (fd && !_was_down) _down_screen = curr;  // where this touch began (the menu blips: opened or closed)
+  _was_down = fd;
   bool page_taps = curr == home;  // every home page: taps never change the page (only swipes do)
   bool editor = isRadioScreen() || curr == theme_screen || curr == about_screen || curr == logs_screen ||
                 curr == tz_screen || curr == hour_screen || curr == sos_screen ||

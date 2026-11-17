@@ -123,6 +123,7 @@ void UITask::botLoop() {
   if (!_bot_day_start) { _bot_day_start = millis() | 1; _bot_day_n = 0; }
   _bot_day_n++;
   if (ok) {
+    eventSound(SF32Sound::CHIME_BOT);
     _bot_count++;
     StrHelper::strncpy(_bot_last, _bot_reply.name, sizeof(_bot_last));
     _next_refresh = 0;  // the Bot page shows it

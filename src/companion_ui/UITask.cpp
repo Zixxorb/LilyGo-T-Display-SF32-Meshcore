@@ -290,6 +290,7 @@ void UITask::begin(DisplayDriver* display, SensorManager* sensors, NodePrefs* no
   menu = new MenuScreen(this);  // SF32
   createEditors();
   if (_display != NULL) loadUIPrefs();  // SF32: brightness, timeout, clock format
+  loadSoundPrefs();                     // SF32: sound theme and chimes (ui_sounds.inc)
   _auto_off = millis() + autoOffMillis();  // SF32: again, now with the saved timeout (the first one used the 15 s default)
   // SF32: the app protocol over USB as well as Bluetooth (Settings > USB app)
   interface_manager.addInterface(InterfaceType::USB, &usb_app_interface);
@@ -327,6 +328,7 @@ static uint32_t findsToday() {
 
 #include "ui_prefs.inc"  // time zone offset, screen resume, the UI settings file (/sf32_ui)
 
+#include "ui_sounds.inc"  // sound theme, message chime choices, event sounds (Settings > Sound)
 #include "ui_usage.inc"  // battery use since unplugged (Settings > Battery > Usage): an estimate per part
 
 #include "ui_navigation.inc"  // opening/closing menus, menu actions, touch routing (taps, swipes, drags)
@@ -370,7 +372,7 @@ void UITask::showNewMessage(bool direct) {
 // SF32: Starlits meeting (ui_meet.inc): a raw packet heard directly
 void UITask::onRawDataRecv(mesh::Packet* pkt) {
   const char* met = starlit_meet.onRaw(pkt->payload, pkt->payload_len, (int)radio_driver.getLastRSSI(), !lowPower());
-  if (met) { board.logEvent(met); _next_refresh = 0; }
+  if (met) { board.logEvent(met); eventSound(SF32Sound::CHIME_VISIT); _next_refresh = 0; }
 }
 void UITask::starlit_meet_hello() { starlit_meet.hello(); }
 
@@ -642,6 +644,7 @@ void UITask::loop() {
   powerCare();         // SF32
   botLoop();           // SF32
   usageLoop();         // SF32: battery use per part (ui_usage.inc)
+  eventLoop();         // SF32: phone and charger sounds (ui_sounds.inc)
   echo_tracker.loop(RESEND_TRIES[_ui_prefs.resend % NUM_RESEND]);  // SF32: heard repeats, resend (low power too: SOS turns it on)
   botEchoLoop();       // SF32: the bot's reply: heard repeated? (its log entry)
 #ifdef SF32_REMOTE_TOUCH
@@ -653,7 +656,7 @@ void UITask::loop() {
     m.seed = sf32_fake_meet;
     strcpy(m.name, "TestBuddy");
     const char* met = starlit_meet.onRaw((const uint8_t*)&m, sizeof(m), -48, false);
-    if (met) board.logEvent(met);
+    if (met) { board.logEvent(met); eventSound(SF32Sound::CHIME_VISIT); }
     sf32_fake_meet = 0;
     _next_refresh = 0;
   }
@@ -744,13 +747,13 @@ void UITask::loop() {
     if (millis() > next) {
       next = millis() + 1000;
       if (++k % 4 == 0) menuAction(ACT_SET_SOUND);
-      else if (_ui_prefs.touch_snd) sound.tap(_ui_prefs.touch_snd, tapVolume());
+      else if (tapStyle()) sound.tap(tapStyle(), tapVolume());
     }
   }
 #endif
   if (_tap_preview_at && (sound.ready() || (long)(millis() - _tap_preview_at) >= 0)) {  // SF32: Tap sound preview
     _tap_preview_at = 0;
-    if (_ui_prefs.touch_snd) sound.tap(_ui_prefs.touch_snd, tapVolume());
+    if (tapStyle()) sound.tap(tapStyle(), tapVolume());
   }
   {  // SF32: power: the screen off (and no audio) for 5 s: CPU to 96 MHz (lower core
      // voltage) and a 25 ms main loop; full speed again as the screen turns on (the
@@ -848,7 +851,10 @@ void UITask::loop() {
     bool no_page = touch == 2 && curr == home && !touch_input.edgeStart() &&
                    abs(touch_input.fingerX() - touch_input.fingerX0()) > abs(touch_input.fingerY() - touch_input.fingerY0());
     if (tapSnd() && !_aod && !_tap_preview_at && !no_page) {  // (a preview is coming: it's the sound)
-      if (touch == 2) sound.chime(SF32Sound::CHIME_SWISH, tapVolume());
+      // a swipe that brought a menu up or put it away: a soft blip up / down; any other swipe the swish
+      bool opened = _down_screen != menu && curr == menu, closed = _down_screen == menu && curr != menu;
+      if (touch == 2 && (opened || closed)) sound.chime(opened ? SF32Sound::CHIME_MENU_OPEN : SF32Sound::CHIME_MENU_CLOSE, tapVolume());
+      else if (touch == 2) sound.chime(SF32Sound::CHIME_SWISH, tapVolume());
       else sound.tap(tapSnd(), tapVolume());
     }
   }

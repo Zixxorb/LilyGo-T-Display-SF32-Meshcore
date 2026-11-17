@@ -90,6 +90,7 @@ void UITask::powerCare() {
         char tmp[40];
         sprintf(tmp, "Battery %d%%: charge soon", pct);
         showAlert(tmp, 4000);
+        eventSound(SF32Sound::CHIME_LOWBATT);
         board.logEvent(tmp);
         _next_refresh = 0;
       } else if (pct <= warn_pct && _batt_warn_level < 1) {
@@ -98,6 +99,7 @@ void UITask::powerCare() {
         char tmp[40];
         sprintf(tmp, "Battery low: %d%%", pct);
         board.logEvent(tmp);
+        eventSound(SF32Sound::CHIME_LOWBATT);
       }
     }
   }
