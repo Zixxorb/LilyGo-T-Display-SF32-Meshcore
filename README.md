@@ -48,7 +48,7 @@ device shows what's happening on the mesh, tests links, finds repeaters and keep
 
 | Feature | What it does |
 |---|---|
-| **7 clock faces** | Color, Sun (sunrise/sunset arc), Starlit, Digital, Analog, Big, Info. Hold the clock to switch |
+| **7 clock faces** | Color, Sun (sun and moon on the sky's arc), Starlit, Digital, Analog, Big, Info. Hold the clock to switch |
 | **Signal tools** | Signal tester, repeater **finder** (warmer/colder), 902-928 MHz **band scan** |
 | **Mesh at a glance** | Activity graph, heard nodes, **My Nodes**, one **card per node** (details, path-hash size, battery on request) |
 | **Battery** | 48 h history graph, time left, low-battery protection |
@@ -275,9 +275,10 @@ Click a feature to expand it.
 
 - **Color**: a ring of minute dots filling up through the hour and a colour per digit, in the
   theme's colours (the whole rainbow with the Rainbow theme).
-- **Sun**: the day as an arc from sunrise to sunset with the sun on it, a pale moon below
-  at night, the times and how long until the next. Worked out on the device from the
-  node's location as set in the app (the sunrise equation; no network).
+- **Sun**: the sky as an arc: the sun from sunrise to sunset, and the moon where it really is
+  (between its own rise and set, often in the day too) with its phase, plus the sun's times
+  and how long until the next. Worked out on the device from the node's location as set in
+  the app (the sunrise equation and a lunar formula good to a few minutes; no network).
 - **Digital**, **Analog**, **Big** (stacked hours and minutes), **Info** (time plus unread,
   battery, phone and last-heard cards; also shows the next sunrise or sunset).
 - **Starlit**: the time and date with your Starlit below, as on its page (it reflects the

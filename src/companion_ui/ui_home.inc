@@ -247,6 +247,34 @@ class HomeScreen : public UIScreen {
 
   // Sun: the time, then the day as an arc from sunrise to sunset with the sun on it (below
   // the horizon at night), sunrise / sunset and how long until the next one
+  // a little sun: a glowing disc with eight rays
+  static void drawSunIcon(SF32Display& sd, float x, float y) {
+    sd.fillSoft(x, y, 9, 9, 0xFFE0, 9);  // its glow
+    sd.setColor(0xFE60);
+    for (int i = 0; i < 8; i++) {
+      float a = i * 0.785398f;
+      sd.drawLineAA(x + cosf(a) * 4.6f, y + sinf(a) * 4.6f, x + cosf(a) * 6.6f, y + sinf(a) * 6.6f, 1.1f);
+    }
+    sd.setColor(0xFFE0);
+    sd.drawLineAA(x, y, x, y, 6.4f);
+  }
+  // the moon with its phase: drawn a pixel row at a time, lit beyond the terminator (the curve
+  // between day and night on it), the rest a faint grey (earthshine). Lit on the right while it
+  // grows, as seen from the northern hemisphere.
+  static void drawMoonIcon(SF32Display& sd, float x, float y, float r, float lit, bool waxing) {
+    const ColorVal LIGHT = 0xEF7D, DARK = 0x3186;
+    sd.fillSoft(x, y, r * 2.4f, r * 2.4f, LIGHT, (int)(2 + 5 * lit));  // a soft glow, brighter when full
+    float side = waxing ? 1 : -1, step = 1.0f / SF32Display::SCALE;  // one panel row
+    for (float j = -r + step / 2; j < r; j += step) {
+      float half = r * sqrtf(1 - (j / r) * (j / r));
+      sd.setColor(DARK);
+      sd.drawLineAA(x - half, y + j, x + half, y + j, step * 1.15f);
+      float xt = (1 - 2 * lit) * half;  // the terminator on this row
+      float a = x + side * xt, b = x + side * half;
+      if (fabsf(b - a) > step * 0.3f) { sd.setColor(LIGHT); sd.drawLineAA(a, y + j, b, y + j, step * 1.15f); }
+    }
+  }
+
   void drawSunFace(DisplayDriver& d, uint32_t now) {
     SF32Display& sd = (SF32Display&)d;
     struct tm tm;
@@ -293,16 +321,16 @@ class HomeScreen : public UIScreen {
           float x = cx - cosf(a) * R, y = cy - sinf(a) * R;
           sd.drawLineAA(x, y, x, y, 1.6f);
         }
+      }
+      // the moon, where it really is: on the arc between its own rise and set, with its phase
+      MoonNow mn = moonNow(_node_prefs, now);
+      if (mn.known && mn.up) {
+        float a = PI * mn.f;
+        drawMoonIcon(sd, cx - cosf(a) * R, cy - sinf(a) * R, 4.2f, mn.lit, mn.waxing);
+      }
+      if (day) {  // the sun, on top
         float a = PI * f;
-        d.setColor(0xFFE0);  // the sun
-        sd.drawLineAA(cx - cosf(a) * R, cy - sinf(a) * R, cx - cosf(a) * R, cy - sinf(a) * R, 6.0f);
-      } else {  // night: a pale moon under the horizon, where the sun is on its way back
-        uint32_t next_rise = now < st.rise ? st.rise : st.rise + 86400;
-        uint32_t prev_set = now >= st.set ? st.set : st.set - 86400;
-        float g = (float)(now - prev_set) / (next_rise - prev_set);
-        float a = PI * g;
-        d.setColor(0x9CF3);
-        sd.drawLineAA(cx + cosf(a) * R * 0.6f, cy + 6 + sinf(a) * 8, cx + cosf(a) * R * 0.6f, cy + 6 + sinf(a) * 8, 4.0f);
+        drawSunIcon(sd, cx - cosf(a) * R, cy - sinf(a) * R);
       }
       // times: sunrise left, sunset right
       d.setTextSize(1);
