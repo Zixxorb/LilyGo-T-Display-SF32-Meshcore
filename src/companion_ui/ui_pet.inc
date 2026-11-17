@@ -724,14 +724,19 @@ public:
     // MeshCore's iterator (getContactByIdx() counts its reserved anonymous slots, getNumContacts() doesn't)
     ContactInfo c;
     ContactsIterator it = the_mesh.startContactsIterator();
-    while (it.hasNext(&the_mesh, c) && _n < FRIENDS_MAX) {
-      if (c.flags & 1) { memcpy(_keys[_n++], c.id.pub_key, KEY_LEN); continue; }  // flags bit 0: favourite
-      uint32_t ts = c.last_advert_timestamp;  // the newest 5 of the rest, kept in order
+    uint8_t favs[FRIENDS_MAX][KEY_LEN];
+    int nf = 0;
+    while (it.hasNext(&the_mesh, c)) {
+      if (c.flags & 1) { if (nf < FRIENDS_MAX) memcpy(favs[nf++], c.id.pub_key, KEY_LEN); continue; }  // flags bit 0: favourite
+      uint32_t ts = c.last_advert_timestamp;  // the newest RECENT of the rest, kept in order
       int k = nr < RECENT ? nr++ : RECENT;
       if (k == RECENT) { if (ts <= rts[RECENT - 1]) continue; k = RECENT - 1; }
       while (k > 0 && rts[k - 1] < ts) { rts[k] = rts[k - 1]; memcpy(recent[k], recent[k - 1], KEY_LEN); k--; }
       rts[k] = ts; memcpy(recent[k], c.id.pub_key, KEY_LEN);
     }
+    // the favourites, then the recent ones (favourites give way only past FRIENDS_MAX in all)
+    int keep_f = nf < FRIENDS_MAX - nr ? nf : FRIENDS_MAX - nr;
+    for (int i = 0; i < keep_f; i++) memcpy(_keys[_n++], favs[i], KEY_LEN);
     for (int i = 0; i < nr && _n < FRIENDS_MAX; i++) memcpy(_keys[_n++], recent[i], KEY_LEN);
   }
   bool scrolls() const { return !_detail_on && maxScroll() > 0; }
@@ -877,7 +882,7 @@ public:
     return true;
   }
 private:
-  static const int FRIENDS_MAX = 24, RECENT = 5, TOP = 24, ROW_H = 58;
+  static const int FRIENDS_MAX = 24, RECENT = 10, TOP = 24, ROW_H = 58;  // (24: 12 rows, what SF32Display's list layer holds)
   UITask* _task;
   static const int KEY_LEN = 8;  // a public key prefix: plenty to tell contacts apart
   uint8_t _keys[FRIENDS_MAX][KEY_LEN];

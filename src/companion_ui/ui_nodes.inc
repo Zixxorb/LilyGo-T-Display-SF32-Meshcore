@@ -10,8 +10,9 @@
 // isn't pushed to the phone).
 
 #define NODES_MAX        4       // rows on the page
-#define NODES_ASK_GAP_MS 20000UL // at most one request this often
-#define NODES_REPLY_MS   30000UL // no answer within this (or the mesh's estimate): "no reply"
+#define NODES_ASK_GAP_MS 5000UL  // at most one request this often
+#define NODES_REPLY_MS   10000UL // "no reply" after this (or the mesh's estimate + 2 s, up to 20 s);
+#define NODES_REPLY_MAX  20000UL //   a later answer still shows
 
 struct NodeReading {
   uint8_t key[6];            // pub key prefix
@@ -65,14 +66,17 @@ public:
     NodeReading* r = reading(c.id.pub_key, true);
     r->state = 1;
     r->tag = tag;
-    r->deadline = millis() + (est + 5000 > NODES_REPLY_MS ? est + 5000 : NODES_REPLY_MS);
+    r->mv = 0;  // a fresh reading (an answer fills only what's still unknown)
+    r->temp10 = INT16_MIN;
+    unsigned long wait = est + 2000 > NODES_REPLY_MS ? est + 2000 : NODES_REPLY_MS;
+    r->deadline = millis() + (wait > NODES_REPLY_MAX ? NODES_REPLY_MAX : wait);
     return true;
   }
 
   // a reply (onUnhandledResponse): true if it was ours
   bool onResponse(const ContactInfo& from, uint32_t tag, const uint8_t* data, uint8_t len) {
     NodeReading* r = reading(from.id.pub_key, false);
-    if (!r || r->state != 1 || r->tag != tag) return false;
+    if (!r || (r->state != 1 && r->state != 3) || r->tag != tag) return false;  // (late, after "no reply": still shown)
     r->state = 2;
     r->at = rtc_clock.getCurrentTime();
     // Cayenne LPP: [channel][type][value, big-endian]...; the node's own readings on channel 1

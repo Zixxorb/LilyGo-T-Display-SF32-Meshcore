@@ -377,7 +377,7 @@ too.
   them), sleeps during your night hours (do not disturb) and naps in low power mode, gets
   drowsy when the battery is low, sparks now and then while charging, and looks worried while an
   SOS is on. The line under its bars says so.
-- **Friends** (its swipe-up menu): the Starlits of your favourite nodes and the 5 others heard
+- **Friends** (its swipe-up menu): the Starlits of your favourite nodes and the 10 others heard
   most recently, a still gallery that scrolls; tap one for its card (it comes to life, with
   the node's details and its battery on request, as from the Nodes page).
 - **Path-hash size**: each Starlit glows with a faint aura for its node's path-hash size:
@@ -447,9 +447,10 @@ counters: no extra traffic. RAM only (starts over at boot).
 The contacts you starred as favourites in the app (up to 4): when each was last heard,
 direct / hops / flood. **Tap a row for the node's card** (the same card Friends opens): its
 Starlit, kind, when it was last heard and how far, its path-hash size, and a **Battery**
-button: one telemetry request to that node, at most one every 20 s and nothing on a
-schedule, so the mesh isn't loaded with polling. A node answers only if its own telemetry
-setting shares with you; repeaters want a login for it ("no reply").
+button: one telemetry request to that node, at most one every 5 s and nothing on a
+schedule, so the mesh isn't loaded with polling. It shows "no reply" after 10 s (longer for
+far nodes, up to 20 s); an answer that comes later still shows. A node answers only if its
+own telemetry setting shares with you; repeaters want a login for it.
 
 </details>
 
