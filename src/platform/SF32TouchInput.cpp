@@ -147,9 +147,10 @@ void SF32TouchInput::update() {
       unsigned long held = millis() - _down_at;
       // touch feedback: 1 a tap, 2 a swipe (not after slow drags)
       if (display.isOn() && held < 500) _click = (abs(dx) >= SWIPE_MIN_PX || abs(dy) >= SWIPE_MIN_PX) ? 2 : 1;
-      if (abs(dx) >= SWIPE_MIN_PX && abs(dx) > 2 * abs(dy) && display.isOn()) {
+      // a swipe within ~34 degrees of level / upright (was ~27: slanted swipes fell between, and did nothing)
+      if (abs(dx) >= SWIPE_MIN_PX && 2 * abs(dx) > 3 * abs(dy) && display.isOn()) {
         _pending = dx < 0 ? RotaryInputEvent::Next : RotaryInputEvent::Prev;  // swipe left = next
-      } else if (abs(dy) >= SWIPE_MIN_PX && abs(dy) > 2 * abs(dx) && display.isOn()) {
+      } else if (abs(dy) >= SWIPE_MIN_PX && 2 * abs(dy) > 3 * abs(dx) && display.isOn()) {
         _gesture = dy > 0 ? Gesture::SwipeDown : Gesture::SwipeUp;
       } else if (_direct && display.isOn() && abs(dx) <= TAP_MAX_PX && abs(dy) <= TAP_MAX_PX && held >= 800) {
         // held still, not on anything that takes a hold: not a tap either

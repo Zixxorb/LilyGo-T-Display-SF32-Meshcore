@@ -56,7 +56,7 @@ device shows what's happening on the mesh, tests links, finds repeaters and keep
 | **Mesh SOS** | Triple-press A: location + battery to a channel, repeated; turns on low power mode |
 | **Low power mode** | For when only the mesh matters: minimal clock, slower Bluetooth, 30 fps; by hand or at a battery level |
 | **Extras** | Flashlight (white/red), share contact QR, auto adverts, mesh time, rotation |
-| **USB app** | MeshCore app protocol over USB too: PC tools and a raw-packet **observer** |
+| **PC link** | MeshCore app protocol over the USB cable too: PC tools and a raw-packet **observer** |
 | **Themes** | Normal or frosted Glass style, 10 colours (including ChattaMesh) plus Rainbow, night mode, always-on display, status icons |
 
 ## Screenshots
@@ -246,7 +246,7 @@ space is short the bolt, leaf and moon come before the %, mail and Bluetooth aft
 | **Night** | From, until, dim and how far, do not disturb |
 | **Motion** | Lift to wake, flip to quiet |
 | **Bluetooth** | On / off (remembered) |
-| **USB app** | The app protocol over USB as well (off by default) |
+| **PC link** | The app protocol over the USB cable as well, for PC tools (off by default) |
 | **Adverts** | Nearby every 1/3/6/12 h, mesh every 12/24/48 h (both off by default), what the Advert page's hold sends |
 | **Resend** | Off / 1x / 2x / 3x (Off by default): a channel message that no repeater was heard passing on is sent again, the same packet, so repeaters that already passed it on drop it |
 | **Bot** | Auto-reply, to DMs, channels, daily max (5/10/20/50), repeat per sender (12 h / 24 h / 7 d), gap between replies (1/5/15 min) |
@@ -514,9 +514,9 @@ menu > Advert menu > **Hold** picks what its icon hold sends.
 </details>
 
 <details>
-<summary><b>USB app (PC tools and observer)</b></summary>
+<summary><b>PC link (PC tools and observer, over USB)</b></summary>
 
-Settings > USB app (off by default): the MeshCore app protocol over the USB serial port as
+Settings > PC link (off by default): the MeshCore app protocol over the USB serial port as
 well as Bluetooth, both at once. Use it with PC apps (meshcore-cli, the Python library) or
 as an **observer**: every packet heard is pushed raw with its SNR / RSSI
 (`PUSH_CODE_LOG_RX_DATA`), for logging or an MQTT bridge on the PC. 115200 baud on the
@@ -604,7 +604,7 @@ controller is put to sleep at boot, which saves battery.
 <details>
 <summary><b>Board-specific CLI commands</b></summary>
 
-"USB only" means typed at the USB console: the phone app, the USB app and remote CLI can't run them.
+"USB only" means typed at the USB console: the phone app, the PC link and remote CLI can't run them.
 
 | Command | Does |
 |---|---|
@@ -621,7 +621,7 @@ controller is put to sleep at boot, which saves battery.
 
 ## Status and to-do
 
-Working: all three firmwares, Bluetooth pairing, touch UI, sleep, sound, motion, USB app.
+Working: all three firmwares, Bluetooth pairing, touch UI, sleep, sound, motion, PC link.
 
 - **Power**: about 28-30 hours with the screen mostly off and Bluetooth off (roughly 16-17 mA
   on the rated 480 mAh), up from about 22. The touch controller sleeps and the audio chip powers down
@@ -654,5 +654,7 @@ sdk-patches/      fixes the LilyGo SDK needs (applied by setup.sh)
 Vesper is MIT, see [LICENSE](LICENSE). Bundled code and the font keep their own licenses: see
 [THIRD_PARTY.md](THIRD_PARTY.md) and `licenses/`. Built on [MeshCore](https://github.com/meshcore-dev/MeshCore),
 the LilyGo SiFli SDK, Noto Sans (SIL OFL) and Nayuki's QR code generator (MIT).
+
+Special thanks to **Xach**.
 
 Developed with help from Claude (Anthropic).

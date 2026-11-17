@@ -536,11 +536,11 @@ void SF32Sound::chime(Chime kind, Volume vol) {
   }
 #endif
   if (vol == VOL_OFF) return;
-  // busy: skipped, except that a chime (message, test, startup, beeps) replaces a tap sound
-  // still playing (the thread takes a new sound at any time)
+  // busy with a chime (message, test, startup, an event): skipped. A tap sound still playing
+  // gives way to anything, a quicker tap included (the thread takes a new sound at any time):
+  // skipping taps while the last one rang out lost the sound of quick taps after a swipe.
   bool tap_playing = isTapKind(s_cur_kind);
-  bool is_tap = isTapKind(kind);
-  if (s_busy && (is_tap || !tap_playing)) return;
+  if (s_busy && !tap_playing) return;
   if (!start_thread()) return;
   int volume = volume_half_db(vol);
   s_cur_kind = kind;

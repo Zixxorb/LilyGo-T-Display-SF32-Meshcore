@@ -291,7 +291,7 @@ clock moves each minute.
   as auth 0x09 (no MITM bit), so "connected" means encrypted with Secure Connections. A
   phone counts as connected only once paired, so the PIN stays on screen until then.
 - The BLE CCCD must stay unencrypted, or Android never enables notifications.
-- **USB app** (`SF32UsbInterface`): MeshCore's `<` / `>` framing over the console UART,
+- **PC link** (Settings > PC link; `SF32UsbInterface`): MeshCore's `<` / `>` framing over the console UART,
   alongside Bluetooth. It counts as connected only after a valid frame arrives (MeshCore's
   stock serial interface is always "connected", which would hide the BLE PIN); console logs
   are paused while connected, and it disconnects when USB power goes away.

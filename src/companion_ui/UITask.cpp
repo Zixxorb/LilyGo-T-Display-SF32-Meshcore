@@ -848,7 +848,7 @@ void UITask::loop() {
 #endif
     // taps: the chosen style; swipes: a swish. At the Sound volume (Low if chimes are off).
     // a sideways swipe from the middle of a home page turns no page (only edge swipes do): no swish
-    bool no_page = touch == 2 && curr == home && !touch_input.edgeStart() &&
+    bool no_page = touch == 2 && curr == home && ((HomeScreen*)home)->edgeSwipesOnly() && !touch_input.edgeStart() &&
                    abs(touch_input.fingerX() - touch_input.fingerX0()) > abs(touch_input.fingerY() - touch_input.fingerY0());
     if (tapSnd() && !_aod && !_tap_preview_at && !no_page) {  // (a preview is coming: it's the sound)
       // a swipe that brought a menu up or put it away: a soft blip up / down; any other swipe the swish
@@ -929,7 +929,7 @@ void UITask::loop() {
     c = KEY_NEXT;  // SF32: in the messages, swipe left = the next one
   }
   // SF32: on the home pages a page swipe must start near an edge (the middle is the page's own)
-  if (curr == home && !touch_input.edgeStart() && (rotaryEv == RotaryInputEvent::Next || rotaryEv == RotaryInputEvent::Prev)) rotaryEv = RotaryInputEvent::None;
+  if (curr == home && ((HomeScreen*)home)->edgeSwipesOnly() && !touch_input.edgeStart() && (rotaryEv == RotaryInputEvent::Next || rotaryEv == RotaryInputEvent::Prev)) rotaryEv = RotaryInputEvent::None;
   if (c == 0 && _display != NULL && _display->isOn() && !sub_screen) {  // SF32: pages only
     if (rotaryEv == RotaryInputEvent::Next) {
       c = KEY_NEXT;

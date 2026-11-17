@@ -156,6 +156,8 @@ static const AboutLine ABOUT_LINES[] = {
   {3, ""},
   {0, "Port & design"},
   {1, SF32_CREDIT_PORT},
+  {0, "Special thanks"},
+  {1, "Xach"},
   {0, "Written with"},
   {1, "Claude"},
   {2, "by Anthropic"},

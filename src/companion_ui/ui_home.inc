@@ -636,6 +636,8 @@ public:
   void showRadio() { _page = HomePage::RADIO; }
   int currentPage() const { return _page; }
   bool gamesPage() const { return _page == HomePage::GAMES; }
+  // the middle of the page is the page's own (stroking the Starlit): page swipes start near an edge there
+  bool edgeSwipesOnly() const { return _page == HomePage::GAMES; }
 
   // Touch: pages with on-screen buttons take taps directly (see UITask::handleTouchMenus).
   void dragStep(int dir) { stepPage(dir); }  // a page being dragged in (UITask::pageDrag)

@@ -122,7 +122,7 @@ void UITask::openMenu(MenuKind kind) {
     m->add("Night mode", ACT_NIGHT_MENU);  // hours, dim, do not disturb
     m->add("Motion", ACT_MOTION_MENU);
     m->add("Bluetooth", ACT_SET_BT, isBluetoothEnabled() ? "On" : "Off");
-    m->add("USB app", ACT_USB_APP, _ui_prefs.usb_app ? "On" : "Off");  // the app protocol over USB
+    m->add("PC link", ACT_USB_APP, _ui_prefs.usb_app ? "On" : "Off");  // the app protocol over the USB cable (PC tools, observer)
     m->add("Adverts", ACT_ADVERTS_MENU);  // scheduled adverts, what the Advert page's hold sends
     {
       static const char* const RESEND_NAMES[NUM_RESEND] = {"Off", "1x", "2x", "3x"};
@@ -778,12 +778,12 @@ void UITask::pageDrag() {
   HomeScreen* h = (HomeScreen*)home;
   SF32Display* d = (SF32Display*)_display;
   if (!_drag_on) {
-    // only from near an edge: the middle is the page's own (the Games page: stroking the pet)
-    if (touch_input.fingerDown() && !touch_input.edgeStart()) { if (_hold_frac == 0 && !_hold_done) petStroke(); return; }
+    // the Starlit page: only from near an edge (its middle is for stroking it); elsewhere anywhere
+    if (touch_input.fingerDown() && h->edgeSwipesOnly() && !touch_input.edgeStart()) { if (_hold_frac == 0 && !_hold_done) petStroke(); return; }
     petStroke();  // (resets it)
     if (!touch_input.fingerDown() || touch_input.touchConsumed() || _hold_frac > 0 || _hold_done) return;
     int dx = touch_input.fingerX() - touch_input.fingerX0(), dy = touch_input.fingerY() - touch_input.fingerY0();
-    if (abs(dx) < PAGE_DRAG_SLOP || abs(dx) < 2 * abs(dy)) return;
+    if (abs(dx) < PAGE_DRAG_SLOP || 2 * abs(dx) < 3 * abs(dy)) return;  // within ~34 degrees of level (menus want 2x steeper)
     touch_input.consumeTouch();  // it's ours now: no tap or swipe when it lifts
     _drag_on = true;
     _drag_dir = 0;
