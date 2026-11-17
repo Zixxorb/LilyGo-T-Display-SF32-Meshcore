@@ -36,6 +36,7 @@ class HomeScreen : public UIScreen {
   SensorManager* _sensors;
   NodePrefs* _node_prefs;
   uint8_t _page;
+  int8_t _pet_info = -1;  // SF32: the Starlit page's info card: 0 fed, 1 curious, 2 rested, 3 mood (-1: none)
   bool _shutdown_init;
   bool _tz_edit = false;  // SF32: time zone page in edit mode
   AdvertPath recent[UI_RECENT_LIST_SIZE];
@@ -362,6 +363,7 @@ class HomeScreen : public UIScreen {
   // which pages are shown (Settings > Pages); the clock always is
   bool pageVisible(int p) const { return p == HomePage::CLOCK || !(_task->uiPrefs().hidden_pages & (1u << p)); }
   void stepPage(int dir) {
+    _pet_info = -1;  // (the Starlit's info card closes when the page changes)
     for (int k = 0; k < HomePage::Count; k++) {
       _page = (_page + HomePage::Count + dir) % HomePage::Count;
       if (pageVisible(_page)) break;
@@ -582,7 +584,7 @@ public:
 #if UI_DISCOVER_SCREEN
     if (_page == HomePage::DISCOVERY && disc_nodes_count > 0) return true;
 #endif
-    if (_page == HomePage::GAMES) return x >= 30 && x < 98 && y >= 24 && y < 88;  // the pet
+    if (_page == HomePage::GAMES) return _pet_info < 0 && x >= 30 && x < 98 && y >= 24 && y < 88;  // the pet (not under an info card)
     return x >= 32 && x < 96 && y >= 24 && y < 86;
   }
   void iconAction() {
@@ -591,6 +593,45 @@ public:
 #endif
     handleInput(KEY_ENTER);
   }
+  // The Starlit page's info card: what a need means, how it rises and falls, where it is now
+  void drawPetInfo(DisplayDriver& display) {
+    const PetSave& ps = pet.stats();
+    static const char* const TITLES[] = {"Fed", "Curious", "Rested", "Mood"};
+    char tmp[48];
+    int k = _pet_info;
+    themeCard(display, 4, 24, 120, 96);
+    display.setTextSize(1);
+    display.setColor(THEME_ACCENT);
+    display.drawTextLeftAlign(9, 28, TITLES[k]);
+    uint8_t v = k == 0 ? ps.fed : k == 1 ? ps.curious : k == 2 ? ps.rested : ps.happy;
+    if (k == 3) snprintf(tmp, sizeof(tmp), "%s, happy %d%%", PetGame::moodName(pet.mood()), v);
+    else snprintf(tmp, sizeof(tmp), "%d%%", v);
+    display.setColor(v < 25 ? UIColor::warning_txt : UIColor::primary_txt);
+    display.drawTextRightAlign(119, 28, tmp);
+    if (k < 3) {  // its bar, bigger
+      display.setColor(THEME_DIM);
+      display.fillRect(9, 39, 110, 3);
+      display.setColor(v < 25 ? UIColor::warning_txt : THEME_ACCENT);
+      display.fillRect(9, 39, (110 * v + 50) / 100, 3);
+    }
+    static const char* const TEXT[] = {
+      "Fed by the mesh: every packet your radio hears is a bite (+3). Goes down 1 every 30 min. Under 25: hungry.",
+      "Grows with adverts heard (+2) and new nodes found (+15). Goes down 1 every 20 min. Under 25: bored.",
+      "Rests while the screen is off (+1 every 2 min). Screen time (-1 every 3 min) and play (-4) tire it. Under 25: sleepy.",
+      "Pet it (+8), boop it (+3) or play (+18) for happiness; it fades 1 every 15 min. Happy when all its needs are high.",
+    };
+    display.setColor(UIColor::primary_txt);
+    display.setCursor(9, k < 3 ? 46 : 39);
+    display.printWordWrap(TEXT[k], 110);
+    display.setColor(UIColor::secondary_txt);
+    if (k == 0) snprintf(tmp, sizeof(tmp), "today: +%d of 70 max", ps.day_fed);
+    else if (k == 1) snprintf(tmp, sizeof(tmp), "today: +%d of 60 max", ps.day_cur);
+    else if (pet.contextLine()) snprintf(tmp, sizeof(tmp), "now: %s", pet.contextLine());  // the device's state shows on it
+    else tmp[0] = 0;
+    if (tmp[0]) display.drawTextCentered(64, 101, tmp);
+    display.drawTextCentered(64, 110, "tap: back");
+  }
+
   // what holding the icon does, for a short tap on it (NULL: no hint)
   const char* holdHint() const {
     switch (_page) {
@@ -617,6 +658,9 @@ public:
       return false;
     }
     if (_page == HomePage::GAMES) {  // the pet: pet it (it looks at where you touched)
+      if (_pet_info >= 0) { _pet_info = -1; return true; }  // an info card open: any tap closes it
+      if (y >= 86 && y < 105) { int k = (x - 4) / 41; _pet_info = k < 0 ? 0 : (k > 2 ? 2 : k); return true; }  // a need's bar: what it means
+      if (y >= 105) { _pet_info = 3; return true; }  // the line under them: its mood
       if (x < 30 || x >= 98 || y < 24 || y >= 88) return false;
       if (pet.context() & PetGame::CTX_MAIL) { _task->showMessages(); return true; }  // it's holding a message: open it
       pet.look(x, y);
@@ -1012,6 +1056,10 @@ public:
       themeHeader(display, "Starlit", mv);
       bool still = _task->lowPower();
       petPrep(mv, still);
+      if (_pet_info >= 0) {  // an info card about one of its needs, or its mood (tap: back)
+        drawPetInfo(display);
+        return 60000;
+      }
       pet.draw(display, 64, 57, 1.08f, still, 0, -1, _node_prefs->path_hash_mode + 1);  // (its ring: your own hash size)
       // its needs: three small bars
       const PetSave& ps = pet.stats();

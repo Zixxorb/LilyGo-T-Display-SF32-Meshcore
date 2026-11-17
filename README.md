@@ -369,6 +369,8 @@ too.
   under them says its mood, and in turn **today's finds**: new nodes met, the farthest packet
   (hops, and who sent it), adverts and packets heard, and from the Signal page the finder's
   strongest reply and the tester's best link (they start over at local midnight).
+- **Tap a need's bar** (or the line under them) for what it means: how it goes up and down,
+  where it is now and today's gain; tap again to go back.
 - **Care**: stroke it to pet it (hearts), tap it to boop it, hold it to play (a star-ball). It
   breathes, blinks, looks at your finger, and does little things on its own.
 - **It reflects the device**: it holds an envelope when you have unread messages (tap it to read
