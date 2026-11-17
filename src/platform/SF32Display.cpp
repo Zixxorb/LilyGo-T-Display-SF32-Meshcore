@@ -1513,6 +1513,104 @@ void SF32Display::printWordWrap(const char* str, int max_width) {
   _cx = (int)ceilf((_pen16 / 16.0f - OFFSET_X) / SCALE);
 }
 
+// one UTF-8 character: its length (0: not valid UTF-8 here) and code point
+static int utf8_decode(const unsigned char* s, uint32_t* cp) {
+  unsigned char c = s[0];
+  int n = c >= 0xF0 && c <= 0xF4 ? 4 : c >= 0xE0 ? (c <= 0xEF ? 3 : 0) : c >= 0xC2 ? (c <= 0xDF ? 2 : 0) : 0;
+  if (!n) return 0;
+  uint32_t v = c & (0x7F >> n);
+  for (int i = 1; i < n; i++) {
+    if ((s[i] & 0xC0) != 0x80) return 0;
+    v = (v << 6) | (s[i] & 0x3F);
+  }
+  *cp = v;
+  return n;
+}
+
+// Latin-1 letters (U+00C0..00FF) and Latin Extended-A (U+0100..017F) without their accents
+static const char LATIN1_PLAIN[] = "AAAAAAACEEEEIIIIDNOOOOOxOUUUUYTsaaaaaaaceeeeiiiidnooooo/ouuuuyty";
+static const char LATINA_PLAIN[] =
+  "AaAaAaCcCcCcCcDdDdEeEeEeEeEeGgGgGgGgHhHhIiIiIiIiIiIiJjKkkLlLlLlLlLlNnNnNnnNnOoOoOoOoRrRrRrSsSsSsSsTtTtTtUuUuUuUuUuUuWwYyYZzZzZzs";
+static_assert(sizeof(LATIN1_PLAIN) == 64 + 1 && sizeof(LATINA_PLAIN) == 128 + 1, "accent tables");
+
+// what the font shows for a code point: a plain string, "" (nothing), or NULL (placeholder)
+static const char* plain_for(uint32_t cp) {
+  static char one[2];
+  if (cp >= 0xC0 && cp <= 0xFF) { one[0] = LATIN1_PLAIN[cp - 0xC0]; one[1] = 0; return one; }
+  if (cp >= 0x100 && cp <= 0x17F) { one[0] = LATINA_PLAIN[cp - 0x100]; one[1] = 0; return one; }
+  switch (cp) {
+    case 0x2018: case 0x2019: case 0x201A: case 0x201B: case 0x2032: case 0x02BC: case 0x00B4: return "'";
+    case 0x201C: case 0x201D: case 0x201E: case 0x201F: case 0x2033: return "\"";
+    case 0x2010: case 0x2011: case 0x2012: case 0x2013: case 0x2014: case 0x2015: case 0x2212: return "-";
+    case 0x2026: return "...";
+    case 0x2022: case 0x00B7: case 0x2219: return "*";
+    case 0x00A0: case 0x2002: case 0x2003: case 0x2004: case 0x2005: case 0x2006: case 0x2007:
+    case 0x2008: case 0x2009: case 0x200A: case 0x202F: case 0x205F: case 0x3000: return " ";
+    case 0x00AB: case 0x2039: return "<";
+    case 0x00BB: case 0x203A: return ">";
+    case 0x00D7: return "x";
+    case 0x00F7: return "/";
+    case 0x00B0: return "o";
+    case 0x00A9: return "(c)";
+    case 0x00AE: return "(R)";
+    case 0x2122: return "TM";
+    case 0x20AC: return "EUR";
+    case 0x00A3: return "GBP";
+    case 0x00A5: return "JPY";
+    case 0x00A1: return "!";
+    case 0x00BF: return "?";
+    case 0x00BD: return "1/2";
+    case 0x00BC: return "1/4";
+    case 0x00BE: return "3/4";
+    case 0x2190: return "<-";
+    case 0x2192: return "->";
+    // invisible: zero width, variation selectors (emoji vs text style), skin tones, BOM
+    case 0x200B: case 0x200C: case 0x2060: case 0xFEFF: case 0xFE0E: case 0xFE0F: case 0x20E3: return "";
+  }
+  if (cp >= 0x1F3FB && cp <= 0x1F3FF) return "";  // skin tone
+  if (cp >= 0xE0020 && cp <= 0xE007F) return "";  // tag characters (subdivision flags)
+  return NULL;
+}
+
+void SF32Display::translateUTF8ToBlocks(char* dest, const char* src, size_t dest_size) {
+  size_t j = 0;
+  const unsigned char* s = (const unsigned char*)src;
+  for (size_t i = 0; s[i] && j + 1 < dest_size;) {
+    unsigned char c = s[i];
+    if (c < 0x80) {
+      if (c >= 32 && c <= 126) dest[j++] = c;  // (control characters: dropped, as before)
+      i++;
+      continue;
+    }
+    uint32_t cp;
+    int n = utf8_decode(s + i, &cp);
+    if (!n) {  // not UTF-8: already translated (the placeholder), or broken: one placeholder
+      dest[j++] = (char)0xDB;
+      i++;
+      while ((s[i] & 0xC0) == 0x80) i++;
+      continue;
+    }
+    i += n;
+    if (cp == 0x200D) {  // zero width joiner: an emoji sequence (family, ...) is one picture
+      uint32_t next;
+      int m = utf8_decode(s + i, &next);
+      if (m) i += m;
+      continue;
+    }
+    if (cp >= 0x1F1E6 && cp <= 0x1F1FF) {  // a flag: two regional letters, one picture
+      uint32_t next;
+      int m = utf8_decode(s + i, &next);
+      if (m && next >= 0x1F1E6 && next <= 0x1F1FF) i += m;
+      dest[j++] = (char)0xDB;
+      continue;
+    }
+    const char* plain = plain_for(cp);
+    if (!plain) { dest[j++] = (char)0xDB; continue; }
+    for (; *plain && j + 1 < dest_size; plain++) dest[j++] = *plain;
+  }
+  dest[j] = 0;
+}
+
 uint16_t SF32Display::getTextWidth(const char* str) {
   char buf[160];
   translateUTF8ToBlocks(buf, str, sizeof(buf));

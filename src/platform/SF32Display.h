@@ -127,6 +127,10 @@ public:
   void drawRect(int x, int y, int w, int h) override;
   void drawXbm(int x, int y, const uint8_t* bits, int w, int h) override;
   uint16_t getTextWidth(const char* str) override;
+  // UTF-8 to what the font has (printable ASCII): curly quotes, dashes, accented letters and
+  // the like become their plain versions; anything else (emoji) one placeholder block (0xDB).
+  // Text that's already translated passes through unchanged.
+  void translateUTF8ToBlocks(char* dest, const char* src, size_t dest_size) override;
   void endFrame() override;
 
 private:
