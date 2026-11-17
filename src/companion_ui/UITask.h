@@ -115,7 +115,7 @@ class UITask : public AbstractUITask {
   unsigned long _next_refresh, _auto_off;
   NodePrefs* _node_prefs;
   char _alert[80];
-  char _banner_from[32], _banner_text[96];  // SF32: new message banner (showNewMessage)
+  char _banner_from[32], _banner_where[32], _banner_text[96];  // SF32: new message banner (showNewMessage): sender, channel ("": direct), text
   unsigned long _banner_expiry = 0, _banner_start = 0, _alert_start = 0;  // SF32: popups ease in and out
   bool _banner_first = false, _alert_first = false;
   bool _drag_on = false;  // SF32: a page following the finger (pageDrag)

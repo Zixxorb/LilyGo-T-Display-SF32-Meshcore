@@ -153,6 +153,7 @@ class MsgPreviewScreen : public UIScreen {
     uint32_t timestamp;
     char origin[62];
     char msg[UI_MSG_PREVIEW_SIZE];
+    bool chan;  // SF32: a channel message (origin: the channel; msg: "sender: text")
   };
   #define MAX_UNREAD_MSGS   32
   int num_unread;
@@ -163,18 +164,29 @@ public:
   MsgPreviewScreen(UITask* task, mesh::RTCClock* rtc) : _task(task), _rtc(rtc) { num_unread = 0; }
   int unreadCount() const { return num_unread; }  // SF32
   void clearUnread() { num_unread = 0; }           // SF32
-  // SF32: the newest message, for the banner: sender (without the "(hops) " and ":") and text
-  void latest(char* from, int from_len, char* text, int text_len) const {
+  // SF32: the newest message, for the banner: who sent it, where (a channel's name, or "" for
+  // a direct message) and the text (a channel message's "sender: " taken off)
+  void latest(char* from, int from_len, char* where, int where_len, char* text, int text_len) const {
     const MsgEntry* p = &unread[head];
     const char* o = p->origin;
     if (*o == '(') { const char* q = strchr(o, ')'); if (q) o = q + (q[1] == ' ' ? 2 : 1); }
-    snprintf(from, from_len, "%s", o);
-    int n = strlen(from);
-    if (n && from[n - 1] == ':') from[n - 1] = 0;
-    snprintf(text, text_len, "%s", p->msg);
+    char name[sizeof(p->origin)];
+    snprintf(name, sizeof(name), "%s", o);
+    int n = strlen(name);
+    if (n && name[n - 1] == ':') name[n - 1] = 0;
+    const char* body = p->msg;
+    const char* sep = p->chan ? strstr(body, ": ") : NULL;
+    if (p->chan && sep && sep > body && sep - body < from_len) {
+      snprintf(from, from_len, "%.*s", (int)(sep - body), body);
+      body = sep + 2;
+    } else {
+      snprintf(from, from_len, "%s", p->chan ? "" : name);
+    }
+    snprintf(where, where_len, "%s", p->chan ? name : "");
+    snprintf(text, text_len, "%s", body);
   }
 
-  void addPreview(uint8_t path_len, const char* from_name, const char* msg) {
+  void addPreview(uint8_t path_len, const char* from_name, const char* msg, bool chan = false) {
     head = (head + 1) % MAX_UNREAD_MSGS;
     if (num_unread < MAX_UNREAD_MSGS) num_unread++;
 
@@ -186,6 +198,7 @@ public:
       sprintf(p->origin, "(%d) %s:", (uint32_t) path_len, from_name);
     }
     StrHelper::strncpy(p->msg, msg, sizeof(p->msg));
+    p->chan = chan;
   }
 
   int render(DisplayDriver& display) override {
@@ -344,7 +357,7 @@ void UITask::showNewMessage(bool direct) {
     }
   }
   if (alert) {
-    ((MsgPreviewScreen*)msg_preview)->latest(_banner_from, sizeof(_banner_from), _banner_text, sizeof(_banner_text));
+    ((MsgPreviewScreen*)msg_preview)->latest(_banner_from, sizeof(_banner_from), _banner_where, sizeof(_banner_where), _banner_text, sizeof(_banner_text));
     if (millis() >= _banner_expiry) { _banner_start = millis(); _banner_first = true; }
     _banner_expiry = millis() + 6000;
   }
@@ -455,7 +468,7 @@ void UITask::onChannelMessageRecv(mesh::Packet *pkt, ChannelDetails& channel_det
   // SF32: a muted channel (Settings > Sound > Channels): no sound, no wake, no banner, not unread
   bool muted = channel_mutes.muted(channel_details.channel);
   if (!muted) {
-    ((MsgPreviewScreen *) msg_preview)->addPreview(path_len, channel_details.name, text);
+    ((MsgPreviewScreen *) msg_preview)->addPreview(path_len, channel_details.name, text, true);
     showNewMessage(false);  // SF32: channel
   }
   botCheck(pkt, NULL, &channel_details, text);  // SF32
@@ -985,8 +998,10 @@ void UITask::loop() {
         popup_moving |= moving;
         if (_banner_first) { popup_full = true; _banner_first = false; }
         int by = 3 - (int)((1 - e) * 38 + 0.5f);
-        char from[sizeof(_banner_from)], text[sizeof(_banner_text)];
+        char from[sizeof(_banner_from)], where[sizeof(_banner_where) + 2], text[sizeof(_banner_text)];
         _display->translateUTF8ToBlocks(from, _banner_from, sizeof(from));
+        if (_banner_where[0]) _display->translateUTF8ToBlocks(where, _banner_where, sizeof(where));
+        else strcpy(where, "direct");
         _display->translateUTF8ToBlocks(text, _banner_text, sizeof(text));
         ((SF32Display*)_display)->setPopupFade(e);
         _display->setColor(UIColor::popup_bkg);
@@ -994,16 +1009,24 @@ void UITask::loop() {
         _display->setColor(THEME_ACCENT);
         _display->fillRect(4, by + 4, 2, 26);
         _display->setTextSize(1);
-        _display->drawTextEllipsized(10, by + 3, 110, from);
+        // top line: who (accent), and where on the right (the channel, or "direct"); the
+        // channel gets up to half the line, the sender the rest
+        int ww = _display->getTextWidth(where);
+        if (ww > 54) ww = 54;
+        int fw = 110 - ww - 5;
+        if (from[0]) _display->drawTextEllipsized(10, by + 3, fw, from);
+        _display->setColor(UIColor::secondary_txt);
+        _display->drawTextEllipsized(120 - ww, by + 3, ww, where);
         _display->setColor(UIColor::popup_txt);
         // two lines at most (the rest is in the message view): the first broken at a word
         const char* t = text;
         int n = 0, cut = 0;
         char line[48];
-        while (t[n] && n < 47) {
-          memcpy(line, t, n + 1); line[n + 1] = 0;
+        while (t[n] && n < 44) {
+          int step = (unsigned char)t[n] >= 0xF8 && ((unsigned char)t[n + 1] & 0xC0) == 0x80 ? 2 : 1;  // an emoji: both bytes
+          memcpy(line, t, n + step); line[n + step] = 0;
           if (_display->getTextWidth(line) > 110) break;
-          n++;
+          n += step;
           if (t[n] == ' ' || t[n] == 0) cut = n;
         }
         if (!t[n]) cut = n;   // all of it fits
