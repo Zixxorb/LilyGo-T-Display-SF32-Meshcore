@@ -24,7 +24,9 @@ void UITask::openMenu(MenuKind kind) {
   if (curr == menu && !same) {
     if (kind == parentOf(_menu_kind)) {
       keep_sel = _back_sel;  // back up: on the row that opened the submenu
+      if (_menu_kind == MENU_MUTE) _back_sel = _mute_back_sel;  // (a third level: Settings' row again)
     } else {                 // down into a submenu: remember where from
+      if (kind == MENU_MUTE) _mute_back_sel = _back_sel;
       _back_sel = m->selected();
       if (menuParent(kind) == MENU_SETTINGS) _sub_from = _menu_kind == MENU_PAGE ? MENU_PAGE : MENU_SETTINGS;
       if (kind == MENU_POWER_OFF) _poff_from = _menu_kind;
@@ -216,6 +218,25 @@ void UITask::openMenu(MenuKind kind) {
     m->add("Volume", ACT_SET_SOUND, SOUND_NAMES[_ui_prefs.sound % 4]);
     m->add("Alerts", ACT_SET_ALERTS, ALERT_NAMES[_ui_prefs.alerts % 3]);  // which messages chime
     m->add("Taps", ACT_SET_TOUCH_SND, TAP_NAMES[_ui_prefs.touch_snd % 4]);
+    int muted = channel_mutes.count();
+    if (muted) sprintf(tmp, "%d muted", muted); else strcpy(tmp, "All on");
+    m->add("Channels", ACT_MUTE_MENU, tmp);  // muted channels: no sound, wake or unread
+    m->add("Back", ACT_MENU_BACK);
+    m->setSelected(keep_sel);
+    setCurrScreen(menu);
+    return;
+  } else if (kind == MENU_MUTE) {
+    m->begin("Channels");  // each channel: On (alerts as set) or Muted
+    _mute_n = 0;
+    ChannelDetails cd;
+    for (int i = 0; i < MAX_GROUP_CHANNELS && _mute_n < (int)sizeof(_mute_rows) - 1; i++) {  // (room for Back)
+      if (!the_mesh.getChannel(i, cd) || !cd.name[0]) continue;
+      _mute_rows[_mute_n++] = i;
+      char name[28];
+      _display->translateUTF8ToBlocks(name, cd.name, sizeof(name));  // emoji etc. as the font has them
+      m->add(name, ACT_CHAN_MUTE + _mute_n - 1, channel_mutes.muted(cd.channel) ? "Muted" : "On");
+    }
+    if (_mute_n == 0) m->add("No channels", ACT_MENU_BACK);
     m->add("Back", ACT_MENU_BACK);
     m->setSelected(keep_sel);
     setCurrScreen(menu);
@@ -269,6 +290,12 @@ void UITask::screenOff() {
 
 void UITask::menuAction(uint8_t action) {
   HomeScreen* h = (HomeScreen*)home;
+  if (action >= ACT_CHAN_MUTE && action < ACT_CHAN_MUTE + _mute_n) {  // Settings > Sound > Channels
+    ChannelDetails cd;
+    if (the_mesh.getChannel(_mute_rows[action - ACT_CHAN_MUTE], cd) && cd.name[0]) channel_mutes.toggle(cd.channel);
+    openMenu(MENU_MUTE);  // the new value
+    return;
+  }
   if (action >= ACT_PAGE_TOGGLE && action < ACT_PAGE_TOGGLE + HomeScreen::pageCount()) {  // Settings > Pages
     _ui_prefs.hidden_pages ^= (uint16_t)(1u << (action - ACT_PAGE_TOGGLE));
     saveUIPrefs();
@@ -300,6 +327,7 @@ void UITask::menuAction(uint8_t action) {
       if (!sendAdvert(true)) showAlert("Advert failed", 1000);
       break;
     case ACT_ADVERTS_MENU: openMenu(MENU_ADVERTS); break;
+    case ACT_MUTE_MENU: openMenu(MENU_MUTE); break;
     case ACT_BOT_MENU: openMenu(MENU_BOT); break;
     case ACT_BOT_MAX:
     case ACT_BOT_REPEAT:

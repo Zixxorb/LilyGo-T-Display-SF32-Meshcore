@@ -133,6 +133,7 @@ public:
 
 #include "ui_battery.inc"  // battery history (Battery page graph)
 #include "ui_finds.inc"  // today's finds (Starlit page): counted from the mesh and the signal tools
+#include "ui_mute.inc"  // muted channels (Settings > Sound > Channels): no sound, wake or unread
 #include "ui_signal.inc"  // signal tester (Signal page)
 #include "ui_meshtime.inc"  // time from the mesh (adverts) while the clock is unknown
 #include "ui_activity.inc"  // mesh activity (Activity page): packets per hour, channel use
@@ -286,6 +287,7 @@ void UITask::begin(DisplayDriver* display, SensorManager* sensors, NodePrefs* no
   motion.begin();                       // SF32: BHI260AP (background)
   InternalFS.remove("/sf32_steps");     // SF32: left over from the removed step counter
   batt_history.begin();                 // SF32
+  channel_mutes.begin();                // SF32: muted channels
   hash_sizes.begin();                   // SF32: read now, not first from a mesh hook with the screen off
   today_finds.begin();
   s_finds_ui = this;
@@ -448,8 +450,12 @@ void UITask::onMessageRecv(mesh::Packet *pkt, const ContactInfo &from, uint8_t t
 
 void UITask::onChannelMessageRecv(mesh::Packet *pkt, ChannelDetails& channel_details, const char* text) {
   uint8_t path_len = pkt->isRouteFlood() ? pkt->path_len : 0xFF;
-  ((MsgPreviewScreen *) msg_preview)->addPreview(path_len, channel_details.name, text);
-  showNewMessage(false);  // SF32: channel
+  // SF32: a muted channel (Settings > Sound > Channels): no sound, no wake, no banner, not unread
+  bool muted = channel_mutes.muted(channel_details.channel);
+  if (!muted) {
+    ((MsgPreviewScreen *) msg_preview)->addPreview(path_len, channel_details.name, text);
+    showNewMessage(false);  // SF32: channel
+  }
   botCheck(pkt, NULL, &channel_details, text);  // SF32
   if (pkt->isRouteFlood()) {  // SF32: a channel message carries its sender's hash size: if the name is a contact's, note it
     const char* sep = strstr(text, ": ");
@@ -461,6 +467,8 @@ void UITask::onChannelMessageRecv(mesh::Packet *pkt, ChannelDetails& channel_det
       if (c && strcmp(c->name, name) == 0 && hash_sizes.note(c->id.pub_key, pkt->path_len)) today_finds.upgraded(c->name);
     }
   }
+
+  if (muted) return;  // (the phone still gets it)
 
   if (_display != NULL) {
 #ifndef SF32_LINK_AB  // battery test: the screen stays dark

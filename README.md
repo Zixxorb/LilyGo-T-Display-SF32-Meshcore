@@ -242,7 +242,7 @@ space is short the bolt, leaf and moon come before the %, mail and Bluetooth aft
 | **Pages** | Show or hide each home page |
 | **Clock** | Face, zone, daylight saving (off/US/EU), 12/24 h, mesh time, reset clock |
 | **Battery** | Show (icon + % / % only), graph span (6/12/24/48 h), low alert (10/15/20/30 % / off), charge to (100/90/80 %) |
-| **Sound** | Volume, new-message alerts (all / direct / off), taps (click / pop / tick / off) |
+| **Sound** | Volume, new-message alerts (all / direct / off), taps (click / pop / tick / off), **Channels** (mute single channels) |
 | **Night** | From, until, dim and how far, do not disturb |
 | **Motion** | Lift to wake, flip to quiet |
 | **Bluetooth** | On / off (remembered) |
@@ -320,6 +320,11 @@ message that alerts (Settings > Sound > Alerts) shows a banner at the top for 6 
 sender and the start of the text. Tap the envelope on the clock to read; swipe left for the
 next, right to go back. Messages count as read once the phone app downloads them, or when
 viewed on the device. **Do not disturb** (Settings > Night) keeps them silent and dark.
+
+**Muted channels** (Settings > Sound > Channels): a muted channel's messages make no sound,
+don't light the screen and aren't kept as unread on the device; the phone still gets them.
+The app's own channel mute stays on the phone (MeshCore doesn't send it to the device), so
+mute a channel in both places. The list shows up to 19 channels.
 
 </details>
 
