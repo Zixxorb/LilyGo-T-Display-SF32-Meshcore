@@ -353,8 +353,8 @@ static void glass_build() {
   for (int y = 0; y < PANEL_H; y++) {
     float fade = 1.0f - y / 480.0f * 0.5f;
     for (int x = 0; x < PANEL_W; x++) {
-      if (s_glass_bg == 3) {  // None: black
-        *w++ = 0;
+      if (s_glass_bg == 3) {  // None: the theme's own background (black, or ChattaMesh's navy)
+        *w++ = UIColor::window_bkg;
         continue;
       }
       if (s_glass_bg == 2) {  // Gradient: corner to corner, through the three colours, darkening
@@ -439,7 +439,10 @@ static void glass_check() {
 }
 
 void SF32Display::setGlass(bool on, uint16_t accent, bool multi, uint8_t background) {
-  bool same = s_glass_sum && accent == s_glass_accent && multi == s_glass_multi && background == s_glass_bg;
+  static uint16_t s_glass_bgcol = 0;  // the theme background the "None" wallpaper was made in
+  bool same = s_glass_sum && accent == s_glass_accent && multi == s_glass_multi && background == s_glass_bg &&
+              (background != 3 || UIColor::window_bkg == s_glass_bgcol);
+  s_glass_bgcol = UIColor::window_bkg;
   s_glass_accent = accent;
   s_glass_multi = multi;
   s_glass_bg = background;
