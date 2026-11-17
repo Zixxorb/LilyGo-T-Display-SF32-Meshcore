@@ -253,7 +253,7 @@ public:
   bool showMessages();          // SF32: open the unread messages (false if none)
 
   // SF32: menus and settings
-  enum MenuKind { MENU_POWER, MENU_PAGE, MENU_SETTINGS, MENU_TIME, MENU_NIGHT, MENU_SOUND, MENU_DISPLAY, MENU_MOTION, MENU_PAGES, MENU_ADVERTS, MENU_THEME, MENU_BATTERY, MENU_BOT, MENU_POWER_OFF, MENU_LOW_POWER, MENU_GAMES, MENU_MUTE, MENU_BATT_USE };
+  enum MenuKind { MENU_POWER, MENU_PAGE, MENU_SETTINGS, MENU_TIME, MENU_NIGHT, MENU_SOUND, MENU_DISPLAY, MENU_MOTION, MENU_PAGES, MENU_ADVERTS, MENU_THEME, MENU_BATTERY, MENU_BOT, MENU_POWER_OFF, MENU_LOW_POWER, MENU_GAMES, MENU_MUTE, MENU_BATT_USE, MENU_PAGE_ORDER };
   // the menu a submenu goes back to (MENU_PAGE: not a submenu)
   static MenuKind menuParent(MenuKind k) {
     return (k == MENU_NIGHT || k == MENU_TIME || k == MENU_SOUND || k == MENU_DISPLAY || k == MENU_MOTION ||
@@ -338,6 +338,8 @@ private:
   int _back_sel = 0;                    // the parent's row that opened this submenu
   uint8_t _mute_rows[20];               // Settings > Sound > Channels: each row's channel index
   int _mute_n = 0;
+  static bool thirdLevel(MenuKind k) { return k == MENU_MUTE || k == MENU_BATT_USE || k == MENU_PAGE_ORDER; }
+  int _order_pick = -1;                 // Settings > Pages > Order: the page picked up (its position), -1 none
   int _mute_back_sel = 0;               //   and Settings' row while it's open (any third-level menu)
   // battery use since unplugged (ui_usage.inc): estimated mAh per part
   float _use[7] = {};
@@ -352,6 +354,7 @@ private:
     if (k == MENU_POWER_OFF) return _poff_from;
     if (k == MENU_MUTE) return MENU_SOUND;
     if (k == MENU_BATT_USE) return MENU_BATTERY;
+    if (k == MENU_PAGE_ORDER) return MENU_PAGES;
     if (menuParent(k) == MENU_SETTINGS) return _sub_from;
     return menuParent(k);
   }

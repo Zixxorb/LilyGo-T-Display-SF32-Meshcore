@@ -25,9 +25,9 @@ void UITask::openMenu(MenuKind kind) {
   if (curr == menu && !same) {
     if (kind == parentOf(_menu_kind)) {
       keep_sel = _back_sel;  // back up: on the row that opened the submenu
-      if (_menu_kind == MENU_MUTE || _menu_kind == MENU_BATT_USE) _back_sel = _mute_back_sel;  // (a third level: Settings' row again)
+      if (thirdLevel(_menu_kind)) _back_sel = _mute_back_sel;  // (a third level: Settings' row again)
     } else {                 // down into a submenu: remember where from
-      if (kind == MENU_MUTE || kind == MENU_BATT_USE) _mute_back_sel = _back_sel;
+      if (thirdLevel(kind)) _mute_back_sel = _back_sel;
       _back_sel = m->selected();
       if (menuParent(kind) == MENU_SETTINGS) _sub_from = _menu_kind == MENU_PAGE ? MENU_PAGE : MENU_SETTINGS;
       if (kind == MENU_POWER_OFF) _poff_from = _menu_kind;
@@ -175,9 +175,13 @@ void UITask::openMenu(MenuKind kind) {
     setCurrScreen(menu);
     return;
   } else if (kind == MENU_PAGES) {
-    m->begin("Pages");  // swipe through only the shown ones (the clock always is)
-    for (int p = 1; p < HomeScreen::pageCount(); p++)
+    m->begin("Pages");  // swipe through only the shown ones (the clock always is), in their order
+    m->add("Order", ACT_PAGE_ORDER_MENU);
+    page_order.ensure(HomeScreen::pageCount());
+    for (int k = 1; k < page_order.n; k++) {
+      int p = page_order.o[k];
       m->add(HomeScreen::pageName(p), ACT_PAGE_TOGGLE + p, (_ui_prefs.hidden_pages & (1u << p)) ? "Hide" : "Show");
+    }
     m->add("Back", ACT_MENU_BACK);
     m->setSelected(keep_sel);
     setCurrScreen(menu);
@@ -226,6 +230,21 @@ void UITask::openMenu(MenuKind kind) {
     int muted = channel_mutes.count();
     if (muted) sprintf(tmp, "%d muted", muted); else strcpy(tmp, "All on");
     m->add("Channels", ACT_MUTE_MENU, tmp);  // muted channels: no sound, wake or unread
+    m->add("Back", ACT_MENU_BACK);
+    m->setSelected(keep_sel);
+    setCurrScreen(menu);
+    return;
+  } else if (kind == MENU_PAGE_ORDER) {
+    // tap a page to pick it up, then tap where it goes (the clock stays first)
+    if (!same) _order_pick = -1;
+    m->begin(_order_pick < 0 ? "Order" : "Put where?");
+    page_order.ensure(HomeScreen::pageCount());
+    for (int k = 1; k < page_order.n; k++) {
+      int p = page_order.o[k];
+      const char* v = k == _order_pick ? "moving" : ((_ui_prefs.hidden_pages & (1u << p)) ? "hidden" : "");
+      m->add(HomeScreen::pageName(p), ACT_ORDER_ROW + (k - 1), v);
+    }
+    m->add("Reset order", ACT_ORDER_RESET);
     m->add("Back", ACT_MENU_BACK);
     m->setSelected(keep_sel);
     setCurrScreen(menu);
@@ -306,6 +325,13 @@ void UITask::menuAction(uint8_t action) {
     openMenu(MENU_MUTE);  // the new value
     return;
   }
+  if (action >= ACT_ORDER_ROW && action < ACT_ORDER_ROW + HomeScreen::pageCount() - 1) {  // Settings > Pages > Order
+    int k = action - ACT_ORDER_ROW + 1;  // its position (the clock is 0)
+    if (_order_pick < 0) _order_pick = k;                       // picked up
+    else { page_order.move(_order_pick, k); _order_pick = -1; }  // put down there (or back where it was)
+    openMenu(MENU_PAGE_ORDER);
+    return;
+  }
   if (action >= ACT_PAGE_TOGGLE && action < ACT_PAGE_TOGGLE + HomeScreen::pageCount()) {  // Settings > Pages
     _ui_prefs.hidden_pages ^= (uint16_t)(1u << (action - ACT_PAGE_TOGGLE));
     saveUIPrefs();
@@ -339,6 +365,8 @@ void UITask::menuAction(uint8_t action) {
     case ACT_ADVERTS_MENU: openMenu(MENU_ADVERTS); break;
     case ACT_MUTE_MENU: openMenu(MENU_MUTE); break;
     case ACT_BATT_USE: openMenu(MENU_BATT_USE); break;
+    case ACT_PAGE_ORDER_MENU: openMenu(MENU_PAGE_ORDER); break;
+    case ACT_ORDER_RESET: page_order.reset(HomeScreen::pageCount()); _order_pick = -1; openMenu(MENU_PAGE_ORDER); break;
     case ACT_INFO: break;  // a row that only shows something
     case ACT_BOT_MENU: openMenu(MENU_BOT); break;
     case ACT_BOT_MAX:

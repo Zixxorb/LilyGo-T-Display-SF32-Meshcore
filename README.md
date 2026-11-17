@@ -239,7 +239,7 @@ space is short the bolt, leaf and moon come before the %, mail and Bluetooth aft
 |---|---|
 | **Theme** | Style (Normal / Glass), Color (each style keeps its own), Backdrop for Glass (Aurora / Dunes / Blend / None), Tilt light for Glass (a glint of light on the glass that follows how you tilt the board; on by default, uses the motion sensor only while the screen is on, off in low power mode), Battery (Color: red / yellow / green by charge, or Plain) |
 | **Display** | Brightness, timeout, always-on, tap to wake, rotation (Normal / Auto / Right / Flipped / Left) |
-| **Pages** | Show or hide each home page |
+| **Pages** | Show or hide each home page; **Order**: tap a page to pick it up, then tap where it goes (the clock stays first), or reset the order |
 | **Clock** | Face, zone, daylight saving (off/US/EU), 12/24 h, mesh time, reset clock |
 | **Battery** | Show (icon + % / % only), graph span (6/12/24/48 h), low alert (10/15/20/30 % / off), charge to (100/90/80 %), **Usage**: what used the battery since it was unplugged (screen, system, radio listening and sending, tap to wake, kept awake, Bluetooth) as shares, and the average draw. An estimate: time in each state times a typical current |
 | **Sound** | Volume, new-message alerts (all / direct / off), taps (click / pop / tick / off), **Channels** (mute single channels) |

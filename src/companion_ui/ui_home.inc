@@ -2,6 +2,47 @@
 // HomeScreen: the pages (clock, status, battery, heard, radio, bluetooth, advert, bot, discover,
 // signal, power).
 
+// SF32: the order the pages come in (Settings > Pages > Order), kept in /sf32_order. The clock
+// is always first. Pages by their HomePage index; a page this build has that the file doesn't
+// (a new one) goes at the end, in its usual place among the rest.
+#define PAGE_ORDER_FILE  "/sf32_order"
+#define PAGE_ORDER_MAGIC 0x4F504653  // "SFPO"
+struct PageOrder {
+  uint8_t o[24];
+  int n = 0;
+  void ensure(int count) {
+    if (n == count) return;
+    struct { uint32_t magic; uint8_t n; uint8_t o[24]; } f = {};
+    File file = InternalFS.open(PAGE_ORDER_FILE, "r");
+    bool ok = file && file.read((uint8_t*)&f, sizeof(f)) > 5 && f.magic == PAGE_ORDER_MAGIC && f.n <= 24;
+    bool have[24] = {};
+    n = 0;
+    o[n++] = 0;  // the clock
+    have[0] = true;
+    if (ok) for (int i = 0; i < f.n; i++) if (f.o[i] < count && !have[f.o[i]]) { have[f.o[i]] = true; o[n++] = f.o[i]; }
+    for (int p = 0; p < count && n < 24; p++) if (!have[p]) o[n++] = p;
+  }
+  void save() {
+    struct { uint32_t magic; uint8_t n; uint8_t o[24]; } f = {};
+    f.magic = PAGE_ORDER_MAGIC;
+    f.n = n;
+    memcpy(f.o, o, n);
+    File file = InternalFS.open(PAGE_ORDER_FILE, "w", true);
+    if (file) file.write((const uint8_t*)&f, sizeof(f));
+  }
+  int pos(int page) const { for (int i = 0; i < n; i++) if (o[i] == page) return i; return 0; }
+  void move(int from, int to) {  // positions; the clock (0) stays
+    if (from < 1 || to < 1 || from >= n || to >= n || from == to) return;
+    uint8_t p = o[from];
+    if (from < to) memmove(o + from, o + from + 1, to - from);
+    else memmove(o + to + 1, o + to, from - to);
+    o[to] = p;
+    save();
+  }
+  void reset(int count) { InternalFS.remove(PAGE_ORDER_FILE); n = 0; ensure(count); }
+};
+static PageOrder page_order;
+
 class HomeScreen : public UIScreen {
   enum HomePage {
     CLOCK,     // SF32
@@ -390,16 +431,21 @@ class HomeScreen : public UIScreen {
 
   // which pages are shown (Settings > Pages); the clock always is
   bool pageVisible(int p) const { return p == HomePage::CLOCK || !(_task->uiPrefs().hidden_pages & (1u << p)); }
-  void stepPage(int dir) {
+  void stepPage(int dir) {  // in the chosen order (Settings > Pages > Order)
     _pet_info = -1;  // (the Starlit's info card closes when the page changes)
+    page_order.ensure(HomePage::Count);
+    int at = page_order.pos(_page);
     for (int k = 0; k < HomePage::Count; k++) {
-      _page = (_page + HomePage::Count + dir) % HomePage::Count;
+      at = (at + HomePage::Count + dir) % HomePage::Count;
+      _page = page_order.o[at];
       if (pageVisible(_page)) break;
     }
   }
-  void drawPageDots(DisplayDriver& d) {  // only the shown pages
+  void drawPageDots(DisplayDriver& d) {  // only the shown pages, in their order
     int n = 0, idx = 0;
-    for (int p = 0; p < HomePage::Count; p++) {
+    page_order.ensure(HomePage::Count);
+    for (int k = 0; k < HomePage::Count; k++) {
+      int p = page_order.o[k];
       if (!pageVisible(p)) continue;
       if (p == _page) idx = n;
       n++;
@@ -939,7 +985,8 @@ public:
         display.print("Waiting");
         display.setTextSize(1);
         display.setColor(UIColor::secondary_txt);
-        display.drawTextRightAlign(119, 76, "new phone: Pair phone");
+        display.drawTextRightAlign(119, 89, "new phone:");  // (beside "Waiting": the label's line has no room)
+        display.drawTextRightAlign(119, 98, "Pair phone");
       } else {
         display.setColor(UIColor::primary_txt);
         display.print("Waiting");
