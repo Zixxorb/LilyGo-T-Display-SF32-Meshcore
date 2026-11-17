@@ -164,7 +164,7 @@ static int volume_half_db(SF32Sound::Volume vol) {
 
 // Tap sounds are synthesised (a plain beep slice sounded harsh): a quick attack, a natural
 // decay and a little pitch movement. style 1 click: a soft wooden "tock"; 2 pop: a water-
-// drop "bloop" (pitch rising); 3 tick: a crisp, quiet mechanical tick. False after the end.
+// drop "bloop" (pitch rising); 3 tick: a crisp, short mechanical tick. False after the end.
 static bool fill_tap(int16_t* buf, int style, uint32_t n) {
   if (style == 4) {  // swish (swipes): airy filtered noise that swells and fades, a whoosh
     const float T = 0.14f;
@@ -194,7 +194,7 @@ static bool fill_tap(int16_t* buf, int style, uint32_t n) {
   switch (style) {
     case 1:  T = 0.030f; f0 = 950;  f1 = 650;  tau = 0.006f;  amp = 0.80f; break;
     case 2:  T = 0.045f; f0 = 380;  f1 = 950;  tau = 0;       amp = 0.85f; break;  // tau 0: sine window
-    default: T = 0.010f; f0 = 3200; f1 = 3200; tau = 0.0015f; amp = 0.50f; break;
+    default: T = 0.018f; f0 = 2600; f1 = 2600; tau = 0.0035f; amp = 1.00f; break;  // (as loud as the click: was ~10 dB under)
   }
   bool any = false;
   for (int i = 0; i < CHUNK / 2; i++) {
