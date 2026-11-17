@@ -352,6 +352,14 @@ void UITask::menuAction(uint8_t action) {
       openMenu(_menu_kind);
       break;
     }
+    case ACT_RX_GAIN:  // boosted receive gain: hears weaker signals, ~0.7 mA more (low power mode keeps it off)
+      if (_node_prefs) {
+        _node_prefs->rx_boosted_gain = !_node_prefs->rx_boosted_gain;
+        radio_driver.setRxBoostedGainMode(_node_prefs->rx_boosted_gain);
+        the_mesh.savePrefs();
+      }
+      openMenu(_menu_kind);
+      break;
     case ACT_SET_RESEND:
       _ui_prefs.resend = (_ui_prefs.resend + 1) % NUM_RESEND;
       saveUIPrefs();

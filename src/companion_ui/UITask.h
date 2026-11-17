@@ -329,6 +329,7 @@ public:
   uint16_t botCount() const { return _bot_count; }
   const char* botLastName() const { return _bot_last; }
   int botLastHeard() const { return _bot_last_heard; }
+  bool rxBoost() const { return _node_prefs && _node_prefs->rx_boosted_gain; }  // the saved choice (MeshCore's radio prefs)
 private:
   MenuKind _menu_kind = MENU_PAGE;
   // where Back goes: a Settings submenu can also be opened from a page's menu (its "... menu"

@@ -210,7 +210,7 @@ your finger and glide after a flick.
 | **Status** | Unread, messages waiting for the app, Bluetooth PIN or node name |
 | **Battery** | Charge, voltage, chip temperature, time left, 48 h graph |
 | **Heard** | Recently heard nodes |
-| **Radio** | Frequency, BW, SF, CR, TX power, noise floor. Menu: edit radio, band scan |
+| **Radio** | Frequency, BW, SF, CR, TX power, noise floor. Menu: edit radio, **RX gain** (Boost: hears weaker signals for ~0.7 mA more; Normal), band scan |
 | **Bluetooth** | Connection; menu: on/off, **Pair phone** (a new phone can pair only for 2 min after this, or in the first 5 min after start while none is paired; one wrong PIN closes it), forget paired phones |
 | **Advert** | Send an advert (hold the icon or long press button A: nearby or whole mesh, your choice) |
 | **Bot** | Optional auto-reply to senders using 1-byte path hashes (off by default), and how many nearby nodes are on 2-byte |

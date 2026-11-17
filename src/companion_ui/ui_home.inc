@@ -704,6 +704,7 @@ public:
       case HomePage::RADIO:
         m.begin("Radio");
         m.add("Edit radio", ACT_RADIO_EDIT);
+        m.add("RX gain", ACT_RX_GAIN, _task->rxBoost() ? "Boost" : "Normal");  // low power mode: Normal while on
         m.add("Band scan", ACT_BAND_SCAN);
         m.add("Send nearby", ACT_ADVERT);
         m.add("Send to mesh", ACT_ADVERT_MESH);
