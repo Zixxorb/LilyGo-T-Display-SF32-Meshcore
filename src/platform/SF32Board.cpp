@@ -96,8 +96,12 @@ struct SF32PmStats {
   uint32_t held_mask_seen; // every awake reason that was held at some point (OR)
   uint32_t wsr[17];        // wakes per wake source bit 0..15 (RTC, GPIO1, LPTIM1, PMUC, -, -, LP2HP req, LP2HP irq, PIN0..7), [16] other
   uint32_t ev[4];          // SF32_PM_EV_*: radio DIO1 interrupts, touch interrupts, audio powered down, powered up
+  uint32_t screen_ms;      // of the time on battery, the screen on
+  uint32_t screen_ons;     // times it turned on
+  uint32_t tx, rx;         // packets the radio sent / received (sending costs far more than listening)
 };
 volatile SF32PmStats sf32_pm_stats;
+volatile uint32_t sf32_radio_tx = 0, sf32_radio_rx = 0;  // the radio's totals (the companion UI keeps them current)
 }
 static volatile bool s_pm_counting = false;
 // on battery: count an event (interrupt-safe; see SF32_PM_EV_* in SF32Board.h)
@@ -179,6 +183,8 @@ static void ab_log_loop(uint16_t mv) {
 }
 #endif
 
+static uint32_t s_tx0 = 0, s_rx0 = 0;  // the radio's totals when the battery stretch began
+static bool s_screen_was = false;
 static void pm_stats_loop(bool external) {
   static unsigned long last = 0;
   unsigned long now = millis();
@@ -203,6 +209,9 @@ static void pm_stats_loop(bool external) {
     s_pm_counting = true;
     rt_hw_interrupt_enable(level);
     last = now;
+    s_tx0 = sf32_radio_tx;
+    s_rx0 = sf32_radio_rx;
+    s_screen_was = false;
     return;
   }
   uint32_t d = (uint32_t)(now - last);
@@ -210,6 +219,12 @@ static void pm_stats_loop(bool external) {
   sf32_pm_stats.batt_ms += d;
   sf32_pm_stats.loops++;
   if (s_awake_mask) { sf32_pm_stats.held_ms += d; sf32_pm_stats.held_mask_seen |= s_awake_mask; }
+  bool screen = s_awake_mask & SF32Board::AWAKE_SCREEN;  // (held exactly while the screen is on)
+  if (screen) sf32_pm_stats.screen_ms += d;
+  if (screen && !s_screen_was) sf32_pm_stats.screen_ons++;
+  s_screen_was = screen;
+  sf32_pm_stats.tx = sf32_radio_tx - s_tx0;
+  sf32_pm_stats.rx = sf32_radio_rx - s_rx0;
 }
 #endif  // RT_USING_PM
 

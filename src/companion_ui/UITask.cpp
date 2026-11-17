@@ -46,7 +46,8 @@ extern SerialBLEInterface bluetooth_interface;  // MeshCore's companion main.cpp
 #include <MyMesh.h>
 #include "target.h"
 #include <time.h>
-extern volatile bool sf32_ui_animating;  // main.cpp: shorter main-loop sleep while set
+extern volatile bool sf32_ui_animating;
+extern "C" volatile uint32_t sf32_radio_tx, sf32_radio_rx;  // SF32Board.cpp: battery counters  // main.cpp: shorter main-loop sleep while set
 extern volatile uint8_t sf32_loop_sleep_ms;  // main.cpp: main-loop sleep
 #ifdef ENABLE_WIFI_INTERFACE
   #include <WiFi.h>
@@ -724,6 +725,8 @@ void UITask::loop() {
     // sleep (power manager): awake while the screen (always-on too) or audio is on, the
     // first minute after boot, or with Power saving off
     board.holdAwake(SF32Board::AWAKE_SCREEN, screen_on);
+    sf32_radio_tx = radio_driver.getPacketsSent();  // SF32: for the battery counters (sf32_pm_stats)
+    sf32_radio_rx = radio_driver.getPacketsRecv();
     board.holdAwake(SF32Board::AWAKE_AUDIO, sound.running());
     board.holdAwake(SF32Board::AWAKE_USER, !_ui_prefs.power_save);
     // and on USB power: the debug channel (flashing, screenshots) can't reach a sleeping chip,
