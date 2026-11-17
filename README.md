@@ -332,11 +332,11 @@ as long as it can, but the radio keeps its full receive sensitivity, to hear any
 Tapping Stop turns it back off; when the 6 sends are done it stays on. If a send can't go
 out (MeshCore has no free packet), the screen says "SOS retrying" and it tries again after 30 s.
 
+</details>
+
 > [!CAUTION]
 > An SOS is real: it goes out over the mesh to everyone on that channel (#emergency is
 > shared). To try it, set **Settings > SOS to** a private channel of your own first.
-
-</details>
 
 ### Starlits
 
@@ -376,12 +376,12 @@ too.
 - **Gentle by design**: it never dies or nags. It's saved on the board and survives
   reflashing. Sounds and Reset are in Settings > Starlit.
 
+</details>
+
 > [!NOTE]
 > Starlits never transmit anything: friends' Starlits are drawn from their keys, and every
 > find comes from traffic your radio hears anyway. With the screen off they do nothing at all
 > (no battery cost); time away is caught up when you look.
-
-</details>
 
 ### Radio and mesh tools
 
