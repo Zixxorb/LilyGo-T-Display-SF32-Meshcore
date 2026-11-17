@@ -6,6 +6,9 @@
 
 Companion (phone app over Bluetooth, with its own touch UI) · Repeater · Room server
 
+[![Release](https://img.shields.io/github/v/release/Zixxorb/VesperOS?label=Vesper&color=7c6cf0)](https://github.com/Zixxorb/VesperOS/releases/latest)
+[![Build](https://img.shields.io/github/actions/workflow/status/Zixxorb/VesperOS/build.yml?branch=main&label=build)](https://github.com/Zixxorb/VesperOS/actions/workflows/build.yml)
+[![Downloads](https://img.shields.io/github/downloads/Zixxorb/VesperOS/total?color=14b8a6)](https://github.com/Zixxorb/VesperOS/releases)
 ![MeshCore](https://img.shields.io/badge/MeshCore-v1.18-1f2937)
 ![Board](https://img.shields.io/badge/board-T--Display--SF32-3b82f6)
 ![Radio](https://img.shields.io/badge/radio-SX1262%20915%20MHz-22c55e)
@@ -123,8 +126,11 @@ No SDK or compiler needed: Python 3 and a USB cable.
 It finds the board, downloads SiFli's flashing tool (`sftool`, checked against a pinned
 checksum) on the first run, and flashes. Your settings, contacts and node identity are
 kept. Run it with no arguments to pick a firmware from a menu (downloaded from this repo's
-latest release). Flashing a real board is tested on Linux only. On Windows and macOS, automated
-checks cover everything except the flash itself (Windows may need the CH343 USB driver).
+latest release).
+
+> [!NOTE]
+> Flashing a real board has been tested on Linux only. On Windows and macOS, automated
+> checks cover everything except the flash itself (Windows may need the CH343 USB driver).
 
 ## Building from source
 
@@ -326,6 +332,10 @@ as long as it can, but the radio keeps its full receive sensitivity, to hear any
 Tapping Stop turns it back off; when the 6 sends are done it stays on. If a send can't go
 out (MeshCore has no free packet), the screen says "SOS retrying" and it tries again after 30 s.
 
+> [!CAUTION]
+> An SOS is real: it goes out over the mesh to everyone on that channel (#emergency is
+> shared). To try it, set **Settings > SOS to** a private channel of your own first.
+
 </details>
 
 ### Starlits
@@ -363,9 +373,13 @@ too.
 - **Mesh health**: a node the bot nudged about its 1-byte path hashes gets a small amber
   bubble in Friends ("nudged" on its card), and when it moves up to 2-byte, today's finds say
   so ("upgraded to 2-byte: NAME").
-- **Gentle by design**: it never dies or nags, and never transmits anything. While the screen is
-  off it does nothing at all (no battery cost); time away is caught up when you look. It's
-  saved on the board and survives reflashing. Sounds and Reset are in Settings > Starlit.
+- **Gentle by design**: it never dies or nags. It's saved on the board and survives
+  reflashing. Sounds and Reset are in Settings > Starlit.
+
+> [!NOTE]
+> Starlits never transmit anything: friends' Starlits are drawn from their keys, and every
+> find comes from traffic your radio hears anyway. With the screen off they do nothing at all
+> (no battery cost); time away is caught up when you look.
 
 </details>
 
@@ -547,6 +561,10 @@ Remote Management in the MeshCore app.
 | Radio | USA/Canada preset: 910.525 MHz, BW 62.5, SF7, CR 4/5, 22 dBm |
 | Names | Repeater "SF32 Repeater", room server "SF32 Room" (room password "hello") |
 | Admin password | **"password"**: change it |
+
+> [!WARNING]
+> Repeaters and room servers ship with MeshCore's default admin password (`password`).
+> Anyone in range who knows it can manage your node, so change it after flashing.
 
 The screen shows MeshCore's repeater/room screen and turns off after 20 s. Button **A**
 turns it on; holding A for 1 s powers off. To power on, press **D** (the charger's button
