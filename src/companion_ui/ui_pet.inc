@@ -210,7 +210,11 @@ public:
     unsigned long now = millis();
     if (_react && now - _react_at < 600) return false;
     bump(_s.happy, 3);
+#ifdef SF32_REMOTE_TOUCH
+    react(3, 9000);  // debug builds: long enough to screenshot
+#else
     react(3, 900);
+#endif
     return true;
   }
   void play() {  // a hold on it (or Play in its menu)
@@ -355,6 +359,22 @@ public:
     else { byc = ground - bh - 2.5f * size - lift; hyc = byc - bh - hh * 0.5f; }
     float hxc = cx + sinf(headtilt) * 4;
 
+    // its parts: the kind sets the shape and face; ears/horns, tail, wings and markings mix,
+    // each its kind's own about half the time (from a second hash of the seed: no new data)
+    uint32_t mx = sd0 * 2246822519u; mx ^= mx >> 15; mx *= 3266489917u; mx ^= mx >> 13;
+    auto pick = [&](int own, int n, int sh) { return ((mx >> sh) & 1) ? own : (own + 1 + (int)((mx >> (sh + 1)) % (n - 1))) % n; };
+    enum { TOP_HORNS, TOP_CRYSTAL, TOP_STALKS, TOP_FLAME };   // what's on its head
+    enum { TAIL_SPADE, TAIL_COMET, TAIL_FLAME, TAIL_NONE };  // (the floating Glimmer: none)
+    enum { WING_NONE, WING_BACK, WING_PETAL };
+    static const uint8_t OWN_TOP[4] = {TOP_HORNS, TOP_CRYSTAL, TOP_STALKS, TOP_FLAME};
+    static const uint8_t OWN_TAIL[4] = {TAIL_SPADE, TAIL_COMET, TAIL_NONE, TAIL_FLAME};
+    static const uint8_t OWN_WING[4] = {WING_BACK, WING_NONE, WING_PETAL, WING_NONE};
+    int top = pick(OWN_TOP[k], 4, 0);
+    int tail = k == GLIMMER ? TAIL_NONE : pick(OWN_TAIL[k] == TAIL_FLAME ? 2 : OWN_TAIL[k], 3, 3);
+    int wing = k == GLIMMER ? WING_PETAL : pick(OWN_WING[k], 3, 6);
+    int marks = (mx >> 9) % 3;  // 0 none, 1 spots, 2 stripes
+    float abw = bw > 0 ? bw : hw * 0.8f;  // where a tail or back wings attach (the Fluff: its orb)
+
     // its node's path-hash size: a faint aura round all of it (1 byte amber, 2 cyan, 3 violet)
     if (hsz >= 1 && hsz <= 3) {
       static const float AURA_HUE[3] = {35, 185, 275};
@@ -370,43 +390,44 @@ public:
     else sd.fillSoft(cx, ground, (k == EMBER ? 19 : 15) * size * (1 - air * 0.2f), 3.2f * size, 0x0000, (int)(11 * (1 - air * 0.4f)));
 
     // ---- behind: tail, wings ----
-    if (k == DRAKE) {  // a long tail curving out to a spade tip
-      float px = cx + bw * 0.6f, py = byc + bh * 0.5f;
+    if (tail == TAIL_SPADE) {  // a long tail curving out to a spade tip
+      float px = cx + abw * 0.6f, py = byc + bh * 0.5f;
       d.setColor(deep);
       for (int i = 1; i <= 6; i++) {
         float u = i / 6.0f, a = -0.3f + u * 1.4f + wag * 0.35f * u;
-        float nx = cx + bw * 0.6f + u * 15 * size, ny = byc + bh * 0.5f - sinf(a) * 8 * u * size;
+        float nx = cx + abw * 0.6f + u * 15 * size, ny = byc + bh * 0.5f - sinf(a) * 8 * u * size;
         sd.drawLineAA(px, py, nx, ny, 3.2f * size * (1 - u * 0.5f));
         px = nx; py = ny;
       }
       sd.fillShaded(px + 1.5f, py - 1, 3.4f * size, 2.4f * size, deep, 0.4f, -0.6f + wag * 0.3f);
-    } else if (k == FLUFF) {  // a comet tail: glowing orbs trailing up behind, smaller and fainter
+    } else if (tail == TAIL_COMET) {  // a comet tail: glowing orbs trailing up behind, smaller and fainter
       for (int i = 4; i >= 0; i--) {
         float u = i / 4.0f, a = wag * 0.3f * u;
-        float ox = cx + bw * 0.8f + u * 9 * size + sinf(a) * 4, oy = byc - u * 15 * size;
+        float ox = cx + abw * 0.8f + u * 9 * size + sinf(a) * 4, oy = byc - u * 15 * size;
         float rr = (4.4f - u * 2.6f) * size;
         sd.fillSoft(ox, oy, rr * 2.2f, rr * 2.2f, star, (int)(9 - u * 5));
         sd.fillShaded(ox, oy, rr, rr, i == 0 ? body : star, 0.7f);
       }
-    } else if (k == EMBER) {  // a short tail with a flickering flame tip
-      float tx = cx + bw * 1.1f + wag * 2, ty = byc + bh * 0.1f;
+    } else if (tail == TAIL_FLAME) {  // a short tail with a flickering flame tip
+      float tx = cx + abw * 1.1f + wag * 2, ty = byc + bh * 0.1f;
       d.setColor(deep);
-      sd.drawLineAA(cx + bw * 0.5f, byc + bh * 0.5f, tx, ty, 3.0f * size);
+      sd.drawLineAA(cx + abw * 0.5f, byc + bh * 0.5f, tx, ty, 3.0f * size);
       float fl = still ? 0 : sinf(t * 0.025f) * 0.15f + sinf(t * 0.041f) * 0.1f;
       sd.fillSoft(tx, ty - 3, 7 * size, 8 * size, hsvColor(30, 0.8f, 1.0f), 7);
       sd.fillShaded(tx, ty - 3 * size, 3.4f * size * (1 + fl), 5.2f * size * (1 - fl), hsvColor(25, 0.85f, 1.0f), 0.3f, fl);
       sd.fillShaded(tx, ty - 2 * size, 1.8f * size, 3.0f * size * (1 + fl), hsvColor(50, 0.6f, 1.0f), 0.2f, -fl);
     }
-    if (k == DRAKE || k == GLIMMER) {  // wings: the Drake's from its back, the Glimmer's from the sides of its head
+    if (wing != WING_NONE) {  // wings: leathery ones from its back, or petals from the sides of its head
       if (k == GLIMMER && !still) flap += sinf(t * 6.2832f / 1300) * 0.35f;  // always a gentle flutter (it floats)
+      bool back = wing == WING_BACK;
       for (int side = -1; side <= 1; side += 2) {
         float a = side * (0.9f + flap * 0.35f);
-        float wx = k == DRAKE ? cx + side * (bw + 4 * size) : cx + side * (hw * 0.95f), wy = k == DRAKE ? byc - bh * 0.4f : hyc + hh * 0.35f;
-        if (k == DRAKE) {
+        float wx = back ? cx + side * (abw + 4 * size) : cx + side * (hw * 0.95f), wy = back ? (bw > 0 ? byc - bh * 0.4f : hyc + hh * 0.1f) : hyc + hh * 0.35f;
+        if (back) {
           sd.fillShaded(wx, wy, 5.2f * size, 9 * size, deep, 0.3f, a);
           d.setColor(hsvColor(hue, 0.6f, 0.55f));
-          sd.drawLineAA(cx + side * bw * 0.8f, wy + 2, wx + side * sinf(fabsf(a)) * 7, wy - 7 * size, 0.9f);
-        } else {  // GLIMMER: two petals each side, pointed, with a light vein
+          sd.drawLineAA(cx + side * abw * 0.8f, wy + 2, wx + side * sinf(fabsf(a)) * 7, wy - 7 * size, 0.9f);
+        } else {  // petals: two each side, pointed, with a light vein
           ColorVal wc = hsvColor(fmodf(hue + 30, 360), 0.3f, 1.0f), wc2 = hsvColor(fmodf(hue + 60, 360), 0.22f, 1.0f);
           sd.fillShaded(wx + side * 1, wy - 3, 3.6f * size, 9.5f * size, wc, 0.5f, a - side * 0.25f);
           sd.fillShaded(wx + side * 2, wy + 3, 3.0f * size, 7.0f * size, wc2, 0.5f, a + side * 0.55f);
@@ -450,21 +471,21 @@ public:
     for (int side = -1; side <= 1; side += 2) {
       float ex = hxc + side * hw * 0.6f, ey = hyc - hh * 0.7f;
       float tw = side > 0 ? twitch : 0;
-      if (k == FLUFF) {          // crystal ears: two glossy shards each side
+      if (top == TOP_CRYSTAL) {  // crystal ears: two glossy shards each side
         float a = side * (0.3f + droop) + tw + headtilt;
         ColorVal gem = hsvColor(fmodf(hue + 190, 360), 0.35f, 1.0f);
         sd.fillShaded(ex + side * 1.5f, ey - 5 * size, 2.6f * size, 9.5f * size, gem, 1.0f, a);
         sd.fillShaded(ex - side * 2.5f, ey - 3 * size, 1.9f * size, 6.5f * size, gem, 1.0f, a - side * 0.35f);
         if (!still) sd.fillSoft(ex + side * 1.5f, ey - 8 * size, 3.5f * size, 4.5f * size, 0xFFFF, (int)(3 + 3 * glow));
-      } else if (k == EMBER) {   // flame tufts that flicker
+      } else if (top == TOP_FLAME) {  // flame tufts that flicker
         float fl = still ? 0 : sinf(t * 0.03f + side * 1.7f) * 0.18f + sinf(t * 0.047f + side) * 0.1f;
         sd.fillSoft(ex, ey - 3 * size, 5 * size, 7 * size, hsvColor(30, 0.8f, 1.0f), 6);
         sd.fillShaded(ex, ey - 2.5f * size, 3.4f * size * (1 + fl), 6.0f * size * (1 - fl), hsvColor(22, 0.85f, 1.0f), 0.3f, side * 0.25f + fl);
         sd.fillShaded(ex, ey - 1.5f * size, 1.8f * size, 3.6f * size * (1 + fl), hsvColor(48, 0.6f, 1.0f), 0.2f, side * 0.2f - fl);
-      } else if (k == DRAKE) {   // little horns
+      } else if (top == TOP_HORNS) {  // little horns
         float a = side * 0.45f + headtilt;
         sd.fillShaded(ex - side * 1.5f, ey - 2 * size, 2.2f * size, 6 * size, hsvColor(40, 0.18f, 1.0f), 0.6f, a);
-      } else {                   // GLIMMER: curling light-stalks with glowing orb tips
+      } else {                   // curling light-stalks with glowing orb tips
         float sway = still ? 0 : sinf(t * 6.2832f / 2800 + side) * 1.5f;
         d.setColor(deep);
         float px = hxc + side * hw * 0.3f, py = hyc - hh * 0.85f;
@@ -488,6 +509,20 @@ public:
       sd.drawLineAA(hxc - 2, hyc + hh * 0.3f, hxc - 2, hyc + hh * 0.3f, 1.1f);
       sd.drawLineAA(hxc + 2, hyc + hh * 0.3f, hxc + 2, hyc + hh * 0.3f, 1.1f);
     }
+    if (marks == 1) {  // spots: a few darker freckles up each side of its head
+      for (int side = -1; side <= 1; side += 2) {
+        sd.fillShaded(hxc + side * hw * 0.58f, hyc - hh * 0.42f, 1.7f * size, 1.5f * size, deep, 0.3f);
+        sd.fillShaded(hxc + side * hw * 0.74f, hyc - hh * 0.12f, 1.2f * size, 1.1f * size, deep, 0.3f);
+        sd.fillShaded(hxc + side * hw * 0.4f, hyc - hh * 0.72f, 1.0f * size, 0.9f * size, deep, 0.3f);
+      }
+    } else if (marks == 2) {  // stripes: short darker bands on its cheeks
+      d.setColor(deep);
+      for (int side = -1; side <= 1; side += 2)
+        for (int i = 0; i < 2; i++) {
+          float yy = hyc - hh * 0.05f + i * hh * 0.22f;
+          sd.drawLineAA(hxc + side * hw * 0.97f, yy, hxc + side * hw * 0.72f, yy + hh * 0.06f, 1.4f * size);
+        }
+    }
     // the star mark on the forehead, glowing
     float stx = hxc, sty = hyc - hh * 0.62f;
     sd.fillSoft(stx, sty, 6 * size, 6 * size, star, (int)(10 * glow));
@@ -508,13 +543,13 @@ public:
       d.setColor(ink);
       for (int s2 = 0; s2 < 2; s2++) arcLine(sd, s2 ? exr : exl, eyy - 0.6f, 3.0f * size, true, 1.7f);
     } else {                                    // open: white, a coloured iris, a pupil, star glints
-      float wide = booped ? 1.18f : 1.0f;
+      if (booped) { erx *= 1.15f; ery *= 1.15f; }  // startled: the whole eye opens wider (the same eye, bigger)
       for (int s2 = 0; s2 < 2; s2++) {
         float ex = s2 ? exr : exl;
-        sd.fillShaded(ex, eyy, erx * wide, ery * wide, 0xFFFF, 0.1f);
+        sd.fillShaded(ex, eyy, erx, ery, 0xFFFF, 0.1f);
         float ix = ex + gx * erx * 0.22f, iy = eyy + gy * ery * 0.2f;
         sd.fillShaded(ix, iy + 0.3f, erx * 0.78f, ery * 0.78f, iris, 0.5f);
-        sd.fillShaded(ix, iy + 0.3f, erx * (booped ? 0.28f : 0.42f), ery * (booped ? 0.3f : 0.45f), ink, 0.4f);
+        sd.fillShaded(ix, iy + 0.3f, erx * (booped ? 0.36f : 0.42f), ery * (booped ? 0.39f : 0.45f), ink, 0.4f);
         d.setColor(0xFFFF);
         sd.drawLineAA(ix - erx * 0.32f, iy - ery * 0.32f, ix - erx * 0.32f, iy - ery * 0.32f, erx * 0.55f);
         sparkle(sd, ix + erx * 0.34f, iy + ery * 0.36f, erx * 0.2f, 0xFFFF);

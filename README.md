@@ -361,8 +361,10 @@ Every node has a **Starlit**: a little original critter with a glowing star mark
 node's own key, so each one is different. There are four kinds, each its own shape: the
 **Drake** (sturdy, snouted, horns, wings, a spade tail), the **Fluff** (a puffball with crystal
 ears and a comet tail), the **Glimmer** (floats on a glowing wisp, petal wings, light-stalks)
-and the **Ember** (squat, with flame tufts and a flame-tipped tail); colours, eyes and build vary
-too.
+and the **Ember** (squat, with flame tufts and a flame-tipped tail). The kind sets the shape and
+face; its head (horns, crystal ears, light-stalks or flame tufts), tail and wings mix, each its
+kind's own about half the time, plus markings (none, spots or stripes), 8 colours, 4 eye colours
+and its build: about 345,000 different Starlits.
 
 - **It lives on the mesh**: it's fed by the packets your radio hears, grows curious from adverts
   and new nodes, and rests while the screen is off. Three bars show how it's doing; the line
