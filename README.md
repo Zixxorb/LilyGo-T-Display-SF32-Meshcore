@@ -1,6 +1,9 @@
 <div align="center">
 
-# Vesper
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/logo-dark.svg">
+  <img src="docs/images/logo-light.svg" alt="Vesper" width="486">
+</picture>
 
 **VesperOS: MeshCore firmware for the LilyGo T-Display-SF32, a pocket node with a 480x480 AMOLED touch screen.**
 
