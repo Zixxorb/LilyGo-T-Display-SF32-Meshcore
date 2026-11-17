@@ -142,6 +142,7 @@ public:
 #include "ui_adverts.inc"  // send adverts now / on a schedule (Settings > Auto advert)
 #include "ui_nodes.inc"  // My Nodes (Nodes page): starred contacts, battery on request
 #include "ui_pet.inc"  // the pet (Games page): its look, needs, mesh feeding, drawing
+#include "ui_meet.inc"  // Starlits meeting: a zero-hop hello between nearby Vesper boards
 
 #include "ui_home.inc"  // HomeScreen: the pages (clock, status, heard, radio, bluetooth, advert, discover, power)
 
@@ -363,6 +364,13 @@ void UITask::showNewMessage(bool direct) {
   }
   _next_refresh = 0;  // the envelope count (and the banner)
 }
+
+// SF32: Starlits meeting (ui_meet.inc): a raw packet heard directly
+void UITask::onRawDataRecv(mesh::Packet* pkt) {
+  const char* met = starlit_meet.onRaw(pkt->payload, pkt->payload_len, (int)radio_driver.getLastRSSI(), !lowPower());
+  if (met) { board.logEvent(met); _next_refresh = 0; }
+}
+void UITask::starlit_meet_hello() { starlit_meet.hello(); }
 
 // SF32
 int UITask::getUnreadCount() const {
@@ -633,6 +641,20 @@ void UITask::loop() {
   botLoop();           // SF32
   echo_tracker.loop(RESEND_TRIES[_ui_prefs.resend % NUM_RESEND]);  // SF32: heard repeats, resend (low power too: SOS turns it on)
   botEchoLoop();       // SF32: the bot's reply: heard repeated? (its log entry)
+#ifdef SF32_REMOTE_TOUCH
+  if (sf32_fake_meet) {  // debug: a pretend nearby Starlit (ui_meet.inc)
+    MeetMsg m = {};
+    memcpy(m.magic, "STL1", 4);
+    m.type = MEET_TYPE_ANSWER;
+    m.key[0] = 0xEE; m.key[5] = (uint8_t)sf32_fake_meet;
+    m.seed = sf32_fake_meet;
+    strcpy(m.name, "TestBuddy");
+    const char* met = starlit_meet.onRaw((const uint8_t*)&m, sizeof(m), -48, false);
+    if (met) board.logEvent(met);
+    sf32_fake_meet = 0;
+    _next_refresh = 0;
+  }
+#endif
   sosLoop();           // SF32
   if (_qr_bright && (curr != qr_screen || _display == NULL || !_display->isOn())) {
     _qr_bright = false;  // SF32: QR code gone: back to the normal brightness

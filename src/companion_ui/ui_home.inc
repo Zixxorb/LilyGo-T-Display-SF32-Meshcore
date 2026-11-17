@@ -1060,7 +1060,17 @@ public:
         drawPetInfo(display);
         return 60000;
       }
-      pet.draw(display, 64, 57, 1.08f, still, 0, -1, _node_prefs->path_hash_mode + 1);  // (its ring: your own hash size)
+      bool visit = starlit_meet.visiting();  // a nearby Vesper's Starlit came to see it (ui_meet.inc)
+      if (visit) {  // side by side, the visitor bobbing, hearts between them
+        pet.setContext(pet.context() & ~(PetGame::CTX_NIGHT | PetGame::CTX_LOWPOWER | PetGame::CTX_LOWBATT));  // a visitor wakes it
+        unsigned long va = starlit_meet.visitAge();
+        float bob = still ? 0 : fabsf(sinf(va * 6.2832f / 900)) * -3;
+        pet.draw(display, 40, 60, 0.82f, still, 0, -1, _node_prefs->path_hash_mode + 1);
+        pet.draw(display, 92, 60 + bob, 0.78f, still, starlit_meet.visitSeed(), -1, 0);
+        if (!still) pet.drawHearts(display, 66, 52, va);
+      } else {
+        pet.draw(display, 64, 57, 1.08f, still, 0, -1, _node_prefs->path_hash_mode + 1);  // (its ring: your own hash size)
+      }
       // its needs: three small bars
       const PetSave& ps = pet.stats();
       static const char* const L[] = {"Fed", "Curious", "Rested"};
@@ -1078,10 +1088,14 @@ public:
       display.setColor(THEME_DIM);
       // its kind and mood; the controls for the first few seconds on the page
       static unsigned long last_seen = 0, opened = 0;
-      if (millis() - last_seen > 1500) opened = millis();
+      if (millis() - last_seen > 1500) { opened = millis(); _task->starlitHello(); }  // just opened: say hello to any Starlit nearby
       last_seen = millis();
       char mtxt[64];
-      if (millis() - opened < 5000) strcpy(mtxt, "stroke: pet, tap: boop, hold: play");
+      if (visit) {
+        char vn[20];
+        display.translateUTF8ToBlocks(vn, starlit_meet.visitName(), sizeof(vn));
+        snprintf(mtxt, sizeof(mtxt), "%s's Starlit came to visit", vn);
+      } else if (millis() - opened < 5000) strcpy(mtxt, "stroke: pet, tap: boop, hold: play");
       else {
         char raw[64];
         petLine(raw, sizeof(raw), still, millis() - opened - 5000);
@@ -1091,7 +1105,7 @@ public:
       else display.drawTextCentered(W / 2, 108, mtxt);
       // paced from this frame's start (not its end): ~18 fps idle, as fast as it draws (~28) in a reaction
       // (UITask counts a delay of 20 ms or less from the frame's start, more from its end)
-      next_render = still ? 60000 : petDelay(pet_t0, pet.reaction() ? 16 : 55);
+      next_render = still ? (visit ? 2000 : 60000) : petDelay(pet_t0, pet.reaction() ? 16 : 55);  // (a visit ends on time)
     } else if (_page == HomePage::NODES) {
       themeHeader(display, "Nodes", mv);
       ContactInfo fav[NODES_MAX];

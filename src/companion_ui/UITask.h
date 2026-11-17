@@ -372,6 +372,9 @@ public:
   void onDiscoveredContact(ContactInfo &contact, bool is_new, uint8_t path_len, const uint8_t* path) override;
   void onControlDataRecv(const mesh::Packet* pkt) override;
   bool onUnhandledResponse(const ContactInfo &from, uint32_t tag, const uint8_t* data, uint8_t len) override;  // SF32: My Nodes
+  void onRawDataRecv(mesh::Packet* pkt) override;  // SF32: Starlits meeting (ui_meet.inc)
+  void starlitHello() { if (!lowPower()) starlit_meet_hello(); }  // the Starlit page opened
+  void starlit_meet_hello();
 
   // from AbstractUITask
   void notify(UIEventType t = UIEventType::none) override;

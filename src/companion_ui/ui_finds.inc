@@ -3,7 +3,8 @@
 // bottom line (and what the Signal page's finder and tester found). Counted in RAM from the mesh hooks (nothing else while the screen is off); kept
 // in a tiny file, saved with the pet at screen-off, so a reboot doesn't lose the day.
 #define FINDS_FILE  "/sf32_finds"
-#define FINDS_MAGIC 0x33444E46  // "FND3"
+#define FINDS_MAGIC_V3 0x33444E46  // "FND3"
+#define FINDS_MAGIC 0x34444E46  // "FND4": + Starlits met
 static uint32_t findsToday();  // UITask.cpp: the local day number (uptime days while the time isn't known)
 class TodayFinds {
 public:
@@ -34,6 +35,12 @@ public:
     StrHelper::strncpy(_f.link_name, name, sizeof(_f.link_name));
     _dirty = true;
   }
+  void met(const char* name) {  // a nearby Vesper's Starlit came to visit (ui_meet.inc)
+    roll();
+    if (_f.met_n < 255) _f.met_n++;
+    StrHelper::strncpy(_f.met_name, name, sizeof(_f.met_name));
+    _dirty = true;
+  }
   void upgraded(const char* name) {  // a node the bot nudged moved up from 1-byte path hashes
     roll();
     StrHelper::strncpy(_f.up_name, name, sizeof(_f.up_name));
@@ -44,8 +51,12 @@ public:
     roll();
     char tmp[64];
     int i = 0;
-    for (int which = 0; which < 7; which++) {
+    for (int which = 0; which < 8; which++) {
       tmp[0] = 0;
+      if (which == 7 && _f.met_n) {
+        if (_f.met_n == 1) snprintf(tmp, sizeof(tmp), "met %s's Starlit", _f.met_name);
+        else snprintf(tmp, sizeof(tmp), "met %u Starlits, last %s", _f.met_n, _f.met_name);
+      }
       if (which == 0 && _f.new_nodes) snprintf(tmp, sizeof(tmp), "today: met %u new node%s", _f.new_nodes, _f.new_nodes == 1 ? "" : "s");
       if (which == 1 && _f.far_hops) {
         // the hops first: a long name is what gets shortened
@@ -69,7 +80,10 @@ public:
   }
 private:
   struct F { uint32_t magic, day, packets; uint16_t adverts, new_nodes; uint8_t far_hops, link_set; int8_t find_rssi; uint8_t pad; int16_t link_q4, pad2;
-             char far_name[24], find_name[24], link_name[24], up_name[24]; };
+             char far_name[24], find_name[24], link_name[24], up_name[24];
+             uint8_t met_n, pad3[3]; char met_name[16]; };  // (FND3 ended at up_name)
+  static const int F_V3_SIZE = 4 * 3 + 2 * 2 + 4 + 2 * 2 + 24 * 4;
+  static_assert(offsetof(F, met_n) == F_V3_SIZE && F_V3_SIZE == 120, "FND3 records end where met_n starts");
   F _f = {};
   bool _loaded = false, _dirty = false;
   // a new day (or the first use): start over
@@ -90,8 +104,11 @@ private:
     _loaded = true;
     _f.magic = FINDS_MAGIC;  // (no file yet: a fresh record; roll() gives it today)
     File f = InternalFS.open(FINDS_FILE, "r");
-    F g;
-    if (f && f.read((uint8_t*)&g, sizeof(g)) == (int)sizeof(g) && g.magic == FINDS_MAGIC) {
+    F g = {};
+    int n = f ? f.read((uint8_t*)&g, sizeof(g)) : 0;
+    if (n == F_V3_SIZE && g.magic == FINDS_MAGIC_V3) { g.magic = FINDS_MAGIC; n = sizeof(g); }  // the older record: no meetings yet
+    if (n == (int)sizeof(g) && g.magic == FINDS_MAGIC) {
+      g.met_name[sizeof(g.met_name) - 1] = 0;
       g.far_name[sizeof(g.far_name) - 1] = g.find_name[sizeof(g.find_name) - 1] = g.link_name[sizeof(g.link_name) - 1] = g.up_name[sizeof(g.up_name) - 1] = 0;
       _f = g;
     }

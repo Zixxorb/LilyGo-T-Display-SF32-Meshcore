@@ -224,6 +224,17 @@ public:
     react(2, 3200);
   }
   int reaction() const { return (_react && millis() - _react_at < _react_len) ? _react : 0; }
+  // another Starlit came near (ui_meet.inc): happier and more curious (the caller limits how often)
+  void meet() { bump(_s.happy, 10); bump(_s.curious, 10); }
+  void greet() { react(1, 1600); }  // the visitor arrives: a happy wiggle
+  // hearts floating up between two Starlits (t: ms into the visit)
+  void drawHearts(DisplayDriver& d, float x, float y, unsigned long t) {
+    SF32Display& sd = (SF32Display&)d;
+    for (int k2 = 0; k2 < 3; k2++) {
+      float p = fmodf(t / 1800.0f + k2 / 3.0f, 1.0f);
+      heart(sd, x + sinf(p * 7 + k2 * 2) * 3, y - p * 22, 2.4f * (1 - p * 0.4f), hsvColor(350, 0.6f, 1.0f), (int)(15 * (1 - p)));
+    }
+  }
   void look(int x, int y) { _gaze_x = x; _gaze_y = y; _gaze_at = millis() | 1; }
 
   // ---- mood ----

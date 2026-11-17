@@ -371,6 +371,11 @@ and its build: about 345,000 different Starlits.
   under them says its mood, and in turn **today's finds**: new nodes met, the farthest packet
   (hops, and who sent it), adverts and packets heard, and from the Signal page the finder's
   strongest reply and the tester's best link (they start over at local midnight).
+- **Starlits meet**: open the Starlit page near another Vesper board (about the same room) and
+  its Starlit comes to visit yours: side by side, with hearts. Both get happier and more curious
+  (once an hour per friend), and it shows in today's finds and Logs. Opening the page sends one
+  tiny hello (at most once a minute) straight to boards in range: zero-hop, so repeaters never
+  pass it on, and other firmware ignores it. With the screen off, the visit waits for the page.
 - **Tap a need's bar** (or the line under them) for what it means: how it goes up and down,
   where it is now and today's gain; tap again to go back.
 - **Care**: stroke it to pet it (hearts), tap it to boop it, hold it to play (a star-ball). It
