@@ -737,7 +737,7 @@ void UITask::pageDrag() {
 // Touch: vertical swipes open/close menus; in a menu, taps choose a row directly.
 void UITask::handleTouchMenus() {
   HomeScreen* h = (HomeScreen*)home;
-  bool page_taps = curr == home && h->wantsTaps();
+  bool page_taps = curr == home;  // every home page: taps never change the page (only swipes do)
   bool editor = isRadioScreen() || curr == theme_screen || curr == about_screen || curr == logs_screen ||
                 curr == tz_screen || curr == hour_screen || curr == sos_screen ||
                 curr == qr_screen || curr == scan_screen || curr == friends_screen;
@@ -907,9 +907,11 @@ void UITask::handleTouchMenus() {
   } else if (curr == sos_screen) {
     if (y >= 90) stopSos();  // the Cancel / Stop button (bottom)
   } else if (page_taps) {
-    if (!h->handleTap(x, y)) {  // not on a button: a normal tap (next page)
-      h->handleInput(KEY_NEXT);
-      ((SF32Display*)_display)->setTransition(SF32Display::TRANSITION_LEFT);
+    // on a button: its action. A short tap on an icon that works by holding: how to use it.
+    // Anywhere else: nothing (pages change only with a swipe from the edge)
+    if (!h->handleTap(x, y) && h->iconHoldPage() && h->iconHit(x, y)) {
+      const char* hint = h->holdHint();
+      if (hint) showAlert(hint, 1200);
     }
   } else if (curr == menu) {
     MenuScreen* m = (MenuScreen*)menu;

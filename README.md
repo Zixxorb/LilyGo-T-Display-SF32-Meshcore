@@ -185,7 +185,9 @@ uses LE Secure Connections with bonding, so later connections need no PIN.
 | Gesture | Does |
 |---|---|
 | **Swipe left / right** | Next / previous page |
-| **Tap** or button **A** | Next page (double tap: previous; long press: select) |
+| **Tap** | What's under your finger (buttons, rows, your Starlit); taps never change the page |
+| Button **A** | Next page (double press: previous; long press: the page's action) |
+| **Hold** an icon | The page's action (Advert, Bluetooth, Bot, Signal, Power); a short tap on it shows a reminder |
 | **Swipe down** | Power menu: Flashlight, Screen off, Low power, Send SOS, Reboot / off |
 | **Swipe up** | The current page's menu, plus **Settings** |
 | **Swipe right** in Settings | Back one level |
@@ -505,7 +507,7 @@ CH343 port; flashing still works. Nothing is written until an app sends a frame.
 <details>
 <summary><b>Bot (optional)</b></summary>
 
-Off by default; tap the Bot page to turn it on. It auto-replies to messages sent with
+Off by default; hold the Bot page's icon to turn it on. It auto-replies to messages sent with
 **1-byte path hashes**, asking the sender to switch to 2-byte. Settings > Bot (or the
 page's menu > Bot menu): **Auto-reply**, **To DMs**, and **Channels** (off / DM / post in
 the channel), and its limits: by default each sender gets it at most once a day (**Repeat**),

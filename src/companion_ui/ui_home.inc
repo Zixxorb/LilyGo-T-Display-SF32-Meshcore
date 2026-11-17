@@ -564,8 +564,8 @@ public:
   // Touch: pages with on-screen buttons take taps directly (see UITask::handleTouchMenus).
   void dragStep(int dir) { stepPage(dir); }  // a page being dragged in (UITask::pageDrag)
   // Pages with an action: holding the icon does it (UITask::handleTouchMenus). Signal and Discover
-  // show results instead of their icon once they've run: there, hold anywhere. A short tap always
-  // goes to the next page.
+  // show results instead of their icon once they've run: there, hold anywhere. Taps never change
+  // the page (only swipes do).
   bool iconHoldPage() const {
     return _page == HomePage::BLUETOOTH || _page == HomePage::ADVERT || _page == HomePage::BOT || _page == HomePage::SIGNAL
         || _page == HomePage::GAMES  // hold the pet: play
@@ -591,11 +591,21 @@ public:
 #endif
     handleInput(KEY_ENTER);
   }
-  bool wantsTaps() const {
-    return iconHoldPage()  // a touch held elsewhere isn't a long press: only where it says
-        || (_page == HomePage::CLOCK && _task->getUnreadCount() > 0)  // the envelope opens messages
-        || _page == HomePage::NODES  // a row: that node's card
-        || _page == HomePage::GAMES;  // tap the pet: pet it
+  // what holding the icon does, for a short tap on it (NULL: no hint)
+  const char* holdHint() const {
+    switch (_page) {
+      case HomePage::ADVERT: return _task->uiPrefs().adv_page_mesh ? "Hold to send to mesh" : "Hold to send advert";
+      case HomePage::BLUETOOTH: return _task->isBluetoothEnabled() ? "Hold to turn off" : "Hold to turn on";
+      case HomePage::BOT: return _task->uiPrefs().bot_on ? "Hold to turn off" : "Hold to turn on";
+      case HomePage::SIGNAL: return signal_tester.running || signal_tester.finder ? "Hold to stop" : "Hold to start";
+#if UI_DISCOVER_SCREEN
+      case HomePage::DISCOVERY: return "Hold to scan";
+#endif
+#ifndef UI_NO_HIBERNATE
+      case HomePage::SHUTDOWN: return "Hold for power";
+#endif
+      default: return NULL;
+    }
   }
   // true if the tap hit something; otherwise it acts as a normal tap (next page)
   bool handleTap(int x, int y) {
