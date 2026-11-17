@@ -54,6 +54,9 @@ public:
   uint32_t getPacketsSent() const { return n_sent; }
   void resetStats() { n_recv = n_sent = n_recv_errors = 0; }
 
+  // every packet sent (tx) or received, as raw bytes (the companion's heard-repeats tracker)
+  void (*raw_tap)(bool tx, const uint8_t* bytes, int len) = nullptr;
+
   // ---- extras ----
   void randomBytes(uint8_t* dest, size_t len);   // SX1262 noise RNG (slow)
   uint32_t getTimeOnAirMicros(int len_bytes) const;

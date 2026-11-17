@@ -133,6 +133,7 @@ public:
 
 #include "ui_battery.inc"  // battery history (Battery page graph)
 #include "ui_finds.inc"  // today's finds (Starlit page): counted from the mesh and the signal tools
+#include "ui_echo.inc"  // heard repeats of what we send, and resending (Settings > Resend)
 #include "ui_mute.inc"  // muted channels (Settings > Sound > Channels): no sound, wake or unread
 #include "ui_signal.inc"  // signal tester (Signal page)
 #include "ui_meshtime.inc"  // time from the mesh (adverts) while the clock is unknown
@@ -287,6 +288,7 @@ void UITask::begin(DisplayDriver* display, SensorManager* sensors, NodePrefs* no
   motion.begin();                       // SF32: BHI260AP (background)
   InternalFS.remove("/sf32_steps");     // SF32: left over from the removed step counter
   batt_history.begin();                 // SF32
+  radio_driver.raw_tap = echoRawTap;    // SF32: heard repeats / resend
   channel_mutes.begin();                // SF32: muted channels
   hash_sizes.begin();                   // SF32: read now, not first from a mesh hook with the screen off
   today_finds.begin();
@@ -616,6 +618,8 @@ void UITask::loop() {
   handleTouchMenus();  // SF32
   powerCare();         // SF32
   botLoop();           // SF32
+  echo_tracker.loop(RESEND_TRIES[_ui_prefs.resend % NUM_RESEND]);  // SF32: heard repeats, resend (low power too: SOS turns it on)
+  botEchoLoop();       // SF32: the bot's reply: heard repeated? (its log entry)
   sosLoop();           // SF32
   if (_qr_bright && (curr != qr_screen || _display == NULL || !_display->isOn())) {
     _qr_bright = false;  // SF32: QR code gone: back to the normal brightness

@@ -1238,7 +1238,21 @@ public:
       if (on && _task->botCount() > 0) {
         char filtered[32];
         display.translateUTF8ToBlocks(filtered, _task->botLastName(), sizeof(filtered));
-        sprintf(tmp, "%u sent, last: ", _task->botCount());
+        int heard = _task->botLastHeard();  // a channel reply: did a repeater pass it on?
+        char hs[16] = "";
+        if (heard == -1) strcpy(hs, " (...)");
+        else if (heard == 0) strcpy(hs, " (not heard)");
+        else if (heard > 0) sprintf(hs, " (heard %dx)", heard);
+        int fl = strlen(filtered), hl = strlen(hs);
+        if (hl) {  // keep the result whole: the name gives way
+          int keep = (int)sizeof(filtered) - 1 - hl;
+          if (fl > 9) fl = 9;
+          if (fl > keep) fl = keep;
+          memcpy(filtered + fl, hs, hl + 1);
+          tmp[0] = 0;  // the line is the last reply and its result ("Gz1 (heard 2x)")
+        } else {
+          sprintf(tmp, "%u sent, last: ", _task->botCount());
+        }
         int tw = display.getTextWidth(tmp);
         int nw = display.getTextWidth(filtered);
         if (tw + nw > 116) nw = 116 - tw;

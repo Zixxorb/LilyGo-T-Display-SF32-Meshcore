@@ -248,6 +248,7 @@ space is short the bolt, leaf and moon come before the %, mail and Bluetooth aft
 | **Bluetooth** | On / off (remembered) |
 | **USB app** | The app protocol over USB as well (off by default) |
 | **Adverts** | Nearby every 1/3/6/12 h, mesh every 12/24/48 h (both off by default), what the Advert page's hold sends |
+| **Resend** | Off / 1x / 2x / 3x (Off by default): a channel message that no repeater was heard passing on is sent again, the same packet, so repeaters that already passed it on drop it |
 | **Bot** | Auto-reply, to DMs, channels, daily max (5/10/20/50), repeat per sender (12 h / 24 h / 7 d), gap between replies (1/5/15 min) |
 | **Starlit** | Its sounds, reset (fresh needs, the same look) |
 | **Low power** | Mode on / off, and Auto at (off / 10 / 15 / 20 / 30 % battery): see [Battery and power](#battery-and-power) |
@@ -518,6 +519,11 @@ page's menu > Bot menu): **Auto-reply**, **To DMs**, and **Channels** (off / DM 
 the channel), and its limits: by default each sender gets it at most once a day (**Repeat**),
 at most one reply a minute (**Gap**) and 20 a day in all (**Daily max**); never to
 auto-replies.
+
+Your phone app won't show the bot's replies: MeshCore only gives the app messages from other
+nodes. To show they got out, the board listens for a repeater passing each channel reply on:
+the Bot page and Logs show **heard 2x** (two repeats heard) or **not heard** (no repeater
+picked it up, or this radio missed the repeat). Logs also name the channel.
 
 The Bot page also shows your local mesh's health: of the nodes whose path-hash size is known,
 how many are on 2-byte and on 1-byte, and how many the bot has nudged (they're marked in

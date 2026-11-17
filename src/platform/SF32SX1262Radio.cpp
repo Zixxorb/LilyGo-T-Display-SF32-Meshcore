@@ -261,6 +261,7 @@ int SF32SX1262Radio::recvRaw(uint8_t* bytes, int sz) {
       if (len > 0) {
         readPacketStatus();
         n_recv++;
+        if (raw_tap) raw_tap(false, bytes, len);
       }
     } else {
       // CRC mismatch, damaged header, oversize: counted like RadioLibWrapper does.
@@ -282,6 +283,7 @@ bool SF32SX1262Radio::startSendRaw(const uint8_t* bytes, int len) {
   int16_t err = SX126x_startTransmit(&_radio, bytes, (size_t)len);
   if (err == RADIOLIB_ERR_NONE) {
     _state = STATE_TX_WAIT;
+    if (raw_tap) raw_tap(true, bytes, len);
     return true;
   }
   LOG_E("startTransmit failed: %d", err);

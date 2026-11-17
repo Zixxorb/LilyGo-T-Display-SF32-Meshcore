@@ -123,6 +123,10 @@ void UITask::openMenu(MenuKind kind) {
     m->add("Bluetooth", ACT_SET_BT, isBluetoothEnabled() ? "On" : "Off");
     m->add("USB app", ACT_USB_APP, _ui_prefs.usb_app ? "On" : "Off");  // the app protocol over USB
     m->add("Adverts", ACT_ADVERTS_MENU);  // scheduled adverts, what the Advert page's hold sends
+    {
+      static const char* const RESEND_NAMES[NUM_RESEND] = {"Off", "1x", "2x", "3x"};
+      m->add("Resend", ACT_SET_RESEND, RESEND_NAMES[_ui_prefs.resend % NUM_RESEND]);  // channel messages no repeater passed on (ui_echo.inc)
+    }
     m->add("Bot", ACT_BOT_MENU);
     m->add("Low power", ACT_LP_MENU);  // low power mode: on now, or by itself at a battery level
     m->add("Starlit", ACT_GAMES_MENU);  // the pet (a Starlit)
@@ -348,6 +352,11 @@ void UITask::menuAction(uint8_t action) {
       openMenu(_menu_kind);
       break;
     }
+    case ACT_SET_RESEND:
+      _ui_prefs.resend = (_ui_prefs.resend + 1) % NUM_RESEND;
+      saveUIPrefs();
+      openMenu(_menu_kind);
+      break;
     case ACT_USB_APP:
       _ui_prefs.usb_app = !_ui_prefs.usb_app;
       saveUIPrefs();

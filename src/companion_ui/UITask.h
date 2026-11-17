@@ -98,7 +98,10 @@ struct SF32UIPrefs {
   uint8_t lp_auto = 0;         // low power mode on by itself at LP_AUTO_LEVELS[] % (0: never)
   uint8_t glass_light = 1;     // Glass: a glint of light that follows the board's tilt (motion sensor, screen on)
   uint8_t pet_sound = 1;       // the pet chirps when petted / played with (Settings > Games)
+  uint8_t resend = 0;          // channel messages with no repeat heard: RESEND_TRIES index (0 off)
 };
+// the settings file's older version (SFUK) is read by size: these must stay where they were
+static_assert(offsetof(SF32UIPrefs, pet_sound) == 53 && offsetof(SF32UIPrefs, resend) == 54 && sizeof(SF32UIPrefs) == 56, "SF32UIPrefs layout");
 
 class UITask : public AbstractUITask {
   DisplayDriver* _display;
@@ -208,7 +211,7 @@ class UITask : public AbstractUITask {
   unsigned long _seen_auto_off = 0, _last_activity = 0;
 
   // Bot (ui_bot.inc): replies are queued from the receive callbacks and sent from loop()
-  struct BotReply { bool pending; bool in_channel; unsigned long due; uint8_t pub_key[PUB_KEY_SIZE]; mesh::GroupChannel channel; char name[32]; };
+  struct BotReply { bool pending; bool in_channel; unsigned long due; uint8_t pub_key[PUB_KEY_SIZE]; mesh::GroupChannel channel; char name[32]; char chan_name[24]; };
   BotReply _bot_reply = {};
   struct BotSeen { uint32_t key; unsigned long at; };
   BotSeen _bot_seen[16] = {};
@@ -217,6 +220,10 @@ class UITask : public AbstractUITask {
   uint8_t _bot_day_n = 0;
   uint16_t _bot_count = 0;  // replies sent since boot
   char _bot_last[32] = "";  // who got the last one
+  int16_t _bot_last_heard = -2;  // the last channel reply's repeats heard: -1 still listening, -2 not known (a DM)
+  bool _bot_log_pending = false;  // its log entry waits for that
+  char _bot_log_chan[24] = "";
+  void botEchoLoop();
   void botCheck(mesh::Packet* pkt, const ContactInfo* from, const ChannelDetails* chan, const char* text);
   void botLoop();
 
@@ -321,6 +328,7 @@ public:
   int sosSecondsLeft() const;
   uint16_t botCount() const { return _bot_count; }
   const char* botLastName() const { return _bot_last; }
+  int botLastHeard() const { return _bot_last_heard; }
 private:
   MenuKind _menu_kind = MENU_PAGE;
   // where Back goes: a Settings submenu can also be opened from a page's menu (its "... menu"

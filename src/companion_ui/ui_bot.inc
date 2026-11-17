@@ -67,6 +67,7 @@ void UITask::botCheck(mesh::Packet* pkt, const ContactInfo* from, const ChannelD
     } else {
       r.in_channel = true;
       r.channel = chan->channel;
+      StrHelper::strncpy(r.chan_name, chan->name, sizeof(r.chan_name));
     }
   }
   if (botLooksAutomatic(body)) return;
@@ -101,6 +102,7 @@ void UITask::botLoop() {
   if (_bot_reply.in_channel) {
     char text[MAX_TEXT_LEN + 1];
     snprintf(text, sizeof(text), "@[%s] %s", _bot_reply.name, BOT_CHAN_TEXT);
+    echo_tracker.tagNext(ECHO_TAG_BOT);  // listen for a repeater passing it on (ui_echo.inc)
     ok = the_mesh.sendGroupMessage(ts, _bot_reply.channel, the_mesh.getNodeName(), text, strlen(text));
   } else {
     ContactInfo* c = the_mesh.lookupContactByPubKey(_bot_reply.pub_key, PUB_KEY_SIZE);
@@ -126,7 +128,38 @@ void UITask::botLoop() {
     _next_refresh = 0;  // the Bot page shows it
   }
 
+  if (ok && _bot_reply.in_channel) {  // logged once it's known whether a repeater passed it on
+    _bot_last_heard = -1;
+    _bot_log_pending = true;
+    StrHelper::strncpy(_bot_log_chan, _bot_reply.chan_name, sizeof(_bot_log_chan));
+    return;
+  }
+  if (!ok) echo_tracker.tagNext(0);  // nothing went out to follow
+  if (ok) _bot_last_heard = -2;
   char line[48];
-  snprintf(line, sizeof(line), "Bot %s %s", ok ? "replied:" : "failed:", _bot_reply.name);
+  snprintf(line, sizeof(line), "Bot %s %s%s", ok ? "replied:" : "failed:", _bot_reply.name, ok ? " (DM)" : "");
+  board.logEvent(line);
+}
+
+// The bot's channel reply: once the tracker is done listening, log it with the repeats heard
+// ("heard 2x": repeaters passed it on; "not heard": none in range heard it, or we missed them)
+void UITask::botEchoLoop() {
+  if (!_bot_log_pending) return;
+  uint8_t heard, tries;
+  char line[64];
+  if (!echo_tracker.takeResult(ECHO_TAG_BOT, heard, tries)) {
+    if (millis() - _bot_last_sent < 120000UL) return;  // still listening
+    _bot_log_pending = false;  // never followed (it didn't go out, or something else went first)
+    _bot_last_heard = -2;
+    snprintf(line, sizeof(line), "Bot replied: %s in %s", _bot_last, _bot_log_chan);
+    board.logEvent(line);
+    return;
+  }
+  _bot_log_pending = false;
+  _bot_last_heard = heard;
+  _next_refresh = 0;  // the Bot page shows it
+  if (heard) snprintf(line, sizeof(line), "Bot (heard %ux): %s in %s", heard, _bot_last, _bot_log_chan);
+  else if (tries) snprintf(line, sizeof(line), "Bot (not heard, resent %ux): %s in %s", tries, _bot_last, _bot_log_chan);
+  else snprintf(line, sizeof(line), "Bot (not heard): %s in %s", _bot_last, _bot_log_chan);
   board.logEvent(line);
 }
