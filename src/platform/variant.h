@@ -5,7 +5,7 @@
 
 // Vesper's own version (shown on the start screen and About; the release tag must match:
 // .github/workflows/release.yml checks). MeshCore's own version stays what the apps see.
-#define VESPER_VERSION "1.1.0"
+#define VESPER_VERSION "1.2.0"
 
 // MeshCore "USA/Canada" preset
 #define LORA_FREQ      910.525
