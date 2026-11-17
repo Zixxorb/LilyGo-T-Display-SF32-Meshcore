@@ -14,6 +14,7 @@ void UITask::addBatteryRows(MenuScreen& m) {
   m.add("Low alert", ACT_BATT_WARN, v);
   sprintf(v, "%d%%", CHG_LIMITS[_ui_prefs.chg_limit % NUM_CHG_LIMITS]);
   m.add("Charge", ACT_CHG_LIMIT, v);  // charge to
+  m.add("Usage", ACT_BATT_USE);  // what used the battery since unplugged (ui_usage.inc)
 }
 
 void UITask::openMenu(MenuKind kind) {
@@ -24,9 +25,9 @@ void UITask::openMenu(MenuKind kind) {
   if (curr == menu && !same) {
     if (kind == parentOf(_menu_kind)) {
       keep_sel = _back_sel;  // back up: on the row that opened the submenu
-      if (_menu_kind == MENU_MUTE) _back_sel = _mute_back_sel;  // (a third level: Settings' row again)
+      if (_menu_kind == MENU_MUTE || _menu_kind == MENU_BATT_USE) _back_sel = _mute_back_sel;  // (a third level: Settings' row again)
     } else {                 // down into a submenu: remember where from
-      if (kind == MENU_MUTE) _mute_back_sel = _back_sel;
+      if (kind == MENU_MUTE || kind == MENU_BATT_USE) _mute_back_sel = _back_sel;
       _back_sel = m->selected();
       if (menuParent(kind) == MENU_SETTINGS) _sub_from = _menu_kind == MENU_PAGE ? MENU_PAGE : MENU_SETTINGS;
       if (kind == MENU_POWER_OFF) _poff_from = _menu_kind;
@@ -229,6 +230,11 @@ void UITask::openMenu(MenuKind kind) {
     m->setSelected(keep_sel);
     setCurrScreen(menu);
     return;
+  } else if (kind == MENU_BATT_USE) {
+    buildUsageMenu(*m);
+    m->setSelected(keep_sel);
+    setCurrScreen(menu);
+    return;
   } else if (kind == MENU_MUTE) {
     m->begin("Channels");  // each channel: On (alerts as set) or Muted
     _mute_n = 0;
@@ -332,6 +338,8 @@ void UITask::menuAction(uint8_t action) {
       break;
     case ACT_ADVERTS_MENU: openMenu(MENU_ADVERTS); break;
     case ACT_MUTE_MENU: openMenu(MENU_MUTE); break;
+    case ACT_BATT_USE: openMenu(MENU_BATT_USE); break;
+    case ACT_INFO: break;  // a row that only shows something
     case ACT_BOT_MENU: openMenu(MENU_BOT); break;
     case ACT_BOT_MAX:
     case ACT_BOT_REPEAT:

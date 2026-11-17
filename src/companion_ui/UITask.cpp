@@ -327,6 +327,8 @@ static uint32_t findsToday() {
 
 #include "ui_prefs.inc"  // time zone offset, screen resume, the UI settings file (/sf32_ui)
 
+#include "ui_usage.inc"  // battery use since unplugged (Settings > Battery > Usage): an estimate per part
+
 #include "ui_navigation.inc"  // opening/closing menus, menu actions, touch routing (taps, swipes, drags)
 
 #include "ui_power.inc"  // battery warnings, burn-in care, motion, night dim, always-on display, back gesture
@@ -639,6 +641,7 @@ void UITask::loop() {
   handleTouchMenus();  // SF32
   powerCare();         // SF32
   botLoop();           // SF32
+  usageLoop();         // SF32: battery use per part (ui_usage.inc)
   echo_tracker.loop(RESEND_TRIES[_ui_prefs.resend % NUM_RESEND]);  // SF32: heard repeats, resend (low power too: SOS turns it on)
   botEchoLoop();       // SF32: the bot's reply: heard repeated? (its log entry)
 #ifdef SF32_REMOTE_TOUCH
