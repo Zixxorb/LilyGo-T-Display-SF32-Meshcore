@@ -44,13 +44,14 @@ device shows what's happening on the mesh, tests links, finds repeaters and keep
 |---|---|
 | **7 clock faces** | Color, Sun (sunrise/sunset arc), Starlit, Digital, Analog, Big, Info. Hold the clock to switch |
 | **Signal tools** | Signal tester, repeater **finder** (warmer/colder), 902-928 MHz **band scan** |
-| **Mesh at a glance** | Activity graph, heard nodes, **My Nodes** with on-demand battery |
+| **Mesh at a glance** | Activity graph, heard nodes, **My Nodes**, one **card per node** (details, path-hash size, battery on request) |
 | **Battery** | 48 h history graph, time left, low-battery protection |
-| **Starlits** | A little critter of your own that grows from the mesh traffic it hears: stroke it, boop it, play; meet your friends' Starlits |
-| **Mesh SOS** | Triple-press A: location + battery to a channel, repeated |
+| **Starlits** | A little critter of your own, fed by the mesh traffic it hears: stroke it, boop it, play. It reflects the device and shows **today's finds**; meet your friends' Starlits |
+| **Mesh SOS** | Triple-press A: location + battery to a channel, repeated; turns on low power mode |
+| **Low power mode** | For when only the mesh matters: minimal clock, slower Bluetooth, 30 fps; by hand or at a battery level |
 | **Extras** | Flashlight (white/red), share contact QR, auto adverts, mesh time, rotation |
 | **USB app** | MeshCore app protocol over USB too: PC tools and a raw-packet **observer** |
-| **Themes** | Normal or frosted Glass style, 10 colours (including ChattaMesh) plus Rainbow on each, night mode, always-on display, tap sounds |
+| **Themes** | Normal or frosted Glass style, 10 colours (including ChattaMesh) plus Rainbow, night mode, always-on display, status icons |
 
 ## Screenshots
 
@@ -179,37 +180,42 @@ uses LE Secure Connections with bonding, so later connections need no PIN.
 | **Swipe down** | Power menu: Flashlight, Screen off, Low power, Send SOS, Reboot / off |
 | **Swipe up** | The current page's menu, plus **Settings** |
 | **Swipe right** in Settings | Back one level |
-| **Page swipes** | Start them near the left or right edge (the middle of a page is its own: e.g. stroking the pet) |
+| **Page swipes** | Start them near the left or right edge (the middle of a page is its own: e.g. stroking your Starlit) |
 | **Hold** the clock | Next clock face (a ring fills; at 0.6 s it changes with a pop) |
 | **Triple-press A** | Mesh SOS |
 
-Button **A** wakes a dark screen (taps too, with Settings > Display > **Tap to wake** on). Woken within 10 s, it comes back where it was; after that,
-on the clock. Long lists follow your finger and glide after a flick.
+Button **A** wakes a dark screen (taps too, with Settings > Display > **Tap to wake** on).
+Woken within 10 s, it comes back where it was; after that, on the clock. Long lists follow
+your finger and glide after a flick.
 
 ### Pages
 
 <details>
-<summary><b>All 13 pages</b></summary>
+<summary><b>All 14 pages</b></summary>
 
 | Page | Shows |
 |---|---|
 | **Clock** | Time, date, unread envelope (tap to read), battery and the status icons. Seven faces |
-| **Status icons** | Left of the battery %, on the clock and every page header, in one style: bolt (USB power), leaf (low power mode), moon (night: do not disturb), envelope (unread messages; on the clock it's the big one top left), Bluetooth (a phone connected). When space is short the bolt, leaf and moon come before the %, mail and Bluetooth after |
 | **Status** | Unread, messages waiting for the app, Bluetooth PIN or node name |
 | **Battery** | Charge, voltage, chip temperature, time left, 48 h graph |
 | **Heard** | Recently heard nodes |
 | **Radio** | Frequency, BW, SF, CR, TX power, noise floor. Menu: edit radio, band scan |
 | **Bluetooth** | Connection; menu: on/off, **Pair phone** (a new phone can pair only for 2 min after this, or in the first 5 min after start while none is paired; one wrong PIN closes it), forget paired phones |
 | **Advert** | Send an advert (hold the icon or long press button A: nearby or whole mesh, your choice) |
-| **Bot** | Optional auto-reply to senders using 1-byte path hashes (off by default) |
+| **Bot** | Optional auto-reply to senders using 1-byte path hashes (off by default), and how many nearby nodes are on 2-byte |
 | **Discover** | Scan for nearby nodes |
 | **Signal** | Signal tester and repeater finder |
 | **Activity** | Packets per hour over 24 h and how busy the channel is |
-| **Nodes** | Your favourite contacts: last heard, hops, battery on tap |
-| **Starlit** | A Starlit of your own: a little critter with a glowing star mark, one of four kinds, each its own shape (Drake: sturdy, snouted, winged; Fluff: a puffball with crystal ears and a comet tail; Glimmer: floats, with petal wings and light-stalks; Ember: squat, with flame tufts), its colours, eyes and build from your node's key, so every node's is different. It's fed by the mesh traffic the radio hears, grows curious from adverts and new nodes, rests while the screen is off. Stroke it to pet it, tap it to boop it, hold it to play. Its menu's Friends shows the Starlits of your favourite nodes and the 5 others heard most recently (drawn from their keys: nothing is stored). It never transmits, never dies and never nags |
+| **Nodes** | Your favourite contacts: last heard, hops; tap one for its card (battery on request) |
+| **Starlit** | Your Starlit, its needs and its line (mood, device state, today's finds). Stroke it, tap it, hold it to play; its menu has **Friends**. See [Starlits](#starlits) |
 | **Power** | Hold the icon for the power menu |
 
 Pages can be hidden in **Settings > Pages** (the clock always shows).
+
+**Status icons**, left of the battery % on the clock and every page header, in one style:
+bolt (USB power), leaf (low power mode), moon (night: do not disturb), envelope (unread
+messages; on the clock it's the big one top left) and Bluetooth (a phone connected). When
+space is short the bolt, leaf and moon come before the %, mail and Bluetooth after it.
 
 </details>
 
@@ -312,20 +318,20 @@ viewed on the device. **Do not disturb** (Settings > Night) keeps them silent an
 Triple-press button A, or swipe down > Send SOS. After a 5 s countdown with beeps (Cancel,
 or press A), it sends "SOS! I need help. Location: lat,lon. Battery N%." to the channel in
 Settings > SOS to (default: **#emergency**, the shared hashtag channel, added to the channel
-list when an SOS needs it; a chosen channel that has gone falls back to it), and repeats every 5 min, 6
-times in all, until you tap Stop. The location is the node's as set in the app.
+list when an SOS needs it; a chosen channel that has gone falls back to it), and repeats
+every 5 min, 6 times in all, until you tap Stop. The location is the node's as set in the app.
 
 The first send also turns on **low power mode** (if it isn't on already), so the battery lasts
-as long as it can, but the radio keeps its full receive sensitivity, to hear any reply. Tapping
-Stop turns it back off; when the 6 sends are done it stays on. If a send can't go out (MeshCore has no free
-packet), the screen says "SOS retrying" and it tries again after 30 s.
+as long as it can, but the radio keeps its full receive sensitivity, to hear any reply.
+Tapping Stop turns it back off; when the 6 sends are done it stays on. If a send can't go
+out (MeshCore has no free packet), the screen says "SOS retrying" and it tries again after 30 s.
 
 </details>
 
-### Radio and mesh tools
+### Starlits
 
 <details>
-<summary><b>Starlits</b></summary>
+<summary><b>Your Starlit, Friends and today's finds</b></summary>
 
 Every node has a **Starlit**: a little original critter with a glowing star mark, made from the
 node's own key, so each one is different. There are four kinds, each its own shape: the
@@ -352,7 +358,8 @@ too.
   amber for 1-byte, cyan for 2-byte, violet for 3-byte (none until it's known; yours from your
   setting). The node's card says it in words. Learnt from the node's flooded adverts and
   messages, and channel messages whose sender is one of your contacts by name (nodes heard
-  only directly stay unknown for a while), kept in a tiny file (5 bytes a node, the 64 heard most recently).
+  only directly stay unknown for a while), kept in a tiny file (5 bytes a node, the 64 heard
+  most recently).
 - **Mesh health**: a node the bot nudged about its 1-byte path hashes gets a small amber
   bubble in Friends ("nudged" on its card), and when it moves up to 2-byte, today's finds say
   so ("upgraded to 2-byte: NAME").
@@ -361,6 +368,8 @@ too.
   saved on the board and survives reflashing. Sounds and Reset are in Settings > Starlit.
 
 </details>
+
+### Radio and mesh tools
 
 <details>
 <summary><b>Signal tester and repeater finder</b></summary>
@@ -409,8 +418,8 @@ The contacts you starred as favourites in the app (up to 4): when each was last 
 direct / hops / flood. **Tap a row for the node's card** (the same card Friends opens): its
 Starlit, kind, when it was last heard and how far, its path-hash size, and a **Battery**
 button: one telemetry request to that node, at most one every 20 s and nothing on a
-schedule, so the mesh isn't loaded with polling. A node answers only if its own telemetry setting shares with you; repeaters want a
-login for it ("no reply").
+schedule, so the mesh isn't loaded with polling. A node answers only if its own telemetry
+setting shares with you; repeaters want a login for it ("no reply").
 
 </details>
 
@@ -442,8 +451,10 @@ menu > Advert menu > **Hold** picks what its icon hold sends.
 <summary><b>Display, sound and motion options</b></summary>
 
 - **Glass style** (Settings > Theme): a wallpaper in the theme's colours (Aurora, Dunes or
-  Blend) or plain black (None), with cards as frosted panes and popups that blur what's behind them. It lights more of the screen than Normal, so it uses more power while the
-  screen is on. The always-on clock stays on black.
+  Blend) or plain black (None), with cards as frosted panes and popups that blur what's
+  behind them. It lights more of the screen than Normal, so it uses more power while the
+  screen is on. The always-on clock stays on black. **Tilt light**: a glint on the glass
+  that follows how you tilt the board.
 - **Themes**: MeshCore blue, cyan, teal, green, purple, pink, red, orange, mono,
   Rainbow (every page in its own hue), and ChattaMesh ([chattamesh.com](https://chattamesh.com)'s
   colours in full: navy background, periwinkle, gold and green; the navy lights the whole
@@ -453,11 +464,11 @@ menu > Advert menu > **Hold** picks what its icon hold sends.
   test that cut the screen-off battery drain by about 60%.
 - **Always-on**: instead of going dark, the time, date and an unread envelope on black at
   6 % brightness, moved each minute (burn-in care).
-- **Night** (Settings > Night): a lower brightness between two hours and/or do not disturb. There's no
-  light sensor for auto brightness.
+- **Night** (Settings > Night): a lower brightness between two hours and/or do not disturb
+  (silent, dark, and your Starlit sleeps). There's no light sensor for auto brightness.
 - **Timeout**: 15 s, 30 s, 1 min, 5 min, or never while on USB (then it dims after a minute).
 - **Sound**: chime volume off / low / medium / high; tap sounds click / pop / tick plus a
-  whoosh on swipes. No vibration motor on this board.
+  whoosh on swipes that change the page or open a menu. No vibration motor on this board.
 - **Lift to wake**: lying still, then tilted, turns the screen on (walking or a pocket
   doesn't). **Flip to quiet**: face down turns the screen off and silences alerts.
 
@@ -493,24 +504,26 @@ Starlit > Friends).
 ## Battery and power
 
 - **Battery life** (companion, screen mostly off): an estimated **28-30 hours** on the
-  480 mAh battery (about 29 mV per hour overnight, roughly 16-17 mA). With the screen off,
+  480 mAh battery (about 29 mV per hour overnight, roughly 16-17 mA, measured with Bluetooth
+  off; a connected phone and a busy mesh add roughly 10 %). With the screen off,
   the touch controller sleeps (unless Settings > Display > Tap to wake is on) and the
   audio chip powers down; the LoRa radio keeps listening all the time (about 5 mA of that).
 - **Low power mode** (Power menu, or Settings > Low power): for when only the mesh matters,
   say someone lost. The clock page becomes a minimal one (dimmer time on black, "Low power"
-  under the date), a small green leaf shows in the status icons (clock and page headers), and it
-  turns off tap and swipe sounds (message chimes stay), the
-  auto-reply bot, the motion sensor (button A wakes the screen), the always-on clock and the
-  Glass style; Bluetooth advertises every 2 s instead of 500 ms while no phone is connected,
-  and once a connected phone has been quiet for 30 s it's asked for a slower rhythm (messages
-  from the phone then take up to ~0.4 s); the radio uses power-saving receive gain (about
-  0.7 mA less, a little less sensitive; the app's setting comes back afterwards). The
-  screen draws at most 30 frames a second (slides and scrolling included), and Starlits hold
-  still. The radio keeps listening and your phone can still connect. Your settings aren't changed:
-  turning it off puts everything back. **Auto at** turns it on by itself when the battery
-  reaches that level (once per discharge, not again if you turn it off), and USB power turns
-  an automatic one back off. It saves power while the screen is on; with the screen off the
-  board is already about as lean as it gets.
+  under the date) and a small green leaf shows in the status icons. It turns off tap and
+  swipe sounds (message chimes stay), the auto-reply bot, the motion sensor (button A wakes
+  the screen), the always-on clock and the Glass style. Bluetooth advertises every 2 s
+  instead of 500 ms while no phone is connected, and once a connected phone has been quiet
+  for 30 s it's asked for a slower rhythm (messages from the phone then take up to ~0.4 s).
+  The radio uses power-saving receive gain (about 0.7 mA less, a little less sensitive; the
+  app's setting comes back afterwards). The screen draws at most 30 frames a second, and
+  Starlits hold still. The radio keeps listening and your phone can still connect.
+
+  Your settings aren't changed: turning it off puts everything back. **Auto at** turns it on
+  by itself when the battery reaches that level (once per discharge, not again if you turn it
+  off), and USB power turns an automatic one back off. An SOS turns it on too (see Mesh
+  SOS). It saves power while the screen is on; with the screen off the board is already
+  about as lean as it gets.
 - **Sleep** (on by default): the chip light-sleeps whenever the screen is off; the
   radio keeps listening and Bluetooth stays up. It stays awake on USB (charging), which
   keeps flashing working.
@@ -562,8 +575,8 @@ controller is put to sleep at boot, which saves battery.
 
 Working: all three firmwares, Bluetooth pairing, touch UI, sleep, sound, motion, USB app.
 
-- **Power**: about 28-30 hours with the screen mostly off (roughly 16-17 mA on the rated
-  480 mAh), up from about 22. The touch controller sleeps and the audio chip powers down
+- **Power**: about 28-30 hours with the screen mostly off and Bluetooth off (roughly 16-17 mA
+  on the rated 480 mAh), up from about 22. The touch controller sleeps and the audio chip powers down
   while the screen is off; the radio keeps listening all the time (about 5 mA). See
   [the measurements](docs/DEVELOPMENT.md#measurements).
 - **WiFi**: needs the T-SF32-Keyboard expansion's ESP32-C6 (per LilyGo).
