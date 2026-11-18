@@ -28,6 +28,7 @@ extern SF32Board board;  // target.cpp
 // average of the last 16 readings. The average also smooths the charger's switching
 // ripple on VBAT (single readings swing ~3.1-4.3 V while charging).
 #define BATT_SAMPLE_MS    2000
+#define BATT_SAMPLE_DARK_MS 6000  // screen off: each reading busy-waits ~25 ms at full speed
 
 // Low-battery protection, as in LilyGo's factory firmware: on battery (no USB) below
 // 3550 mV for 30 s, power off. The SF32LB52 needs > 3.5 V to start.
@@ -366,7 +367,14 @@ void SF32Board::loop() {
     if (wdt) rt_device_control(wdt, RT_DEVICE_CTRL_WDT_KEEPALIVE, RT_NULL);
   }
   if ((long)(now - _next_batt_sample) >= 0) {
-    _next_batt_sample = now + BATT_SAMPLE_MS;
+    // screen off (and on battery): a third as often; the 16-reading average then spans ~1.5 min,
+    // still quick for the low-battery check against a charge that falls over hours
+#ifdef RT_USING_PM
+    bool dark = !(s_awake_mask & AWAKE_SCREEN) && !isExternalPowered();
+#else
+    bool dark = !isExternalPowered();  // (no power manager: the repeater / room server, no screen use)
+#endif
+    _next_batt_sample = now + (dark ? BATT_SAMPLE_DARK_MS : BATT_SAMPLE_MS);
     sampleBattery();
   }
   if ((long)(now - _next_chg_poll) >= 0) {

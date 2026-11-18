@@ -13,6 +13,7 @@ void loop();
 // Set by the companion UI while it animates (scrolling, gliding): the loop then sleeps
 // 1 ms instead of 4 so the next frame isn't held up.
 volatile bool sf32_ui_animating = false;
+volatile uint8_t sf32_ui_wait_ms = 1;  // while animating: how long until the next frame is due (1..4)
 // The companion UI sets this: 4 ms with the screen in use, 25 ms otherwise (fewer wakeups;
 // the radio holds a received packet, and packets take 30+ ms on air).
 volatile uint8_t sf32_loop_sleep_ms = 4;
@@ -32,8 +33,8 @@ int main(void) {
   setup();
   while (1) {
     loop();
-    if (sf32_ui_animating) {  // the UI is mid-animation: back sooner for its next frame
-      rt_thread_mdelay(1);
+    if (sf32_ui_animating) {  // the UI is mid-animation: back in time for its next frame
+      rt_thread_mdelay(sf32_ui_wait_ms);  // (until it's due, not 1 ms polls: each pass runs the whole loop)
       continue;
     }
     // Let lower-priority threads (idle, timers) run; the idle thread sleeps the CPU.

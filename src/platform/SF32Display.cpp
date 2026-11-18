@@ -79,6 +79,9 @@ L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint16_t s_wall[FB_PIXELS]);
 L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint16_t s_frost[FB_PIXELS]);
 L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint8_t s_glass_grid[GLASS_GRID * GLASS_GRID * 3]);
 L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint8_t s_glass_tmp[GLASS_GRID * GLASS_GRID * 3]);
+// the popups' own grid: sharing s_glass_grid left it in the popup's layout, and the tilt light
+// (frost_region) then rebuilt the panes from that, scrambled until the next theme change
+L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint8_t s_popup_grid[GLASS_GRID * GLASS_GRID * 3]);
 L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static float s_glass_curve[4][PANEL_W]);
 #ifdef SF32_GFX_HW
 // A menu's rows in the Glass style, for the graphics engine (layerRowsDone): what's on the panes
@@ -434,8 +437,9 @@ static void glass_build() {
 }
 
 // Screen back on: if a sleep cost us the pictures (they live in PSRAM), make them again.
+static void layer_lost();  // (below: the list layer must be drawn again)
 static void glass_check() {
-  if (s_glass_on && glass_sum() != s_glass_sum) glass_build();
+  if (s_glass_on && glass_sum() != s_glass_sum) { glass_build(); layer_lost(); }  // (a sleep cost the PSRAM pictures: the layer's too)
 }
 
 void SF32Display::setGlass(bool on, uint16_t accent, bool multi, uint8_t background) {
@@ -488,6 +492,7 @@ static uint16_t s_span0[LAYER_ROWS], s_span1[LAYER_ROWS];
 static bool s_spans_ok = false;
 
 static uint32_t s_layer_gen = 0;  // bumped each time the layer is cleared for a new list
+static void layer_lost() { s_layer_gen++; }
 uint32_t SF32Display::layerGen() const { return s_layer_gen; }
 
 int SF32Display::beginLayer(int h, bool clear) {
@@ -1166,7 +1171,7 @@ void SF32Display::glassPopup(int x0, int y0, int x1, int y1, int radius) {
   int gw = (x1 + M - bx) / 4 + 2, gh = (y1 + M - by) / 4 + 2;
   if (gw > GLASS_GRID) gw = GLASS_GRID;
   if (gh > GLASS_GRID) gh = GLASS_GRID;
-  uint8_t* g = s_glass_grid;
+  uint8_t* g = s_popup_grid;
   for (int gy = 0; gy < gh; gy++) {
     int sy = by + gy * 4 > PANEL_H - 4 ? PANEL_H - 4 : by + gy * 4;
     for (int gx = 0; gx < gw; gx++) {
@@ -1183,7 +1188,7 @@ void SF32Display::glassPopup(int x0, int y0, int x1, int y1, int radius) {
     }
   }
   for (int pass = 0; pass < 4; pass++) {
-    memcpy(s_glass_tmp, s_glass_grid, gw * gh * 3);
+    memcpy(s_glass_tmp, s_popup_grid, gw * gh * 3);
     for (int gy = 0; gy < gh; gy++) {
       for (int gx = 0; gx < gw; gx++) {
         for (int k = 0; k < 3; k++) {
@@ -1195,7 +1200,7 @@ void SF32Display::glassPopup(int x0, int y0, int x1, int y1, int radius) {
               sum += s_glass_tmp[(yy * gw + xx) * 3 + k];
             }
           }
-          s_glass_grid[(gy * gw + gx) * 3 + k] = sum / 9;
+          s_popup_grid[(gy * gw + gx) * 3 + k] = sum / 9;
         }
       }
     }
@@ -1229,7 +1234,7 @@ void SF32Display::glassPopup(int x0, int y0, int x1, int y1, int radius) {
       int tx = px - bx, gx = tx / 4, fx = tx & 3;
       if (gx < 0) { gx = 0; fx = 0; }
       if (gx >= gw - 1) { gx = gw - 2; fx = 4; }
-      const uint8_t* a = s_glass_grid + (gy * gw + gx) * 3, *b = a + gw * 3;
+      const uint8_t* a = s_popup_grid + (gy * gw + gx) * 3, *b = a + gw * 3;
       grain ^= grain << 13; grain ^= grain >> 17; grain ^= grain << 5;
       int n = (int)(grain & 7) - 3;
       int c[3];
@@ -1747,6 +1752,7 @@ void SF32Display::sendPart(const uint16_t* buf, int sx, int sy, int dx, int dy, 
   LCDC_HandleTypeDef* lcdc = get_drv_lcd_handler();
   lcdc->Layer[HAL_LCDC_LAYER_DEFAULT].total_width = PANEL_W;  // rows of the frame, however little is sent
   if (!sync) HAL_LCDC_Next_Frame_TE(lcdc, 0);
+  rt_sem_control(&s_flush_done, RT_IPC_CMD_RESET, 0);  // (as in flush())
   s_flushing = true;
   rt_graphix_ops(_lcd)->draw_rect_async((const char*)(buf + sy * PANEL_W + sx), dx, dy, dx + w - 1, dy + h - 1);
 }
@@ -1860,6 +1866,7 @@ void SF32Display::waitFlush() {
 void SF32Display::flush(const uint16_t* buf, int py0, int py1) {
   if (py1 < 0) py1 = PANEL_H - 1;
   waitFlush();
+  rt_sem_control(&s_flush_done, RT_IPC_CMD_RESET, 0);  // (a late finish of one that timed out mustn't count for this one)
   // full-width rows are contiguous in the frame buffer: send just that band
   const uint16_t* band = buf + py0 * PANEL_W;
   mpu_dcache_clean((void*)band, (py1 - py0 + 1) * PANEL_W * 2);

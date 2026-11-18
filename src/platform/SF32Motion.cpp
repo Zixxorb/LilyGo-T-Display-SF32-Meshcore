@@ -35,11 +35,14 @@ static void init_thread(void*) {
     return;
   }
   bhi260ap_thread_resume();
-  if (!bhi260ap_configure(BHY2_SENSOR_ID_ACC, motion._active ? 10 : 0, 0)) {
+  bool configured = motion._active;  // (what the hub is set to)
+  if (!bhi260ap_configure(BHY2_SENSOR_ID_ACC, configured ? 10 : 0, 0)) {
     LOG_E("BHI260AP: accelerometer config failed");
     return;
   }
   motion._ready = true;
+  // setActive() during the set-up above was skipped (not ready yet): apply the latest wish
+  if (motion._active != configured) bhi260ap_configure(BHY2_SENSOR_ID_ACC, motion._active ? 10 : 0, 0);
   LOG_I("BHI260AP ready");
 #ifdef SF32_SENSOR_PROBE
   // diagnostics: which virtual sensors the hub's firmware offers (mag = a compass is fitted)

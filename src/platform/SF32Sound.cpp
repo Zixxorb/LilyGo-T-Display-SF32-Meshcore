@@ -388,6 +388,8 @@ static void sound_thread(void*) {
         cur_volume = volume;
       }
       if (kind != MSG_OPEN) {
+        s_cur_kind = kind;  // (playing it now: busy, whatever a sound that just finished said)
+        s_busy = true;
         notes = s_snd[kind < SF32Sound::CHIME_N ? kind : SF32Sound::CHIME_TEST];
         tap_style = kind >= SF32Sound::CHIME_CLICK && kind <= SF32Sound::CHIME_SWISH ? kind - SF32Sound::CHIME_CLICK + 1
                   : (kind >= SF32Sound::CHIME_THUMP && kind <= SF32Sound::CHIME_TYPE ? kind - SF32Sound::CHIME_THUMP + 5 : 0);
@@ -412,6 +414,7 @@ static void sound_thread(void*) {
       rt_pin_write(AMP_PIN, PIN_LOW);
       stream(AUDIO_CTL_STOP);
       s_running = false;
+      s_open_samples = 0;  // (ready() must wait for the next open's ramp)
 #ifdef RT_USING_PM
       rt_pm_release(PM_SLEEP_MODE_IDLE);
 #endif
@@ -424,7 +427,6 @@ static void sound_thread(void*) {
     } else if (notes) {
       if (!(tap_style ? fill_tap(buf, tap_style, snd_n) : fill(buf, notes, snd_n))) {  // finished
         notes = NULL;
-        s_busy = false;
 #ifdef SF32_SOUND_LOG
         rt_kprintf("sound: finished\n");
 #endif
@@ -434,6 +436,10 @@ static void sound_thread(void*) {
     } else {
       memset(buf, 0, CHUNK);
     }
+    // not busy once nothing plays and no sound is waiting (taking one sets it again above):
+    // clearing it the moment a sound ended let a chime asked for meanwhile play "not busy",
+    // so a tap could cut it off
+    if (!notes && s_mb.entry == 0) s_busy = false;
     // Two ways rt_device_write() (RT-Thread's audio layer) can hang this thread for good,
     // leaving it "busy" so every later sound is skipped:
     //  - the frame queue is full: it waits for room forever. Skip the write then; if the

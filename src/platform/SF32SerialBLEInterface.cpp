@@ -261,6 +261,7 @@ void SF32SerialBLEInterface::onStackEvent(uint16_t event_id, uint8_t* data, uint
       _notify_on = false;
       _connected = false;
       _link_up = true;
+      _link_up_at = millis();
       // Ask the phone to pair / re-encrypt, unless it starts that by itself within
       // 1.5 s: a security request sent while the phone's own pairing is starting
       // collides with it and the connection drops (seen with a 4 ms main loop).
@@ -279,7 +280,7 @@ void SF32SerialBLEInterface::onStackEvent(uint16_t event_id, uint8_t* data, uint
       ble_gap_encrypt_ind_t* ind = (ble_gap_encrypt_ind_t*)data;
       bool sc = (ind->auth & GAP_AUTH_SEC_CON) != 0;
       LOG_I("encrypted (auth 0x%02X)", ind->auth);
-      if (ind->conn_idx == _conn_idx && _link_up && sc) {
+      if (ind->conn_idx == _conn_idx && _link_up && sc && _enabled) {  // (Bluetooth off: checkRecvFrame drops it)
         _connected = true;
         _connected_at = _last_activity = millis();
       }
@@ -349,7 +350,7 @@ uint8_t SF32SerialBLEInterface::onAttributeWrite(uint8_t conn_idx, uint8_t idx, 
 // ---- main thread side ----
 
 bool SF32SerialBLEInterface::isWriteBusy() const {
-  return millis() < _last_write + BLE_WRITE_MIN_INTERVAL;
+  return millis() - _last_write < BLE_WRITE_MIN_INTERVAL;  // (wrap-safe: millis() wraps after 49.7 days)
 }
 
 size_t SF32SerialBLEInterface::writeFrame(const uint8_t src[], size_t len) {
@@ -404,9 +405,33 @@ size_t SF32SerialBLEInterface::checkRecvFrame(uint8_t dest[]) {
     connection_manager_set_link_security(_conn_idx, LE_SECURITY_LEVEL_SEC_CON_MITM_BOND);
   }
 
+  if (_ready && !_enabled && millis() - _off_check_at > 1000) {
+    // Bluetooth off: the SDK restarts advertising after any disconnect (is_auto_restart), so a
+    // phone connected when it was turned off would come straight back. Keep it stopped and the
+    // link down for as long as it's off.
+    _off_check_at = millis();
+    sibles_advertising_stop(s_adv_context);
+    if (_link_up) {
+      ble_gap_disconnect_t dis = {0};
+      dis.conn_idx = _conn_idx;
+      dis.reason = 0x13;
+      ble_gap_disconnect(&dis);
+    }
+  }
+  if (_link_up && !_connected && millis() - _link_up_at > (pairingOpen() ? 150000UL : 30000UL)) {
+    // connected but never paired / encrypted (a stranger, or a failed PIN): it holds the only
+    // link, so the owner's phone couldn't connect. Drop it (longer while someone may be typing a PIN).
+    _link_up_at = millis();
+    ble_gap_disconnect_t dis = {0};
+    dis.conn_idx = _conn_idx;
+    dis.reason = 0x13;
+    ble_gap_disconnect(&dis);
+    LOG_I("unpaired link dropped");
+  }
+
   if (!_connected) _send_len = 0;
 
-  if (_send_len > 0 && _notify_on && millis() >= _last_write + BLE_WRITE_MIN_INTERVAL) {
+  if (_send_len > 0 && _notify_on && millis() - _last_write >= BLE_WRITE_MIN_INTERVAL) {
     sibles_value_t value;
     value.hdl = _srv_handle;
     value.idx = NUS_TX_VALUE;
@@ -414,7 +439,7 @@ size_t SF32SerialBLEInterface::checkRecvFrame(uint8_t dest[]) {
     value.value = _send_queue[0].buf;
     int w = sibles_write_value(_conn_idx, &value);
     LOG_D("notify %d bytes -> %d", value.len, w);
-    if (w == value.len) {  // 0 = stack busy, retry later
+    if (w == value.len || w < 0) {  // 0 = stack busy, retry later; < 0 refused (would block the queue): dropped
       _last_write = millis();  // (the board's own updates don't speed the link up: they wait for a slow slot)
       _send_len--;
       for (int i = 0; i < _send_len; i++) _send_queue[i] = _send_queue[i + 1];

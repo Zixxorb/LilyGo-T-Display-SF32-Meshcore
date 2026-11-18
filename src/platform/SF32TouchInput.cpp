@@ -296,7 +296,12 @@ extern "C" void BSP_TP_Reset(uint8_t high1_low0);
 #define CST92XX_REG_DEEP_SLEEP    0xD105
 
 void SF32TouchInput::setLowPower(bool low) {
-  if (!_dev || low == _low_power) return;
+  static uint8_t fails = 0;
+  static unsigned long tried_at = 0;
+  if (!_dev || low == _low_power) { if (!low) fails = 0; return; }
+  // the sleep command failed before: try again at most 3 times, 1 s apart (the bus is shared)
+  if (low && fails && (fails >= 3 || millis() - tried_at < 1000)) return;
+  tried_at = millis();
   uint8_t dummy = 0;
   uint32_t r = RT_EOK;
   if (low) {
@@ -312,11 +317,18 @@ void SF32TouchInput::setLowPower(bool low) {
     rt_base_t level = rt_hw_interrupt_disable();
     s_pending_reads = 0;
     rt_hw_interrupt_enable(level);
+    // and empty the driver's queue: anything left there (the reset's own pulse) would make
+    // every later read return the touch before, so lifts came one touch late until a reboot
+    struct touch_message m;
+    for (int i = 0; i < 16 && rt_device_read((rt_device_t)_dev, 0, &m, 1) == 1; i++) {}
     _down = false;
     _consumed = false;
   }
 #ifdef SF32_SOUND_LOG
   rt_kprintf("touch: %s, write %s\n", low ? "deep sleep" : "normal", r == RT_EOK ? "ok" : "FAILED");
 #endif
-  _low_power = low;
+  // asleep only if the chip took the command (i2c1 is shared with the motion sensor and the
+  // charger: a one-off failure would leave it scanning all night); it's tried again next pass
+  _low_power = low ? r == RT_EOK : false;
+  if (low) fails = r == RT_EOK ? 0 : fails + 1;
 }

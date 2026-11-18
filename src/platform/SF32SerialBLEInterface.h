@@ -87,6 +87,8 @@ private:
   uint8_t _link_req = 0;                     // 0 the phone's choice, 1 fast asked, 2 slow asked
   unsigned long _link_req_at = 0;
   volatile unsigned long _connected_at = 0;  // when the link became encrypted (millis)
+  volatile unsigned long _link_up_at = 0;    // when the raw link came up (millis): an unpaired one is dropped
+  unsigned long _off_check_at = 0;           // Bluetooth off: when advertising was last made sure stopped
   volatile unsigned long _last_activity = 0; // last frame from the phone (millis)
   volatile uint16_t _conn_intv = 0;
 };
