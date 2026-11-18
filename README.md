@@ -185,13 +185,14 @@ uses LE Secure Connections with bonding, so later connections need no PIN.
 | Gesture | Does |
 |---|---|
 | **Swipe left / right** | Next / previous page |
-| **Tap** | What's under your finger (buttons, rows, your Starlit); taps never change the page |
-| Button **A** | Next page (double press: previous; long press: the page's action) |
-| **Hold** an icon | The page's action (Advert, Bluetooth, Bot, Signal, Power); a short tap on it shows a reminder |
+| **Tap** | What's under your finger (buttons, rows, your Starlit, the Unread card, a new-message banner); taps never change the page |
+| Button **A** | Next page (double press: previous; long press: the page's action). On a dark screen any press only wakes it |
+| **Hold** an icon | The page's action (Advert, Bluetooth, Bot, Signal, Discover, Power); a short tap on it shows a reminder |
 | **Swipe down** | Power menu: Flashlight, Screen off, Low power, Send SOS, Reboot / off |
 | **Swipe up** | The current page's menu, plus **Settings** |
-| **Swipe right** in Settings | Back one level |
-| **Page swipes** | Start them near the left or right edge (the middle of a page is its own: e.g. stroking your Starlit) |
+| **Swipe right** in Settings and other screens | Back one level |
+| **Page swipes** | From anywhere on the page; on the Starlit page start them near an edge (its middle is for stroking it) |
+| **Messages** | Tap: the next one; hold: mark them all read |
 | **Hold** the clock | Next clock face (a ring fills; at 0.6 s it changes with a pop) |
 | **Triple-press A** | Mesh SOS |
 

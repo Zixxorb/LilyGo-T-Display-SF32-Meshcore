@@ -211,6 +211,7 @@ void UITask::loadUIPrefs() {
   _ui_prefs.glass_light = _ui_prefs.glass_light ? 1 : 0;
   if (n > 0 && p.magic != SF32_UI_PREFS_MAGIC && p.magic != SF32_UI_PREFS_MAGIC_V27) {
     _ui_prefs.pet_sound = SF32UIPrefs().pet_sound;  // older: its byte was padding
+    _ui_prefs.resend = SF32UIPrefs().resend;        // (and so was resend's)
     // the Games page went in before Power: Power's hide bit moves up one (Games starts shown)
     const uint16_t power_bit = 1u << 12;
     if (_ui_prefs.hidden_pages & power_bit) _ui_prefs.hidden_pages = (_ui_prefs.hidden_pages & ~power_bit) | (power_bit << 1);

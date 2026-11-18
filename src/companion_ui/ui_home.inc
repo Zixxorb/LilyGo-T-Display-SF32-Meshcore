@@ -77,6 +77,7 @@ class HomeScreen : public UIScreen {
   SensorManager* _sensors;
   NodePrefs* _node_prefs;
   uint8_t _page;
+  uint16_t _page_gen = 0;  // SF32: bumped whenever the page changes (a page "just opened")
   int8_t _pet_info = -1;  // SF32: the Starlit page's info card: 0 fed, 1 curious, 2 rested, 3 mood (-1: none)
   bool _shutdown_init;
   bool _tz_edit = false;  // SF32: time zone page in edit mode
@@ -187,7 +188,7 @@ class HomeScreen : public UIScreen {
   void petLine(char* out, int n, bool still, unsigned long since) {
     int k = 0;
     char tmp[64];
-    while (k < 7 && today_finds.line(k, tmp, sizeof(tmp))) k++;
+    while (k < 8 && today_finds.line(k, tmp, sizeof(tmp))) k++;  // (8 kinds of finds)
     int slot = still ? 0 : (int)((since / 4000) % (k + 1));
     if (slot > 0 && today_finds.line(slot - 1, out, n)) return;
     const char* cl = pet.contextLine();  // the device's state comes before its mood
@@ -433,6 +434,7 @@ class HomeScreen : public UIScreen {
   bool pageVisible(int p) const { return p == HomePage::CLOCK || !(_task->uiPrefs().hidden_pages & (1u << p)); }
   void stepPage(int dir) {  // in the chosen order (Settings > Pages > Order)
     _pet_info = -1;  // (the Starlit's info card closes when the page changes)
+    _page_gen++;
     page_order.ensure(HomePage::Count);
     int at = page_order.pos(_page);
     for (int k = 0; k < HomePage::Count; k++) {
@@ -630,10 +632,10 @@ public:
 
 public:
   // SF32: the clock is the default page; back to it when the screen goes dark.
-  void showClock() { _page = HomePage::CLOCK; }
+  void showClock() { _page = HomePage::CLOCK; _page_gen++; }
 
   // SF32: menus
-  void showRadio() { _page = HomePage::RADIO; }
+  void showRadio() { _page = HomePage::RADIO; _page_gen++; }
   int currentPage() const { return _page; }
   bool gamesPage() const { return _page == HomePage::GAMES; }
   // the middle of the page is the page's own (stroking the Starlit): page swipes start near an edge there
@@ -726,6 +728,10 @@ public:
   }
   // true if the tap hit something; otherwise it acts as a normal tap (next page)
   bool handleTap(int x, int y) {
+    if (_page == HomePage::FIRST) {  // Status: the Unread card opens the messages
+      if (x >= 4 && x < 62 && y >= 27 && y < 67 && _task->getUnreadCount() > 0) { _task->showMessages(); return true; }
+      return false;
+    }
     if (_page == HomePage::CLOCK) {  // the unread envelope (top left): the messages
       if (x < 64 && y < 30 && _task->getUnreadCount() > 0) { _task->showMessages(); return true; }
       // the Starlit face: your Starlit holding mail ("tap it") opens it too
@@ -1133,6 +1139,13 @@ public:
       themeHeader(display, "Starlit", mv);
       bool still = _task->lowPower();
       petPrep(mv, still);
+      static unsigned long last_seen = 0, opened = 0;
+      static uint16_t seen_gen = 0xFFFF;
+      // just opened (a page change, or back on after the screen was off): the hint, and a hello
+      bool entered = _page_gen != seen_gen || (!still && millis() - last_seen > 1500);
+      seen_gen = _page_gen;
+      last_seen = millis();
+      if (entered) { opened = millis(); _task->starlitHello(); }  // say hello to any Starlit nearby
       if (_pet_info >= 0) {  // an info card about one of its needs, or its mood (tap: back)
         drawPetInfo(display);
         return 60000;
@@ -1164,9 +1177,6 @@ public:
       }
       display.setColor(THEME_DIM);
       // its kind and mood; the controls for the first few seconds on the page
-      static unsigned long last_seen = 0, opened = 0;
-      if (millis() - last_seen > 1500) { opened = millis(); _task->starlitHello(); }  // just opened: say hello to any Starlit nearby
-      last_seen = millis();
       char mtxt[64];
       if (visit) {
         char vn[20];
@@ -1369,13 +1379,14 @@ public:
     } else if (_page == HomePage::BOT) {
       themeHeader(display, "Bot", mv);
       bool on = _task->uiPrefs().bot_on;
-      themeBigIcon(display, ICON_BOT, bot_icon, on ? THEME_ACCENT : THEME_DIM);
+      bool paused = on && !_task->botOn();  // low power mode: it doesn't reply (its setting stays)
+      themeBigIcon(display, ICON_BOT, bot_icon, on && !paused ? THEME_ACCENT : THEME_DIM);
       display.setTextSize(2);
-      display.setColor(on ? UIColor::primary_txt : UIColor::secondary_txt);
-      display.drawTextCentered(W / 2, 83, on ? "On" : "Off");
+      display.setColor(on && !paused ? UIColor::primary_txt : UIColor::secondary_txt);
+      display.drawTextCentered(W / 2, 83, paused ? "Paused" : on ? "On" : "Off");
       display.setTextSize(1);
       display.setColor(UIColor::secondary_txt);
-      if (on && _task->botCount() > 0) {
+      if (on && !paused && _task->botCount() > 0) {
         char filtered[32];
         display.translateUTF8ToBlocks(filtered, _task->botLastName(), sizeof(filtered));
         int heard = _task->botLastHeard();  // a channel reply: did a repeater pass it on?
@@ -1402,7 +1413,7 @@ public:
         display.setColor(UIColor::primary_txt);
         display.drawTextEllipsized(x + tw, 99, nw, filtered);
       } else {
-        display.drawTextCentered(W / 2, 99, on ? "hold icon: turn off" : "hold icon: turn on");
+        display.drawTextCentered(W / 2, 99, paused ? "in low power mode" : on ? "hold icon: turn off" : "hold icon: turn on");
       }
       {  // the mesh's health: the nodes whose path-hash size is known
         int multi, one, nudges;
@@ -1511,7 +1522,7 @@ public:
       _task->notify(UIEventType::ack);
       bool mesh_wide = _task->uiPrefs().adv_page_mesh;
       if (!_task->sendAdvert(mesh_wide)) _task->showAlert("Advert failed", 1000);
-      else _task->eventSound(SF32Sound::CHIME_ADVERT);  // (Events on: its sound)
+      else { _task->showAlert(mesh_wide ? "Advert sent to mesh" : "Advert sent nearby", 1200); _task->eventSound(SF32Sound::CHIME_ADVERT); }
       return true;
     }
 #if ENV_INCLUDE_GPS == 1

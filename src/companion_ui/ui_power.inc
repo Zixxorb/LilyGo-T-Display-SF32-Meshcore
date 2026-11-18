@@ -30,13 +30,26 @@ void UITask::powerCare() {
   // motion: pick up to wake; laid face down turns the screen off
   motion.poll();
   glassLightLoop();
-  {  // the pet: caught up when the screen turns on, saved when it goes dark (nothing in between)
+  {  // the pet: caught up when the screen turns on; saved as it goes dark, at most every 30 min
+     // (each was a flash write at every screen-off: hundreds a day; shutdown and an empty
+     // battery still save at once, so a crash loses at most half an hour of its progress)
     static bool pet_on = false;
+    static unsigned long saved_at = 0;
     bool on = _display && _display->isOn();
-    if (on != pet_on) { pet_on = on; pet.onScreen(on); if (!on) { hash_sizes.save(); today_finds.save(); } }
+    if (on != pet_on) {
+      pet_on = on;
+      pet.onScreen(on);
+      if (!on && (!saved_at || now - saved_at > 30UL * 60 * 1000)) {
+        saved_at = now | 1;
+        pet.save();
+        hash_sizes.save();
+        today_finds.save();
+      }
+    }
   }
   if (_ui_prefs.rotation == 2 && _display && _display->isOn()) applyRotation();
   bool picked = motion.takePickup();
+  if (picked && _ui_prefs.lift_wake) _user_at = now | 1;
   if (picked && _aod && _ui_prefs.lift_wake) exitAOD();
   if (picked && _ui_prefs.lift_wake && _display && !_display->isOn() &&
       !(_ui_prefs.flip_quiet && motion.faceDown())) {
@@ -323,6 +336,8 @@ extern "C" void sf32_before_poweroff(int reason) {
   if (reason != 1) return;
   batt_history.save();
   pet.save();
+  hash_sizes.save();
+  today_finds.save();
   display.turnOn();
   display.startFrame();
   display.setSquareLayout(true);
@@ -356,9 +371,10 @@ void UITask::goBack() {
   else if (curr == scan_screen) closeScan();
   else if (curr == friends_screen) { if (!((FriendsScreen*)friends_screen)->back()) closeFriends(); }
   else if (curr == about_screen) closeAbout();
-  else if (curr == logs_screen) closeLogs();
+  else if (curr == logs_screen) { if (((LogScreen*)logs_screen)->inDetail()) ((LogScreen*)logs_screen)->closeDetail(); else closeLogs(); }  // an entry: back to the list
   else if (curr == theme_screen) closeTheme();
   else if (curr == tz_screen) ((TimezoneScreen*)tz_screen)->done();
+  else if (curr == hour_screen) closeHour();
   else if (curr == radio_field) closeRadioField();
   else if (curr == radio_review) closeRadioReview();
   else if (curr == radio_edit) leaveRadioEditor();

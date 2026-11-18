@@ -151,6 +151,7 @@ void UITask::botEchoLoop() {
   if (!echo_tracker.takeResult(ECHO_TAG_BOT, heard, tries)) {
     if (millis() - _bot_last_sent < 120000UL) return;  // still listening
     _bot_log_pending = false;  // never followed (it didn't go out, or something else went first)
+    echo_tracker.tagNext(0);   // (and the tag doesn't land on the user's next message)
     _bot_last_heard = -2;
     snprintf(line, sizeof(line), "Bot replied: %s in %s", _bot_last, _bot_log_chan);
     board.logEvent(line);

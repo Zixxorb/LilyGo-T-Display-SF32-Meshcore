@@ -46,11 +46,13 @@ public:
   NodeReading* reading(const uint8_t* pub_key, bool create) {
     for (auto& r : _r) if (r.state && memcmp(r.key, pub_key, 6) == 0) return &r;
     if (!create) return NULL;
-    NodeReading* slot = &_r[0];  // a free slot, else the oldest answer
+    NodeReading* slot = NULL;  // a free slot, else a "no reply", else the oldest answer; never one still asking
     for (auto& r : _r) {
       if (!r.state) { slot = &r; break; }
-      if (r.state != 1 && r.at < slot->at) slot = &r;
+      if (r.state == 1) continue;
+      if (!slot || (r.state == 3 && slot->state != 3) || (r.state == slot->state && r.at < slot->at)) slot = &r;
     }
+    if (!slot) slot = &_r[0];  // (all asking: the first)
     memset(slot, 0, sizeof(*slot));
     memcpy(slot->key, pub_key, 6);
     slot->temp10 = INT16_MIN;

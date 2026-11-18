@@ -14,11 +14,11 @@ enum MenuAction : uint8_t {
   ACT_SET_TOUCH_SND, ACT_TAP_WAKE, ACT_LOW_POWER, ACT_LP_MENU, ACT_LP_AUTO, ACT_GLASS_LIGHT, ACT_GAMES_MENU, ACT_PET_SOUND, ACT_PET_RESET, ACT_PET_PLAY, ACT_PET_FRIENDS, ACT_SIG_TOGGLE, ACT_SIG_INTERVAL, ACT_SIG_LOCK, ACT_SIG_CLEAR, ACT_SOS, ACT_SOS_CHAN, ACT_SET_MESH_TIME, ACT_SHARE_QR, ACT_CLOCK_RESET, ACT_SOUND_MENU, ACT_DISPLAY_MENU, ACT_MOTION_MENU, ACT_NIGHT_DND,
   ACT_CLOCK_FACE, ACT_PAGES_MENU, ACT_BAND_SCAN, ACT_POWER_SAVE, ACT_FLASHLIGHT, ACT_ADVERTS_MENU, ACT_ADV_NEARBY, ACT_ADV_MESH, ACT_ADVERT_MESH, ACT_ADV_PAGE_MODE, ACT_USB_APP, ACT_SIG_FINDER, ACT_ROTATION, ACT_MUTE_MENU, ACT_SET_RESEND, ACT_RX_GAIN, ACT_BATT_USE, ACT_INFO, ACT_PAGE_ORDER_MENU, ACT_ORDER_RESET, ACT_SND_THEME, ACT_SND_DIRECT, ACT_SND_CHANNEL, ACT_SND_EVENTS,
   ACT_CHAN_MUTE = 150,    // + row: Settings > Sound > Channels (UITask::_mute_rows: the channel)
-  ACT_ORDER_ROW = 172,    // + row: Settings > Pages > Order
+  ACT_ORDER_ROW = 176,    // + row: Settings > Pages > Order
   ACT_PAGE_TOGGLE = 200,  // + page index: Settings > Pages
 };
 
-static_assert(ACT_SND_EVENTS < ACT_CHAN_MUTE && ACT_CHAN_MUTE + 20 <= ACT_ORDER_ROW && ACT_ORDER_ROW + 24 <= ACT_PAGE_TOGGLE, "menu action ranges overlap");
+static_assert(ACT_SND_EVENTS < ACT_CHAN_MUTE && ACT_CHAN_MUTE + 24 <= ACT_ORDER_ROW && ACT_ORDER_ROW + 24 <= ACT_PAGE_TOGGLE, "menu action ranges overlap");
 
 #define NUM_CLOCK_FACES 7
 static const char* const CLOCK_FACE_NAMES[NUM_CLOCK_FACES] = {"Digital", "Analog", "Big", "Info", "Color", "Sun", "Starlit"};
@@ -306,7 +306,7 @@ private:
   }
 
 private:
-  static const int MAX_ITEMS = 20;  // Settings has 15
+  static const int MAX_ITEMS = 24;  // Settings has 20 with Close; 24 rows (576 px) fit the 2600-row layer
   UITask* _task;
   char _title[16] = "";
   Item _items[MAX_ITEMS];

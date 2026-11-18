@@ -39,7 +39,7 @@ class EchoTracker {
 
 public:
   // the next channel message sent is this one (the bot's reply)
-  void tagNext(uint8_t tag) { _next_tag = tag; }
+  void tagNext(uint8_t tag) { _next_tag = tag; if (tag < 2) _result[tag].ready = false; }  // (a fresh tag: no old result)
   bool takeResult(uint8_t tag, uint8_t& echoes, uint8_t& tries) {
     if (tag >= 2 || !_result[tag].ready) return false;
     _result[tag].ready = false;
@@ -51,6 +51,13 @@ public:
 
   void onRaw(bool tx, const uint8_t* bytes, int len) {
     if (len <= 0 || len > MAX_TRANS_UNIT) return;
+    // only channel messages matter: tell from the header byte before decoding the whole packet
+    if (((bytes[0] >> PH_TYPE_SHIFT) & PH_TYPE_MASK) != PAYLOAD_TYPE_GRP_TXT) return;
+    if (!tx) {  // a repeat only matters while something of ours is being followed
+      bool any = false;
+      for (int i = 0; i < ECHO_N; i++) any |= _e[i].used;
+      if (!any) return;
+    }
     mesh::Packet p;
     if (!p.readFrom(bytes, len)) return;
     if (p.getPayloadType() != PAYLOAD_TYPE_GRP_TXT || !p.isRouteFlood()) return;

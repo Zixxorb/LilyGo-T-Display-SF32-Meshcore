@@ -166,9 +166,10 @@ public:
     begin();
     unsigned long now = millis();
     unsigned long d = now - _last_ms;
-    if (d >= 1000) {
-      age(d, _was_on);
-      _last_ms = now;
+    if (d >= 60000) {  // whole minutes (age() works in minutes); the rest carries over: updated
+      unsigned long used = d - d % 60000;  // every frame on screen, it used to lose it all
+      age(used, _was_on);
+      _last_ms += used;
     }
     _was_on = screen_on;
     // the day's caps: every 24 h of uptime
@@ -187,10 +188,9 @@ public:
       _adverts = _new_nodes = 0;
     }
   }
-  void onScreen(bool on) {  // screen on/off (UITask::powerCare): catch up, and save when it goes dark
+  void onScreen(bool on) {  // screen on/off (UITask::powerCare): catch up (saving: the caller, throttled)
     if (!_begun) return;
     update(on);
-    if (!on) save();
   }
   void onAdvert(bool is_new) {  // from the mesh (any time): just counted, in RAM
     today_finds.advert(is_new);

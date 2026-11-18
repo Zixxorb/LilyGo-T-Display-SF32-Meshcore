@@ -69,7 +69,7 @@ void UITask::openMenu(MenuKind kind) {
   } else if (kind == MENU_GAMES) {
     m->begin("Starlit");
     m->add("Sounds", ACT_PET_SOUND, _ui_prefs.pet_sound ? "On" : "Off");  // the pet's chirps
-    m->add("Reset pet", ACT_PET_RESET);  // fresh needs, the same look
+    m->add("Reset Starlit", ACT_PET_RESET);  // fresh needs, the same look (asks for a second tap)
     m->add("Back", ACT_MENU_BACK);
     m->setSelected(keep_sel);
     setCurrScreen(menu);
@@ -180,7 +180,7 @@ void UITask::openMenu(MenuKind kind) {
     page_order.ensure(HomeScreen::pageCount());
     for (int k = 1; k < page_order.n; k++) {
       int p = page_order.o[k];
-      m->add(HomeScreen::pageName(p), ACT_PAGE_TOGGLE + p, (_ui_prefs.hidden_pages & (1u << p)) ? "Hide" : "Show");
+      m->add(HomeScreen::pageName(p), ACT_PAGE_TOGGLE + p, (_ui_prefs.hidden_pages & (1u << p)) ? "Hidden" : "Shown");
     }
     m->add("Back", ACT_MENU_BACK);
     m->setSelected(keep_sel);
@@ -359,12 +359,12 @@ void UITask::menuAction(uint8_t action) {
     case ACT_ADVERT:
       closeMenu();
       notify(UIEventType::ack);
-      if (!sendAdvert(false)) showAlert("Advert failed", 1000); else eventSound(SF32Sound::CHIME_ADVERT);
+      if (!sendAdvert(false)) showAlert("Advert failed", 1000); else { showAlert("Advert sent nearby", 1200); eventSound(SF32Sound::CHIME_ADVERT); }
       break;
     case ACT_ADVERT_MESH:
       closeMenu();
       notify(UIEventType::ack);
-      if (!sendAdvert(true)) showAlert("Advert failed", 1000); else eventSound(SF32Sound::CHIME_ADVERT);
+      if (!sendAdvert(true)) showAlert("Advert failed", 1000); else { showAlert("Advert sent to mesh", 1200); eventSound(SF32Sound::CHIME_ADVERT); }
       break;
     case ACT_ADVERTS_MENU: openMenu(MENU_ADVERTS); break;
     case ACT_MUTE_MENU: openMenu(MENU_MUTE); break;
@@ -426,9 +426,16 @@ void UITask::menuAction(uint8_t action) {
       saveUIPrefs();
       openMenu(_menu_kind);
       break;
-    case ACT_BT_FORGET:
-      closeMenu();
-      showAlert(bluetooth_interface.forgetBonds() ? "Phones forgotten: pair again" : "Turn Bluetooth on first", 1500);
+    case ACT_BT_FORGET:  // a second tap within 3 s: every paired phone must pair again
+      if (_confirm_act == ACT_BT_FORGET && millis() - _confirm_at < 3000) {
+        _confirm_act = 0;
+        closeMenu();
+        showAlert(bluetooth_interface.forgetBonds() ? "Phones forgotten: pair again" : "Turn Bluetooth on first", 1500);
+      } else {
+        _confirm_act = ACT_BT_FORGET;
+        _confirm_at = millis();
+        showAlert("Tap again to forget", 2500);
+      }
       break;
     case ACT_BT_PAIR:
       if (!isBluetoothEnabled()) enableBluetooth();
@@ -677,10 +684,17 @@ void UITask::menuAction(uint8_t action) {
       saveUIPrefs();
       openMenu(_menu_kind);
       break;
-    case ACT_PET_RESET:
-      pet.reset();
-      showAlert("Pet reset", 1500);
-      openMenu(_menu_kind);
+    case ACT_PET_RESET:  // a second tap within 3 s
+      if (_confirm_act == ACT_PET_RESET && millis() - _confirm_at < 3000) {
+        _confirm_act = 0;
+        pet.reset();
+        showAlert("Starlit reset", 1500);
+        openMenu(_menu_kind);
+      } else {
+        _confirm_act = ACT_PET_RESET;
+        _confirm_at = millis();
+        showAlert("Tap again to reset", 2500);
+      }
       break;
     case ACT_PET_FRIENDS: openFriends(); break;
     case ACT_PET_PLAY:
@@ -752,12 +766,27 @@ bool MenuScreen::handleInput(char c) {
 void UITask::petStroke() {
   HomeScreen* h = (HomeScreen*)home;
   static int lx = -1, ly = -1, moved = 0;
-  if (!h->gamesPage() || !touch_input.fingerDown()) { lx = -1; return; }
+  static unsigned long t0 = 0;
+  if (!h->gamesPage() || !touch_input.fingerDown()) {
+    // lifted: a quick, clearly vertical flick that began on the pet was a swipe, not a stroke
+    // (the stroke took the touch, so the usual menu swipes never saw it): up = page menu, down = power
+    if (lx >= 0 && h->gamesPage() && curr == home && millis() - t0 < 350) {
+      int dx = lx - touch_input.fingerX0(), dy = ly - touch_input.fingerY0();
+      if (abs(dy) >= 80 && abs(dy) > 2 * abs(dx)) {
+        touch_input.click(2);
+        openMenu(dy > 0 ? MENU_POWER : MENU_PAGE);
+        _auto_off = millis() + autoOffMillis();
+        _next_refresh = 0;
+      }
+    }
+    lx = -1;
+    return;
+  }
   int x0, y0;
   SF32Display::panelToLogical(touch_input.fingerX0(), touch_input.fingerY0(), x0, y0);
   if (!h->iconHit(x0, y0)) return;  // not started on the pet
   int px = touch_input.fingerX(), py = touch_input.fingerY();
-  if (lx < 0) { lx = px; ly = py; moved = 0; return; }
+  if (lx < 0) { lx = px; ly = py; moved = 0; t0 = millis(); return; }
   int step = abs(px - lx) + abs(py - ly);
   lx = px; ly = py;
   if (step == 0) return;
@@ -851,7 +880,7 @@ void UITask::handleTouchMenus() {
   bool page_taps = curr == home;  // every home page: taps never change the page (only swipes do)
   bool editor = isRadioScreen() || curr == theme_screen || curr == about_screen || curr == logs_screen ||
                 curr == tz_screen || curr == hour_screen || curr == sos_screen ||
-                curr == qr_screen || curr == scan_screen || curr == friends_screen;
+                curr == qr_screen || curr == scan_screen || curr == friends_screen || curr == msg_preview;
   touch_input.setDirectTaps(curr == menu || editor || page_taps);
   if (_drag_on && (curr != home || _display == NULL || !_display->isOn())) {
     _drag_on = false;  // something else took over mid-drag: the next frame draws what's current
@@ -863,8 +892,8 @@ void UITask::handleTouchMenus() {
   // Hold on the clock to change its face: after a moment a ring fills around the finger,
   // and when it's full (0.6 s) the next face comes up, while still holding. Let go before
   // that: nothing at all (not a tap).
-  if (curr == home && h->onClockPage() && !_aod) {
-    unsigned long held = touch_input.stillHeldMs();
+  if (curr == home && h->onClockPage() && !_aod && _down_screen == home) {  // (a hold begun elsewhere, e.g. the
+    unsigned long held = touch_input.stillHeldMs();                       //  message view's, ends there: not a face change)
     if (held >= 250) {
       touch_input.consumeTouch();  // from here on its lift does nothing
       float f = (held - 250) / 350.0f;
@@ -985,12 +1014,33 @@ void UITask::handleTouchMenus() {
     _next_refresh = 0;
   }
 
+  // the message view: hold anywhere = all read (while still held, with a pop: it took)
+  if (curr == msg_preview && !touch_input.touchConsumed() && touch_input.stillHeldMs() >= 700) {
+    touch_input.consumeTouch();
+    msg_preview->handleInput(KEY_ENTER);
+    if (tapSnd()) sound.chime(SF32Sound::CHIME_POP, tapVolume());
+    _auto_off = millis() + autoOffMillis();
+    _next_refresh = 0;
+  }
+
   int tx, ty;
   if (!touch_input.takeTap(tx, ty)) return;
   int x, y;
   SF32Display::panelToLogical(tx, ty, x, y);
   _auto_off = millis() + autoOffMillis();
   _next_refresh = 0;
+  // the new-message banner (top, a few seconds): tapping it opens the messages
+  // (not from the SOS screen, which only its button leaves, nor the radio editor: unsaved edits)
+  if (popupUp(_banner_expiry) && y < 38 && curr != msg_preview && curr != sos_screen && !isRadioScreen() && getUnreadCount() > 0) {
+    _banner_expiry = 0;
+    _menu_return = NULL;
+    showMessages();
+    return;
+  }
+  if (curr == msg_preview) {  // a tap: the next message (directly: no wait for a double tap)
+    msg_preview->handleInput(KEY_NEXT);
+    return;
+  }
   if (curr == radio_edit) {
     ((RadioEditScreen*)radio_edit)->handleTap(x, y);
   } else if (curr == radio_field) {

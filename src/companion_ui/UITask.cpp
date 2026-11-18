@@ -47,6 +47,7 @@ extern SerialBLEInterface bluetooth_interface;  // MeshCore's companion main.cpp
 #include "target.h"
 #include <time.h>
 extern volatile bool sf32_ui_animating;
+extern volatile uint8_t sf32_ui_wait_ms;
 extern "C" volatile uint32_t sf32_radio_tx, sf32_radio_rx;  // SF32Board.cpp: battery counters  // main.cpp: shorter main-loop sleep while set
 extern volatile uint8_t sf32_loop_sleep_ms;  // main.cpp: main-loop sleep
 #ifdef ENABLE_WIFI_INTERFACE
@@ -227,8 +228,8 @@ public:
 
     display.setTextSize(1);
     display.setColor(UIColor::secondary_txt);
-    if (num_unread > 1) sprintf(tmp, "%d more  -  tap: next  -  hold: done", num_unread - 1);
-    else strcpy(tmp, "tap / hold: done");
+    if (num_unread > 1) sprintf(tmp, "+%d  tap: next  hold: all read", num_unread - 1);
+    else strcpy(tmp, "tap: done");
     display.drawTextCentered(display.width() / 2, 117, tmp);
     return _rtc->getCurrentTime() - p->timestamp < 60 ? 1000 : 30000;  // "Ns" ages tick, "Nm" don't
   }
@@ -363,7 +364,7 @@ void UITask::showNewMessage(bool direct) {
   }
   if (alert) {
     ((MsgPreviewScreen*)msg_preview)->latest(_banner_from, sizeof(_banner_from), _banner_where, sizeof(_banner_where), _banner_text, sizeof(_banner_text));
-    if (millis() >= _banner_expiry) { _banner_start = millis(); _banner_first = true; }
+    if (!popupUp(_banner_expiry)) { _banner_start = millis(); _banner_first = true; }
     _banner_expiry = millis() + 6000;
   }
   _next_refresh = 0;  // the envelope count (and the banner)
@@ -392,7 +393,7 @@ void UITask::showAlert(const char* text, int duration_millis) {
 #ifdef SF32_REMOTE_TOUCH
   duration_millis *= 12;  // debug builds: long enough to screenshot
 #endif
-  if (millis() >= _alert_expiry) { _alert_start = millis(); _alert_first = true; }  // already up: just the new text
+  if (!popupUp(_alert_expiry)) { _alert_start = millis(); _alert_first = true; }  // already up: just the new text
   _alert_expiry = millis() + duration_millis;
 }
 
@@ -450,6 +451,7 @@ void UITask::onMessageRecv(mesh::Packet *pkt, const ContactInfo &from, uint8_t t
   if (!(txt_type == TXT_TYPE_PLAIN || txt_type == TXT_TYPE_SIGNED_PLAIN)) return;
 
   uint8_t path_len = pkt->isRouteFlood() ? pkt->path_len : 0xFF;
+  bool was_on = _display != NULL && _display->isOn();  // SF32: (a wake for this message stays brief)
   ((MsgPreviewScreen *) msg_preview)->addPreview(path_len, from.name, text);
   showNewMessage(true);  // SF32: direct
   botCheck(pkt, &from, NULL, text);  // SF32
@@ -458,16 +460,12 @@ void UITask::onMessageRecv(mesh::Packet *pkt, const ContactInfo &from, uint8_t t
     today_finds.hops(pkt->getPathHashCount(), from.name);
   }
 
-  if (_display != NULL) {
-#ifndef SF32_LINK_AB  // battery test: the screen stays dark
-    if (!_display->isOn() && !hasConnection()) {
-      _display->turnOn();
-    }
-#endif
-    if (_display->isOn()) {
-    _auto_off = millis() + autoOffMillis();  // extend the auto-off timer
+  // SF32: whether the screen wakes is showNewMessage()'s decision (alerts setting, do not
+  // disturb, face down; then only briefly). Stock ui-new turned it on here too whenever no
+  // phone was connected: at night and face down, for the whole timeout.
+  if (_display != NULL && _display->isOn()) {
+    if (was_on) _auto_off = millis() + autoOffMillis();  // already in use: keep it on
     _next_refresh = 100;  // trigger refresh
-    }
   }
 
   if (!hasConnection()) {
@@ -479,6 +477,7 @@ void UITask::onChannelMessageRecv(mesh::Packet *pkt, ChannelDetails& channel_det
   uint8_t path_len = pkt->isRouteFlood() ? pkt->path_len : 0xFF;
   // SF32: a muted channel (Settings > Sound > Channels): no sound, no wake, no banner, not unread
   bool muted = channel_mutes.muted(channel_details.channel);
+  bool was_on = _display != NULL && _display->isOn();  // (a wake for this message stays brief)
   if (!muted) {
     ((MsgPreviewScreen *) msg_preview)->addPreview(path_len, channel_details.name, text, true);
     showNewMessage(false);  // SF32: channel
@@ -497,16 +496,12 @@ void UITask::onChannelMessageRecv(mesh::Packet *pkt, ChannelDetails& channel_det
 
   if (muted) return;  // (the phone still gets it)
 
-  if (_display != NULL) {
-#ifndef SF32_LINK_AB  // battery test: the screen stays dark
-    if (!_display->isOn() && !hasConnection()) {
-      _display->turnOn();
-    }
-#endif
-    if (_display->isOn()) {
-    _auto_off = millis() + autoOffMillis();  // extend the auto-off timer
+  // SF32: whether the screen wakes is showNewMessage()'s decision (alerts setting, do not
+  // disturb, face down; then only briefly). Stock ui-new turned it on here too whenever no
+  // phone was connected: at night and face down, for the whole timeout.
+  if (_display != NULL && _display->isOn()) {
+    if (was_on) _auto_off = millis() + autoOffMillis();  // already in use: keep it on
     _next_refresh = 100;  // trigger refresh
-    }
   }
 
   if (!hasConnection()) {
@@ -643,11 +638,23 @@ void UITask::loop() {
   handleTouchMenus();  // SF32
   powerCare();         // SF32
   botLoop();           // SF32
+  if (_alert_expiry && !popupUp(_alert_expiry)) _alert_expiry = 0;     // SF32: (popupUp)
+  if (_banner_expiry && !popupUp(_banner_expiry)) _banner_expiry = 0;
   usageLoop();         // SF32: battery use per part (ui_usage.inc)
   eventLoop();         // SF32: phone and charger sounds (ui_sounds.inc)
   echo_tracker.loop(RESEND_TRIES[_ui_prefs.resend % NUM_RESEND]);  // SF32: heard repeats, resend (low power too: SOS turns it on)
   botEchoLoop();       // SF32: the bot's reply: heard repeated? (its log entry)
 #ifdef SF32_REMOTE_TOUCH
+  if (sf32_fake_msg) {  // debug: a pretend direct message, through the same steps as onMessageRecv
+    sf32_fake_msg = 0;
+    bool was_on = _display != NULL && _display->isOn();
+    ((MsgPreviewScreen*)msg_preview)->addPreview(0xFF, "TestBuddy", "Hello! This is a test message to try the banner and the message view.");
+    showNewMessage(true);
+    if (_display != NULL && _display->isOn()) {
+      if (was_on) _auto_off = millis() + autoOffMillis();
+      _next_refresh = 100;
+    }
+  }
   if (sf32_fake_meet) {  // debug: a pretend nearby Starlit (ui_meet.inc)
     MeetMsg m = {};
     memcpy(m.magic, "STL1", 4);
@@ -674,6 +681,9 @@ void UITask::loop() {
   if (signal_tester.loop(_ui_prefs.sig_interval, (SF32Sound::Volume)_ui_prefs.sound) && curr == home) _next_refresh = 0;
   if (signal_tester.running && _display != NULL && _display->isOn() && !_aod) {
     _auto_off = millis() + autoOffMillis();  // SF32: stays on while testing (stops by itself)
+  }
+  if (curr == scan_screen && _display != NULL && _display->isOn() && millis() - _user_at < 5UL * 60 * 1000) {
+    _auto_off = millis() + autoOffMillis();  // SF32: band scan: stays on while watched (5 min after the last touch)
   }
   if (!_startup_sound_done && _display != NULL && _display->isOn()) {
     // SF32: a startup chime, the first thing the speaker plays (switching the audio on pops;
@@ -729,7 +739,10 @@ void UITask::loop() {
     bool in_use = _display != NULL && _display->isOn() && !_aod;
     if (in_use) _screen_off_since = 0;
     else if (!_screen_off_since) _screen_off_since = millis() | 1;  // (0: in use)
-    bool recent = in_use || millis() - _screen_off_since < 2UL * 60 * 1000;
+    // the 2 min only after the user had it in hand (used within 2 min of it going dark): a
+    // screen lit by a message or an alert closes the path at once (each kept the chip awake 2 min)
+    bool user_recent = _user_at && (long)(_screen_off_since - _user_at) < (long)(2UL * 60 * 1000);
+    bool recent = in_use || (user_recent && millis() - _screen_off_since < 2UL * 60 * 1000);
     // (low power mode: closed; a chime opens it when needed)
     bool want = (!lowPower() && (_ui_prefs.sound || _ui_prefs.touch_snd) && recent) || _audio_grace_until;
     SF32Sound::Volume v = tapVolume();
@@ -843,6 +856,7 @@ void UITask::loop() {
 #endif
   }
   if (uint8_t touch = touch_input.takeClick()) {  // SF32: touch feedback
+    _user_at = millis() | 1;
 #ifdef SF32_SOUND_LOG
     rt_kprintf("tap: %s, touch_snd %d aod %d\n", touch == 2 ? "swipe" : "tap", _ui_prefs.touch_snd, _aod);
 #endif
@@ -984,6 +998,10 @@ void UITask::loop() {
 
   if (curr) curr->poll();
   sf32_ui_animating = _display != NULL && _display->isOn() && (_drag_on || (long)(_next_refresh - millis()) <= 20);  // SF32
+  {  // SF32: and how long the main loop may sleep before that frame (a finger on the page: 1 ms)
+    long due = (long)(_next_refresh - millis());
+    sf32_ui_wait_ms = _drag_on || due <= 1 ? 1 : (due >= 4 ? 4 : (uint8_t)due);
+  }
 
   if (_display != NULL && _display->isOn()) {
     static unsigned long last_frame = 0;  // SF32: low power mode: at most 30 frames a second, however asked for
@@ -999,7 +1017,7 @@ void UITask::loop() {
       // left the list meanwhile, or a popup is up: a list frame sends only the list, and the
       // popup's band would replace it (stale header area, the list not sent)
       bool list_screen = curr == menu || curr == about_screen || (curr == logs_screen && !((LogScreen*)logs_screen)->inDetail());
-      if (!list_screen || millis() < _banner_expiry || millis() < _alert_expiry) ((SF32Display *) _display)->cancelListFrame();
+      if (!list_screen || popupUp(_banner_expiry) || popupUp(_alert_expiry)) ((SF32Display *) _display)->cancelListFrame();
       g_status = (board.isExternalPowered() ? ST_USB : 0) | (lowPower() ? ST_LOWPOWER : 0) | (dndNow() ? ST_DND : 0) |  // SF32: the status row
                  (getUnreadCount() > 0 ? ST_MAIL : 0) | (hasConnection() ? ST_BT : 0);
       _display->startFrame();
@@ -1023,7 +1041,7 @@ void UITask::loop() {
         }
       }
       bool popup_moving = false, popup_full = false;  // an eased popup: its frames come quickly
-      if (millis() < _banner_expiry) {  // SF32: new message banner (top): slides down, and back up
+      if (popupUp(_banner_expiry)) {  // SF32: new message banner (top): slides down, and back up
         bool moving;
         float e = popupEase(_banner_start, _banner_expiry, 240, 180, &moving);
         popup_moving |= moving;
@@ -1069,7 +1087,7 @@ void UITask::loop() {
         while (*t == ' ') t++;
         if (*t) _display->drawTextEllipsized(10, by + 23, 110, t);
       }
-      bool alert_up = millis() < _alert_expiry;
+      bool alert_up = popupUp(_alert_expiry);
       if (alert_up) {  // render alert popup (SF32: themed card): grows in, and shrinks away
         bool moving;
         float e = popupEase(_alert_start, _alert_expiry, 200, 150, &moving);
@@ -1103,14 +1121,14 @@ void UITask::loop() {
         _next_refresh = millis() + 16;
         // only the popup moves: send just its band, once the frame it first appears on has gone
         // whole (the page may have just changed). The frame after the easing is a whole one too.
-        bool banner_up = millis() < _banner_expiry;
+        bool banner_up = popupUp(_banner_expiry);
         if (!popup_full && !(banner_up && alert_up)) {
           if (banner_up) ((SF32Display*)_display)->setFlushBand(0, 42);
           else ((SF32Display*)_display)->setFlushBand(40, 48);
         }
       }
       // SF32: the banner's end needs a frame too
-      if (millis() < _banner_expiry && (long)(_next_refresh - _banner_expiry) > 0) _next_refresh = _banner_expiry;
+      if (popupUp(_banner_expiry) && (long)(_next_refresh - _banner_expiry) > 0) _next_refresh = _banner_expiry;
       _display->endFrame();
 #ifdef SF32_FRAME_LOG
       static rt_tick_t last_frame = 0;
@@ -1167,6 +1185,7 @@ void UITask::loop() {
 }
 
 char UITask::checkDisplayOn(char c) {
+  _user_at = millis() | 1;  // SF32: a button (or a replayed tap): the user, not a message
   if (_display != NULL) {
     if (!_display->isOn()) {
       resumeOrReset();      // SF32: back where it was if off < 30 s, else the clock
@@ -1189,13 +1208,14 @@ char UITask::handleLongPress(char c) {
     the_mesh.enterCLIRescue();
     c = 0;   // consume event
   }
-  return c;
+  // SF32: on a dark (or always-on, dimmed) screen a press only wakes it: a long press in a
+  // pocket must not act on a page it can't see (or stop an SOS)
+  return c ? checkDisplayOn(c) : 0;
 }
 
 char UITask::handleDoubleClick(char c) {
   MESH_DEBUG_PRINTLN("UITask: double-click triggered");
-  checkDisplayOn(c);
-  return c;
+  return checkDisplayOn(c);  // SF32: waking with it doesn't also turn back a page
 }
 
 char UITask::handleTripleClick(char c) {

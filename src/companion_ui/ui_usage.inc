@@ -39,8 +39,8 @@ void UITask::usageLoop() {
     _use_last = now;
   }
   if (!_use_last) { _use_last = now; _use_tx0 = radio_driver.getPacketsSent(); return; }
-  float h = (now - _use_last) / 3600000.0f;  // hours since the last pass
   if (now - _use_last < 200) return;  // (often enough: states change slowly)
+  float h = (now - _use_last) / 3600000.0f;  // hours since the last pass
   _use_last = now;
   _use_ms += (uint32_t)(h * 3600000.0f);
   bool on = _display && _display->isOn();

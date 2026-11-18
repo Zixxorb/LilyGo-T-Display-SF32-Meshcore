@@ -30,7 +30,9 @@ struct __attribute__((packed)) MeetMsg {
   uint32_t seed;
   uint8_t mood;
   char name[16];
+  uint32_t nonce;  // different every time: MeshCore drops a packet it has seen (the same bytes) for hours
 };
+#define MEET_MIN_LEN 32  // (older hellos had no nonce)
 
 class StarlitMeet {
   struct Visit { bool on; bool shown; unsigned long at, shown_at; uint32_t seed; int8_t rssi; char name[16]; };
@@ -48,6 +50,7 @@ class StarlitMeet {
     m.seed = pet.stats().seed;
     m.mood = (uint8_t)pet.mood();
     StrHelper::strncpy(m.name, the_mesh.getNodeName(), sizeof(m.name));
+    m.nonce = the_mesh.getRNG()->nextInt(1, 0x7FFFFFFF) ^ millis();
     mesh::Packet* pkt = the_mesh.createRawData((const uint8_t*)&m, sizeof(m));
     if (!pkt) return false;
     the_mesh.sendZeroHop(pkt, delay_ms);
@@ -79,9 +82,9 @@ public:
   // a raw packet from the mesh (UITask::onRawDataRecv): ours if it starts "STL1".
   // Returns a log line when a meeting counts (else NULL).
   const char* onRaw(const uint8_t* data, int len, int rssi, bool answer_allowed) {
-    if (len < (int)sizeof(MeetMsg)) return NULL;
-    MeetMsg m;
-    memcpy(&m, data, sizeof(m));
+    if (len < MEET_MIN_LEN) return NULL;
+    MeetMsg m = {};
+    memcpy(&m, data, len < (int)sizeof(m) ? len : sizeof(m));
     if (memcmp(m.magic, "STL1", 4) != 0 || (m.type != MEET_TYPE_HELLO && m.type != MEET_TYPE_ANSWER)) return NULL;
     if (memcmp(m.key, the_mesh.self_id.pub_key, 6) == 0) return NULL;  // our own, heard back
     if (rssi < MEET_NEAR_RSSI) return NULL;  // too far to count as meeting
@@ -127,4 +130,5 @@ static StarlitMeet starlit_meet;
 // debug builds: write a seed here (tools/sf32_debug_uart.py mem_write32) to fake a nearby
 // Starlit's hello, so a meeting can be tried with one board
 volatile uint32_t sf32_fake_meet = 0;
+volatile uint32_t sf32_fake_msg = 0;  // non-zero: a pretend direct message (UITask::loop)
 #endif

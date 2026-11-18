@@ -124,6 +124,9 @@ class UITask : public AbstractUITask {
   float _hold_frac = 0;     // SF32: hold on the clock to change its face: the ring's progress
   bool _hold_done = false;  //   (the face changed during this hold)
   unsigned long _alert_expiry;
+  // SF32: a popup still up (expiry 0: none). Wrap-safe; a past expiry is cleared in loop() so
+  // the signed difference can't flip back after 24.8 days.
+  static bool popupUp(unsigned long expiry) { return expiry && (long)(millis() - expiry) < 0; }
   int _msgcount;
   unsigned long ui_started_at, next_batt_chck;
   int next_backlight_btn_check = 0;
@@ -209,6 +212,9 @@ class UITask : public AbstractUITask {
   bool _dimmed = false;
   bool _was_face_down = false;
   unsigned long _seen_auto_off = 0, _last_activity = 0;
+  unsigned long _user_at = 0;
+  uint8_t _confirm_act = 0;  // SF32: a row that needs a second tap (Forget phones, Reset Starlit)
+  unsigned long _confirm_at = 0;  // SF32: the last touch, button press or lift (not a message waking it)
 
   // Bot (ui_bot.inc): replies are queued from the receive callbacks and sent from loop()
   struct BotReply { bool pending; bool in_channel; unsigned long due; uint8_t pub_key[PUB_KEY_SIZE]; mesh::GroupChannel channel; char name[32]; char chan_name[24]; };
@@ -338,9 +344,9 @@ private:
   // row), Power from a page (swipe down) or Settings, Reboot / off from Power or the Power page
   MenuKind _sub_from = MENU_SETTINGS, _power_from = MENU_PAGE, _poff_from = MENU_POWER;
   int _back_sel = 0;                    // the parent's row that opened this submenu
-  uint8_t _mute_rows[20];               // Settings > Sound > Channels: each row's channel index
+  uint8_t _mute_rows[24];               // Settings > Sound > Channels: each row's channel index (MAX_ITEMS)
   int _mute_n = 0;
-  static bool thirdLevel(MenuKind k) { return k == MENU_MUTE || k == MENU_BATT_USE || k == MENU_PAGE_ORDER; }
+  static bool thirdLevel(MenuKind k) { return k == MENU_MUTE || k == MENU_BATT_USE || k == MENU_PAGE_ORDER || k == MENU_POWER_OFF; }
   // sounds (ui_sounds.inc): theme, message chimes (0: the theme's), event sounds on
   uint8_t _snd_theme = 0, _snd_direct = 0, _snd_channel = 0, _snd_events = 1;
   void loadSoundPrefs();

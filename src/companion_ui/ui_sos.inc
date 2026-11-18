@@ -96,7 +96,7 @@ public:
     display.drawTextCentered(64, 36, none ? "SOS not sent" : st == SOS_DONE ? "SOS finished" : trying ? "SOS retrying" : "SOS sent");
     display.setTextSize(1);
     display.setColor(UIColor::secondary_txt);
-    if (none) strcpy(tmp, "no channel set up: add one in the app");
+    if (none) strcpy(tmp, "channel list full");  // (no room to add #emergency)
     else sprintf(tmp, "to %s, %d of %d", chan, _task->sosSent(), SOS_SENDS);
     display.drawTextCentered(64, 60, tmp);
     if (st == SOS_ACTIVE) {
