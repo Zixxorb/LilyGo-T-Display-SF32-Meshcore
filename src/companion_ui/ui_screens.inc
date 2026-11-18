@@ -51,6 +51,7 @@ static void applyTheme(int i) {
 class ThemeScreen : public UIScreen {
 public:
   ThemeScreen(UITask* task) : _task(task) {}
+  void open() { _sel = -1; }  // (no highlight until button A is used)
 
   int render(DisplayDriver& d) override {
     themeHeader(d, "Color", _task->getBattMilliVolts());
@@ -87,11 +88,17 @@ public:
     return true;
   }
 
-  // button A: click = next swatch (applied), long press = done
+  // button A, as in menus: click = highlight the next swatch (or Done), double = the one before,
+  // long press = choose it. (A click used to apply and save the next theme: a stray press changed it.)
   bool handleInput(char c) override {
-    if (c == KEY_NEXT || c == KEY_RIGHT) { _task->setTheme((_task->themeIndex() + 1) % NUM_THEMES); return true; }
-    if (c == KEY_PREV || c == KEY_LEFT) { _task->setTheme((_task->themeIndex() + NUM_THEMES - 1) % NUM_THEMES); return true; }
-    if (c == KEY_ENTER) { _task->closeTheme(); return true; }
+    if (_sel < 0) _sel = _task->themeIndex();
+    if (c == KEY_NEXT || c == KEY_RIGHT) { _sel = (_sel + 1) % (NUM_THEMES + 1); return true; }
+    if (c == KEY_PREV || c == KEY_LEFT) { _sel = (_sel + NUM_THEMES) % (NUM_THEMES + 1); return true; }
+    if (c == KEY_ENTER) {
+      if (_sel < NUM_THEMES) _task->setTheme(_sel);
+      else _task->closeTheme();
+      return true;
+    }
     return false;
   }
 
@@ -126,6 +133,7 @@ void UITask::applyStyle() {
   if (_display) ((SF32Display*)_display)->setGlass(glass && !lowPower(), THEMES[i].accent, THEMES[i].rainbow, _ui_prefs.glass_bg);
 }
 void UITask::openTheme() {
+  ((ThemeScreen*)theme_screen)->open();
   _menu_return_theme = _menu_return;
   ((SF32Display*)_display)->setTransition(SF32Display::TRANSITION_LEFT);
   setCurrScreen(theme_screen);
@@ -478,6 +486,7 @@ public:
     d.print(tz);
     drawMinusPlus(d, B_MINUS, B_PLUS);
     drawBtn(d, B_DONE, "Done", 1, true);
+    if (_sel >= 0) drawSelBar(d, _sel == 0 ? B_MINUS : _sel == 1 ? B_PLUS : B_DONE);
     return 5000;
   }
 
@@ -488,22 +497,30 @@ public:
     _prefs->tz_offset = (int8_t)tz;
     the_mesh.savePrefs();  // right away: the screen may time out before Done
   }
-  void open() {}
+  void open() { _sel = -1; }
   void done() { _task->closeTimezone(); }  // already saved
 
   bool handleTap(int x, int y) {
+    _sel = -1;  // (touch: no highlight)
     if (inBtn(B_MINUS, x, y)) bump(-1);
     else if (inBtn(B_PLUS, x, y)) bump(+1);
     else if (inBtn(B_DONE, x, y)) done();
     return true;
   }
-  // button A: click = +1 h, double click = -1 h, long press = done
+  // button A, as in menus: click = highlight the next control (-, +, Done), double = the one
+  // before, long press = press it. (A click used to add an hour and save it.)
   bool handleInput(char c) override {
-    if (c == KEY_NEXT || c == KEY_RIGHT) { bump(+1); return true; }
-    if (c == KEY_PREV || c == KEY_LEFT) { bump(-1); return true; }
-    if (c == KEY_ENTER) { done(); return true; }
+    if (c == KEY_NEXT || c == KEY_RIGHT) { _sel = (_sel + 1) % 3; return true; }
+    if (c == KEY_PREV || c == KEY_LEFT) { _sel = (_sel + 2) % 3; return true; }
+    if (c == KEY_ENTER) {
+      if (_sel == 0) bump(-1);
+      else if (_sel == 1) bump(+1);
+      else done();
+      return true;
+    }
     return false;
   }
+  int _sel = -1;
 
 private:
   static constexpr Btn B_MINUS = {4, 72, 56, 24};
@@ -617,7 +634,7 @@ static void fmtHour(char* out, int h, bool h24) {
 class HourScreen : public UIScreen {
 public:
   HourScreen(UITask* task) : _task(task) {}
-  void open(uint8_t* hour, const char* title) { _hour = hour; _title = title; }
+  void open(uint8_t* hour, const char* title) { _hour = hour; _title = title; _sel = -1; }
 
   int render(DisplayDriver& d) override {
     char tmp[16];
@@ -631,6 +648,7 @@ public:
     d.print(tmp);
     drawMinusPlus(d, B_MINUS, B_PLUS);
     drawBtn(d, B_DONE, "Done", 1, true);
+    if (_sel >= 0) drawSelBar(d, _sel == 0 ? B_MINUS : _sel == 1 ? B_PLUS : B_DONE);
     return 5000;
   }
   void bump(int delta) {
@@ -638,17 +656,25 @@ public:
     _task->nightChanged();
   }
   bool handleTap(int x, int y) {
+    _sel = -1;
     if (inBtn(B_MINUS, x, y)) bump(-1);
     else if (inBtn(B_PLUS, x, y)) bump(+1);
     else if (inBtn(B_DONE, x, y)) _task->closeHour();
     return true;
   }
+  // button A, as in menus: click = highlight the next control, double = the one before, long = press it
   bool handleInput(char c) override {
-    if (c == KEY_NEXT || c == KEY_RIGHT) { bump(+1); return true; }
-    if (c == KEY_PREV || c == KEY_LEFT) { bump(-1); return true; }
-    if (c == KEY_ENTER) { _task->closeHour(); return true; }
+    if (c == KEY_NEXT || c == KEY_RIGHT) { _sel = (_sel + 1) % 3; return true; }
+    if (c == KEY_PREV || c == KEY_LEFT) { _sel = (_sel + 2) % 3; return true; }
+    if (c == KEY_ENTER) {
+      if (_sel == 0) bump(-1);
+      else if (_sel == 1) bump(+1);
+      else _task->closeHour();
+      return true;
+    }
     return false;
   }
+  int _sel = -1;
 
 private:
   static constexpr Btn B_MINUS = {4, 72, 56, 24};

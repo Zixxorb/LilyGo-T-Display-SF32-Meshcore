@@ -356,16 +356,11 @@ extern "C" void sf32_before_poweroff(int reason) {
 void UITask::goBack() {
   SF32Display* d = (SF32Display*)_display;
   if (curr == menu) {
-    MenuKind parent = parentOf(_menu_kind);
-    // up a level; from the top of a stack (a page menu, Settings) close it. Battery opened
-    // from the Battery page's menu goes back to that menu.
-    bool to_page_menu = parent == MENU_PAGE && (menuParent(_menu_kind) == MENU_SETTINGS || _menu_kind == MENU_POWER_OFF);
-    if (parent != MENU_PAGE || to_page_menu) {
-      openMenu(parent);
-      d->setTransition(SF32Display::TRANSITION_RIGHT);
-    }
-    else { closeMenu(); d->setTransition(SF32Display::TRANSITION_RIGHT); }
-  } else if (curr == sos_screen) return;  // only its button leaves it
+    // up a level (the menu it came from, on the row it came from); from the top, close
+    if (_menu_depth > 0) openMenu(_menu_stack[_menu_depth - 1]);
+    else closeMenu();
+    d->setTransition(SF32Display::TRANSITION_RIGHT);
+  } else if (curr == sos_screen) { leaveSos(); return; }  // sending: it carries on; counting down: stays
   else if (curr == msg_preview) { gotoHomeScreen(); d->setTransition(SF32Display::TRANSITION_RIGHT); }  // messages stay unread
   else if (curr == qr_screen) closeQr();
   else if (curr == scan_screen) closeScan();

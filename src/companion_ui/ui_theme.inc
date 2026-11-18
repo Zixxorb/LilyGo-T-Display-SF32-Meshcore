@@ -224,7 +224,7 @@ static void themeBolt(DisplayDriver& display, int x, int y) {
 }
 // The status row: small icons in one style, always just left of the battery's % (clock and
 // page headers), most important nearest the battery. Set from UITask before every frame.
-enum { ST_USB = 1, ST_LOWPOWER = 2, ST_DND = 4, ST_MAIL = 8, ST_BT = 16 };
+enum { ST_USB = 1, ST_LOWPOWER = 2, ST_DND = 4, ST_MAIL = 8, ST_BT = 16, ST_SOS = 32 };  // (SOS: a red chip, first)
 static uint8_t g_status = 0;
 static void themeLeaf(DisplayDriver& display, int x, int y) {  // 8x8, from its stem (bottom left) to its tip
   SF32Display& d = (SF32Display&)display;
@@ -265,9 +265,18 @@ static void themeBluetooth(DisplayDriver& display, int x, int y) {  // 8x8: the 
 // returns where they end. Order: USB, low power, night (these three come before the battery's %
 // when space is short), then mail and Bluetooth (after it).
 static const int STATUS_STEP = 11;
-static int themeStatusWidth(uint8_t bits) { int n = 0; for (int b = 0; b < 5; b++) if (bits & (1 << b)) n++; return n * STATUS_STEP; }
+static const int SOS_CHIP_W = 24;
+static int themeStatusWidth(uint8_t bits) { int n = 0; for (int b = 0; b < 5; b++) if (bits & (1 << b)) n++; return n * STATUS_STEP + ((bits & ST_SOS) ? SOS_CHIP_W : 0); }
 static int themeStatus(DisplayDriver& d, int right, int y, int min_x, uint8_t bits) {
   int x = right;
+  if (bits & ST_SOS) {  // an SOS going on (it runs in the background): tap it to see it
+    d.setColor(THEME_RED);
+    d.fillRect(x - SOS_CHIP_W + 2, y - 1, SOS_CHIP_W - 3, 11);
+    d.setTextSize(1);
+    d.setColor(0xFFFF);
+    d.drawTextCentered(x - SOS_CHIP_W / 2 + 1, y, "SOS");
+    x -= SOS_CHIP_W;
+  }
   for (int b = 0; b < 5; b++) {
     if (!(bits & (1 << b))) continue;
     if (x - (STATUS_STEP - 3) < min_x) break;  // no room: the rest (less important) are left out

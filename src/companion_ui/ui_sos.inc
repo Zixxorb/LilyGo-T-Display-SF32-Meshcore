@@ -103,6 +103,7 @@ public:
       int s = _task->sosSecondsLeft();
       sprintf(tmp, "again in %d:%02d", s / 60, s % 60);
       display.drawTextCentered(64, 72, tmp);
+      display.drawTextCentered(64, 84, "hold Stop to end it");  // (swipe away: it keeps sending)
     }
     themeCard(display, 14, 96, 100, 22);
     display.setTextSize(2);
@@ -111,9 +112,10 @@ public:
     return 1000;
   }
 
-  bool handleInput(char c) override {  // button A (or a tap): cancel / stop / close
+  bool handleInput(char c) override {  // button A: cancel the countdown / close when done; while sending: leave it running
     if (c == 0) return false;
-    _task->stopSos();
+    if (_task->sosState() == SOS_ACTIVE) _task->leaveSos();  // (stopping needs the on-screen hold: never a stray press)
+    else _task->stopSos();
     return true;
   }
 };
@@ -148,6 +150,14 @@ void UITask::stopSos() {
   }
   ((HomeScreen*)home)->showClock();
   ((SF32Display*)_display)->setTransition(SF32Display::TRANSITION_DOWN);
+  setCurrScreen(home);
+}
+
+// the SOS screen while it's sending: back to the pages, the SOS going on (the header's red chip
+// or Power > "SOS active" brings it back); counting down or finished: as stopSos()
+void UITask::leaveSos() {
+  if (_sos_state != SOS_ACTIVE) { if (_sos_state != SOS_COUNTDOWN) stopSos(); return; }
+  ((SF32Display*)_display)->setTransition(SF32Display::TRANSITION_RIGHT);
   setCurrScreen(home);
 }
 

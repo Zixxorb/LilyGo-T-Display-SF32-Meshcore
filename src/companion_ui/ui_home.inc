@@ -727,7 +727,29 @@ public:
     }
   }
   // true if the tap hit something; otherwise it acts as a normal tap (next page)
+  // a row on Heard / Discover: that node's card, if it's one of your contacts
+  bool openRowCard(const uint8_t* prefix, int len) {
+    ContactInfo* c = the_mesh.lookupContactByPubKey(prefix, len);
+    if (c) _task->openNodeCard(*c);
+    else _task->showAlert("Not in your contacts", 1200);
+    return true;
+  }
   bool handleTap(int x, int y) {
+    if (_page == HomePage::RECENT && y >= 27 && y < 115) {  // Heard: rows 21 px apart, as drawn
+      int row = (y - 27) / 21, k = 0;
+      for (int i = 0; i < UI_RECENT_LIST_SIZE; i++) {
+        if (recent[i].name[0] == 0) continue;
+        if (k++ == row) return openRowCard(recent[i].pubkey_prefix, sizeof(recent[i].pubkey_prefix));
+      }
+      return false;
+    }
+#if UI_DISCOVER_SCREEN
+    if (_page == HomePage::DISCOVERY && disc_nodes_count > 0 && y >= 27 && y < 115) {  // (hold anywhere: scan again)
+      int row = (y - 27) / 21;
+      if (row < (int)disc_nodes_count) return openRowCard(discovered[row].pubkey_prefix, 8);  // (8 bytes are filled in)
+      return false;
+    }
+#endif
     if (_page == HomePage::FIRST) {  // Status: the Unread card opens the messages
       if (x >= 4 && x < 62 && y >= 27 && y < 67 && _task->getUnreadCount() > 0) { _task->showMessages(); return true; }
       return false;

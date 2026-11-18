@@ -259,13 +259,8 @@ public:
   bool showMessages();          // SF32: open the unread messages (false if none)
 
   // SF32: menus and settings
-  enum MenuKind { MENU_POWER, MENU_PAGE, MENU_SETTINGS, MENU_TIME, MENU_NIGHT, MENU_SOUND, MENU_DISPLAY, MENU_MOTION, MENU_PAGES, MENU_ADVERTS, MENU_THEME, MENU_BATTERY, MENU_BOT, MENU_POWER_OFF, MENU_LOW_POWER, MENU_GAMES, MENU_MUTE, MENU_BATT_USE, MENU_PAGE_ORDER };
-  // the menu a submenu goes back to (MENU_PAGE: not a submenu)
-  static MenuKind menuParent(MenuKind k) {
-    return (k == MENU_NIGHT || k == MENU_TIME || k == MENU_SOUND || k == MENU_DISPLAY || k == MENU_MOTION ||
-            k == MENU_PAGES || k == MENU_ADVERTS || k == MENU_THEME || k == MENU_BATTERY || k == MENU_BOT ||
-            k == MENU_LOW_POWER || k == MENU_GAMES) ? MENU_SETTINGS : MENU_PAGE;
-  }
+  enum MenuKind { MENU_POWER, MENU_PAGE, MENU_SETTINGS, MENU_TIME, MENU_NIGHT, MENU_SOUND, MENU_DISPLAY, MENU_MOTION, MENU_PAGES, MENU_ADVERTS, MENU_THEME, MENU_BATTERY, MENU_BOT, MENU_POWER_OFF, MENU_LOW_POWER, MENU_GAMES, MENU_MUTE, MENU_BATT_USE, MENU_PAGE_ORDER,
+                  MENU_G_SCREEN, MENU_G_POWER, MENU_G_MESH };  // Settings' sections
   void openMenu(MenuKind kind);
   void closeMenu();
   void menuAction(uint8_t action);
@@ -332,6 +327,7 @@ public:
   void openSos();
   void stopSos();
   uint8_t sosState() const { return _sos_state; }
+  void leaveSos();  // ui_sos.inc: away from the SOS screen (it keeps sending)
   uint8_t sosSent() const { return _sos_sent; }
   int sosSecondsLeft() const;
   uint16_t botCount() const { return _bot_count; }
@@ -342,11 +338,14 @@ private:
   MenuKind _menu_kind = MENU_PAGE;
   // where Back goes: a Settings submenu can also be opened from a page's menu (its "... menu"
   // row), Power from a page (swipe down) or Settings, Reboot / off from Power or the Power page
-  MenuKind _sub_from = MENU_SETTINGS, _power_from = MENU_PAGE, _poff_from = MENU_POWER;
-  int _back_sel = 0;                    // the parent's row that opened this submenu
+  // the menus above the open one (back pops one), each with the row that went down from it.
+  // A menu opened from a page starts it empty; a screen opened from a menu (Logs, a picker)
+  // keeps it for when it comes back.
+  MenuKind _menu_stack[6];
+  int _menu_sel[6];
+  int _menu_depth = 0;
   uint8_t _mute_rows[24];               // Settings > Sound > Channels: each row's channel index (MAX_ITEMS)
   int _mute_n = 0;
-  static bool thirdLevel(MenuKind k) { return k == MENU_MUTE || k == MENU_BATT_USE || k == MENU_PAGE_ORDER || k == MENU_POWER_OFF; }
   // sounds (ui_sounds.inc): theme, message chimes (0: the theme's), event sounds on
   uint8_t _snd_theme = 0, _snd_direct = 0, _snd_channel = 0, _snd_events = 1;
   void loadSoundPrefs();
@@ -355,7 +354,6 @@ private:
   UIScreen* _down_screen = NULL;  // the screen when the finger went down
   bool _was_down = false;
   int _order_pick = -1;                 // Settings > Pages > Order: the page picked up (its position), -1 none
-  int _mute_back_sel = 0;               //   and Settings' row while it's open (any third-level menu)
   // battery use since unplugged (ui_usage.inc): estimated mAh per part
   float _use[7] = {};
   uint32_t _use_ms = 0, _use_tx0 = 0;
@@ -364,15 +362,6 @@ private:
   void buildUsageMenu(MenuScreen& m);
   MenuKind _left_kind = MENU_PAGE;      // the menu a screen (Logs, Color, pickers) was opened from
   int _left_sel = 0;                    //   and its row, to come back to
-  MenuKind parentOf(MenuKind k) const {
-    if (k == MENU_POWER) return _power_from;
-    if (k == MENU_POWER_OFF) return _poff_from;
-    if (k == MENU_MUTE) return MENU_SOUND;
-    if (k == MENU_BATT_USE) return MENU_BATTERY;
-    if (k == MENU_PAGE_ORDER) return MENU_PAGES;
-    if (menuParent(k) == MENU_SETTINGS) return _sub_from;
-    return menuParent(k);
-  }
   int _menu_open_dir = 0;  // SF32Display::Transition the open menu came in with
 public:
   bool hasDisplay() const { return _display != NULL; }

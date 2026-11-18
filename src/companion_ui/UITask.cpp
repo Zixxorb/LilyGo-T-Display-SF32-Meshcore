@@ -1019,7 +1019,8 @@ void UITask::loop() {
       bool list_screen = curr == menu || curr == about_screen || (curr == logs_screen && !((LogScreen*)logs_screen)->inDetail());
       if (!list_screen || popupUp(_banner_expiry) || popupUp(_alert_expiry)) ((SF32Display *) _display)->cancelListFrame();
       g_status = (board.isExternalPowered() ? ST_USB : 0) | (lowPower() ? ST_LOWPOWER : 0) | (dndNow() ? ST_DND : 0) |  // SF32: the status row
-                 (getUnreadCount() > 0 ? ST_MAIL : 0) | (hasConnection() ? ST_BT : 0);
+                 (getUnreadCount() > 0 ? ST_MAIL : 0) | (hasConnection() ? ST_BT : 0) |
+                 (_sos_state == SOS_ACTIVE || _sos_state == SOS_COUNTDOWN ? ST_SOS : 0);
       _display->startFrame();
       ((SF32Display *) _display)->setSquareLayout(true);  // SF32: all screens are full-panel
       int delay_millis = curr->render(*_display);

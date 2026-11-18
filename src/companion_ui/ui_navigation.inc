@@ -23,20 +23,19 @@ void UITask::openMenu(MenuKind kind) {
   bool same = curr == menu && kind == _menu_kind;
   int keep_sel = same ? m->selected() : 0;
   if (curr == menu && !same) {
-    if (kind == parentOf(_menu_kind)) {
-      keep_sel = _back_sel;  // back up: on the row that opened the submenu
-      if (thirdLevel(_menu_kind)) _back_sel = _mute_back_sel;  // (a third level: Settings' row again)
-    } else {                 // down into a submenu: remember where from
-      if (thirdLevel(kind)) _mute_back_sel = _back_sel;
-      _back_sel = m->selected();
-      if (menuParent(kind) == MENU_SETTINGS) _sub_from = _menu_kind == MENU_PAGE ? MENU_PAGE : MENU_SETTINGS;
-      if (kind == MENU_POWER_OFF) _poff_from = _menu_kind;
-      if (kind == MENU_POWER) _power_from = MENU_SETTINGS;
+    if (_menu_depth > 0 && _menu_stack[_menu_depth - 1] == kind) {  // back up: on the row that went down
+      _menu_depth--;
+      keep_sel = _menu_sel[_menu_depth];
+    } else if (_menu_depth < (int)(sizeof(_menu_stack) / sizeof(_menu_stack[0]))) {  // down: remember where from
+      _menu_stack[_menu_depth] = _menu_kind;
+      _menu_sel[_menu_depth] = m->selected();
+      _menu_depth++;
     }
   } else if (curr != menu) {
-    if (kind == MENU_POWER) _power_from = MENU_PAGE;  // swiped down from a page
-    // back from a screen opened from this menu (Logs, Color, a picker): on its row again
+    // back from a screen opened from this menu (Logs, Color, a picker): on its row again, the
+    // menus above it as they were; anything else opens fresh from a page: a new stack
     if (kind == _left_kind && kind != MENU_PAGE && kind != MENU_POWER) keep_sel = _left_sel;
+    else _menu_depth = 0;
   }
   if (!same) m->resetScroll();
   SF32Display* d = (SF32Display*)_display;
@@ -51,21 +50,19 @@ void UITask::openMenu(MenuKind kind) {
     m->startEnter();
   }
   _menu_kind = kind;
-  m->setHandle(kind == MENU_POWER && _power_from == MENU_PAGE);  // came down from the top: swipe up to close
+  m->setHandle(_menu_depth == 0 && _menu_open_dir == SF32Display::TRANSITION_DOWN);  // came down from the top: swipe up to close
   char tmp[16];
   if (kind == MENU_POWER) {
     m->begin("Power");
     m->add("Flashlight", ACT_FLASHLIGHT);
     m->add("Screen off", ACT_SCREEN_OFF);
     m->add("Low power", ACT_LOW_POWER, lowPower() ? "On" : "Off");
-    m->add("Send SOS", ACT_SOS);
+    m->add(_sos_state == SOS_ACTIVE ? "SOS active" : "Send SOS", ACT_SOS);  // (on: shows its screen)
     m->add("Reboot / off", ACT_POWER_OFF_MENU);  // a step away from a stray tap
-    if (_power_from == MENU_SETTINGS) {  // Settings > Power: a submenu like the others
-      m->add("Back", ACT_MENU_BACK);
-      m->setSelected(keep_sel);
-      setCurrScreen(menu);
-      return;
-    }
+    m->add(_menu_depth > 0 ? "Back" : "Close", _menu_depth > 0 ? ACT_MENU_BACK : ACT_CLOSE);  // (button A users can leave too)
+    m->setSelected(keep_sel);
+    setCurrScreen(menu);
+    return;
   } else if (kind == MENU_GAMES) {
     m->begin("Starlit");
     m->add("Sounds", ACT_PET_SOUND, _ui_prefs.pet_sound ? "On" : "Off");  // the pet's chirps
@@ -110,17 +107,38 @@ void UITask::openMenu(MenuKind kind) {
     setCurrScreen(menu);
     return;
   } else if (kind == MENU_SETTINGS) {
-    // what you see (screen, pages, clock), what you hear and when (sound, night), sensors,
-    // the radio side (Bluetooth, SOS), then the system (power use, logs, power off)
+    // a few sections, each one tap away (19 rows in one list took five screens of scrolling)
     m->begin("Settings");
+    m->add("Screen", ACT_G_SCREEN);   // theme, display, clock, pages, night, motion
+    m->add("Sound", ACT_SOUND_MENU);  // volume, alerts, taps, theme, chimes, events, channels
+    m->add("Power", ACT_G_POWER);     // battery, low power, sleep, reboot / off
+    m->add("Mesh", ACT_G_MESH);       // Bluetooth, PC link, adverts, resend, bot, SOS
+    m->add("Starlit", ACT_GAMES_MENU);
+    m->add("Logs", ACT_LOGS);
+  } else if (kind == MENU_G_SCREEN) {
+    m->begin("Screen");
     m->add("Theme", ACT_THEME_MENU);
-    m->add("Display", ACT_DISPLAY_MENU);
-    m->add("Pages", ACT_PAGES_MENU);  // which pages to show
+    m->add("Display", ACT_DISPLAY_MENU);  // brightness, timeout, always-on, tap to wake, rotation
     m->add("Clock", ACT_TIME_MENU);
-    m->add("Battery", ACT_BATT_MENU);
-    m->add("Sound", ACT_SOUND_MENU);
+    m->add("Pages", ACT_PAGES_MENU);  // which pages to show, their order
     m->add("Night mode", ACT_NIGHT_MENU);  // hours, dim, do not disturb
     m->add("Motion", ACT_MOTION_MENU);
+    m->add("Back", ACT_MENU_BACK);
+    m->setSelected(keep_sel);
+    setCurrScreen(menu);
+    return;
+  } else if (kind == MENU_G_POWER) {
+    m->begin("Power");
+    m->add("Battery", ACT_BATT_MENU);
+    m->add("Low power", ACT_LP_MENU);  // low power mode: on now, or by itself at a battery level
+    if (board.sleepSupported()) m->add("Sleep", ACT_POWER_SAVE, _ui_prefs.power_save ? "On" : "Off");
+    m->add("Reboot / off", ACT_POWER_OFF_MENU);
+    m->add("Back", ACT_MENU_BACK);
+    m->setSelected(keep_sel);
+    setCurrScreen(menu);
+    return;
+  } else if (kind == MENU_G_MESH) {
+    m->begin("Mesh");
     m->add("Bluetooth", ACT_SET_BT, isBluetoothEnabled() ? "On" : "Off");
     m->add("PC link", ACT_USB_APP, _ui_prefs.usb_app ? "On" : "Off");  // the app protocol over the USB cable (PC tools, observer)
     m->add("Adverts", ACT_ADVERTS_MENU);  // scheduled adverts, what the Advert page's hold sends
@@ -129,15 +147,14 @@ void UITask::openMenu(MenuKind kind) {
       m->add("Resend", ACT_SET_RESEND, RESEND_NAMES[_ui_prefs.resend % NUM_RESEND]);  // channel messages no repeater passed on (ui_echo.inc)
     }
     m->add("Bot", ACT_BOT_MENU);
-    m->add("Low power", ACT_LP_MENU);  // low power mode: on now, or by itself at a battery level
-    m->add("Starlit", ACT_GAMES_MENU);  // the pet (a Starlit)
     {
       ChannelDetails ch;
       m->add("SOS to", ACT_SOS_CHAN, sosChannelName(_ui_prefs.sos_chan, ch));
     }
-    if (board.sleepSupported()) m->add("Sleep", ACT_POWER_SAVE, _ui_prefs.power_save ? "On" : "Off");
-    m->add("Logs", ACT_LOGS);
-    m->add("Power", ACT_POWER_MENU);  // screen off / reboot / power off
+    m->add("Back", ACT_MENU_BACK);
+    m->setSelected(keep_sel);
+    setCurrScreen(menu);
+    return;
   } else if (kind == MENU_THEME) {
     m->begin("Theme");
     m->add("Style", ACT_THEME_STYLE, _ui_prefs.glass ? "Glass" : "Normal");
@@ -305,13 +322,14 @@ void UITask::openMenu(MenuKind kind) {
 
 void UITask::closeMenu() {
   // leave the way it came in
-  bool from_top = _menu_kind == MENU_POWER || _menu_open_dir == SF32Display::TRANSITION_DOWN;
+  bool from_top = _menu_open_dir == SF32Display::TRANSITION_DOWN;
   ((SF32Display*)_display)->setTransition(from_top ? SF32Display::TRANSITION_UP : SF32Display::TRANSITION_DOWN);
   UIScreen* back = _menu_return ? _menu_return : home;
   if (back == msg_preview && getUnreadCount() == 0) back = home;
   _menu_return = NULL;
   setCurrScreen(back);
   _left_kind = MENU_PAGE;  // closed: next time menus start at the top
+  _menu_depth = 0;
 }
 
 void UITask::screenOff() {
@@ -367,6 +385,9 @@ void UITask::menuAction(uint8_t action) {
       if (!sendAdvert(true)) showAlert("Advert failed", 1000); else { showAlert("Advert sent to mesh", 1200); eventSound(SF32Sound::CHIME_ADVERT); }
       break;
     case ACT_ADVERTS_MENU: openMenu(MENU_ADVERTS); break;
+    case ACT_G_SCREEN: openMenu(MENU_G_SCREEN); break;
+    case ACT_G_POWER: openMenu(MENU_G_POWER); break;
+    case ACT_G_MESH: openMenu(MENU_G_MESH); break;
     case ACT_MUTE_MENU: openMenu(MENU_MUTE); break;
     case ACT_BATT_USE: openMenu(MENU_BATT_USE); break;
     case ACT_PAGE_ORDER_MENU: openMenu(MENU_PAGE_ORDER); break;
@@ -733,7 +754,7 @@ void UITask::menuAction(uint8_t action) {
       break;
     case ACT_SET_BT:
       if (isBluetoothEnabled()) disableBluetooth(); else enableBluetooth();
-      if (_menu_kind == MENU_SETTINGS || _menu_kind == MENU_PAGE) openMenu(_menu_kind); else closeMenu();
+      openMenu(_menu_kind);  // (its new value)
       break;
   }
 }
@@ -982,24 +1003,25 @@ void UITask::handleTouchMenus() {
   if (g != SF32TouchInput::Gesture::None && curr != splash) {
     if (ds) {
       // a list: swipes scroll it (above); pulling down from the top closes it
-      if (g == SF32TouchInput::Gesture::SwipeDown && ds->from_top && !(curr == menu && _menu_kind == MENU_POWER)) {
+      bool came_down = curr == menu && _menu_open_dir == SF32Display::TRANSITION_DOWN;
+      if (g == SF32TouchInput::Gesture::SwipeDown && ds->from_top && !came_down) {
         ds->vel = 0;
         if (curr == menu) closeMenu(); else if (curr == logs_screen) closeLogs(); else closeAbout();
       }
       // the power menu came down from the top: pushing it up from its end closes it
-      if (g == SF32TouchInput::Gesture::SwipeUp && ds->from_bottom && curr == menu && _menu_kind == MENU_POWER) {
+      if (g == SF32TouchInput::Gesture::SwipeUp && ds->from_bottom && came_down) {
         ds->vel = 0;
         closeMenu();
       }
     } else if (curr == logs_screen) ((LogScreen*)logs_screen)->closeDetail();  // an entry's details: back to the list
-    else if (curr == sos_screen) {}  // only its button leaves it
+    else if (curr == sos_screen) leaveSos();  // sending: away from it (it carries on); counting down: stays
     else if (curr == qr_screen) closeQr();
     else if (curr == scan_screen) closeScan();
     else if (curr == friends_screen) { if (!((FriendsScreen*)friends_screen)->back()) closeFriends(); }
     else if (curr == menu) {
       // a panel goes back the way it came. The power menu came down from
       // the top: swipe up; menus that came up from the bottom: swipe down.
-      bool from_top = _menu_kind == MENU_POWER;
+      bool from_top = _menu_open_dir == SF32Display::TRANSITION_DOWN;  // (how it opened, whichever menu it is now)
       if (g == (from_top ? SF32TouchInput::Gesture::SwipeUp : SF32TouchInput::Gesture::SwipeDown)) closeMenu();
     }
     else if (curr == theme_screen) closeTheme();
@@ -1014,6 +1036,16 @@ void UITask::handleTouchMenus() {
     _next_refresh = 0;
   }
 
+  // the SOS screen while sending: hold Stop for 1 s to end it (a tap can't: pockets, stray presses)
+  if (curr == sos_screen && _sos_state == SOS_ACTIVE && !touch_input.touchConsumed() && touch_input.stillHeldMs() >= 1000) {
+    int sx, sy;
+    SF32Display::panelToLogical(touch_input.fingerX0(), touch_input.fingerY0(), sx, sy);
+    if (sy >= 90) {
+      touch_input.consumeTouch();
+      stopSos();
+      return;
+    }
+  }
   // the message view: hold anywhere = all read (while still held, with a pop: it took)
   if (curr == msg_preview && !touch_input.touchConsumed() && touch_input.stillHeldMs() >= 700) {
     touch_input.consumeTouch();
@@ -1029,6 +1061,11 @@ void UITask::handleTouchMenus() {
   SF32Display::panelToLogical(tx, ty, x, y);
   _auto_off = millis() + autoOffMillis();
   _next_refresh = 0;
+  // an SOS going on: the header's red chip (top right) brings its screen back
+  if (_sos_state == SOS_ACTIVE && curr != sos_screen && y < 22 && x >= 76) {
+    openSos();
+    return;
+  }
   // the new-message banner (top, a few seconds): tapping it opens the messages
   // (not from the SOS screen, which only its button leaves, nor the radio editor: unsaved edits)
   if (popupUp(_banner_expiry) && y < 38 && curr != msg_preview && curr != sos_screen && !isRadioScreen() && getUnreadCount() > 0) {
@@ -1065,8 +1102,11 @@ void UITask::handleTouchMenus() {
   } else if (curr == qr_screen) {
     if (flashlightOn()) { ((QrScreen*)qr_screen)->toggleRed(); _auto_off = millis() + 5UL * 60 * 1000; }
     else closeQr();  // tap anywhere: back
-  } else if (curr == sos_screen) {
-    if (y >= 90) stopSos();  // the Cancel / Stop button (bottom)
+  } else if (curr == sos_screen) {  // the Cancel / Stop / Close button (bottom)
+    if (y >= 90) {
+      if (_sos_state == SOS_ACTIVE) showAlert("Hold Stop to end", 1500);  // (the hold: above)
+      else stopSos();
+    }
   } else if (page_taps) {
     // on a button: its action. A short tap on an icon that works by holding: how to use it.
     // Anywhere else: nothing (pages change only with a swipe from the edge)
@@ -1080,8 +1120,6 @@ void UITask::handleTouchMenus() {
     if (i >= 0) {
       m->setSelected(i);
       menuAction(m->items_action(i));
-    } else if (y > 26) {
-      closeMenu();  // tap below the rows
-    }
+    }  // (a tap beside or below the rows does nothing: it closed the whole stack by accident)
   }
 }

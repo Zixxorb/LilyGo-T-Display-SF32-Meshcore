@@ -188,15 +188,17 @@ uses LE Secure Connections with bonding, so later connections need no PIN.
 | **Tap** | What's under your finger (buttons, rows, your Starlit, the Unread card, a new-message banner); taps never change the page |
 | Button **A** | Next page (double press: previous; long press: the page's action). On a dark screen any press only wakes it |
 | **Hold** an icon | The page's action (Advert, Bluetooth, Bot, Signal, Discover, Power); a short tap on it shows a reminder |
-| **Swipe down** | Power menu: Flashlight, Screen off, Low power, Send SOS, Reboot / off |
+| **Swipe down** | Power menu: Flashlight, Screen off, Low power, Send SOS, Reboot / off, Close (swipe up closes it) |
 | **Swipe up** | The current page's menu, plus **Settings** |
 | **Swipe right** in Settings and other screens | Back one level |
 | **Page swipes** | From anywhere on the page; on the Starlit page start them near an edge (its middle is for stroking it) |
 | **Messages** | Tap: the next one; hold: mark them all read |
+| **Rows** on Nodes, Heard, Discover | That node's card |
+| Button **A** in menus and pickers | Press: the next row or control; double press: the one before; long press: choose it |
 | **Hold** the clock | Next clock face (a ring fills; at 0.6 s it changes with a pop) |
 | **Triple-press A** | Mesh SOS |
 
-Button **A** wakes a dark screen (taps too, with Settings > Display > **Tap to wake** on).
+Button **A** wakes a dark screen (taps too, with Settings > Screen > Display > **Tap to wake** on).
 Woken within 10 s, it comes back where it was; after that, on the clock. Long lists follow
 your finger and glide after a flick.
 
@@ -222,7 +224,7 @@ your finger and glide after a flick.
 | **Starlit** | Your Starlit, its needs and its line (mood, device state, today's finds). Stroke it, tap it, hold it to play; its menu has **Friends**. See [Starlits](#starlits) |
 | **Power** | Hold the icon for the power menu |
 
-Pages can be hidden in **Settings > Pages** (the clock always shows).
+Pages can be hidden in **Settings > Screen > Pages** (the clock always shows).
 
 **Status icons**, left of the battery % on the clock and every page header, in one style:
 bolt (USB power), leaf (low power mode), moon (night: do not disturb), envelope (unread
@@ -236,27 +238,29 @@ space is short the bolt, leaf and moon come before the %, mail and Bluetooth aft
 <details>
 <summary><b>All the menus</b></summary>
 
-| Menu | Contains |
-|---|---|
-| **Theme** | Style (Normal / Glass), Color (each style keeps its own), Backdrop for Glass (Aurora / Dunes / Blend / None), Tilt light for Glass (a glint of light on the glass that follows how you tilt the board; on by default, uses the motion sensor only while the screen is on, off in low power mode), Battery (Color: red / yellow / green by charge, or Plain) |
-| **Display** | Brightness, timeout, always-on, tap to wake, rotation (Normal / Auto / Right / Flipped / Left) |
-| **Pages** | Show or hide each home page; **Order**: tap a page to pick it up, then tap where it goes (the clock stays first), or reset the order |
-| **Clock** | Face, zone, daylight saving (off/US/EU), 12/24 h, mesh time, reset clock |
-| **Battery** | Show (icon + % / % only), graph span (6/12/24/48 h), low alert (10/15/20/30 % / off), charge to (100/90/80 %), **Usage**: what used the battery since it was unplugged (screen, system, radio listening and sending, tap to wake, kept awake, Bluetooth) as shares, and the average draw. An estimate: time in each state times a typical current |
-| **Sound** | Volume, new-message alerts (all / direct / off), taps (click / pop / tick / thump / bubble / chirp / type / the theme's), **Theme** (Classic / Soft / Retro / Nature: all the sounds together), **Direct** and **Channel** message chimes (the theme's, or one of 10), **Events** (advert sent, phone connected or gone, charger in or out, low battery, bot replied, a Starlit visit; quiet in do not disturb), **Channels** (mute single channels) |
-| **Night** | From, until, dim and how far, do not disturb |
-| **Motion** | Lift to wake, flip to quiet |
-| **Bluetooth** | On / off (remembered) |
-| **PC link** | The app protocol over the USB cable as well, for PC tools (off by default) |
-| **Adverts** | Nearby every 1/3/6/12 h, mesh every 12/24/48 h (both off by default), what the Advert page's hold sends |
-| **Resend** | Off / 1x / 2x / 3x (Off by default): a channel message that no repeater was heard passing on is sent again, the same packet, so repeaters that already passed it on drop it |
-| **Bot** | Auto-reply, to DMs, channels, daily max (5/10/20/50), repeat per sender (12 h / 24 h / 7 d), gap between replies (1/5/15 min) |
-| **Starlit** | Its sounds, reset (fresh needs, the same look) |
-| **Low power** | Mode on / off, and Auto at (off / 10 / 15 / 20 / 30 % battery): see [Battery and power](#battery-and-power) |
-| **SOS to** | The channel Mesh SOS goes to (#emergency by default) |
-| **Sleep** | Let the chip sleep with the screen off (on by default) |
-| **Logs** | The last 20 events; tap one for a board snapshot |
-| **Power** | Flashlight, screen off, low power on / off, Send SOS, Reboot / off (reboot, power off) |
+Settings has six sections: **Screen**, **Sound**, **Power**, **Mesh**, **Starlit** and **Logs**. Swipe right (or Back) goes up one level, onto the row you came from.
+
+| Section | Menu | Contains |
+|---|---|---|
+| **Screen** | **Theme** | Style (Normal / Glass), Color (each style keeps its own), Backdrop for Glass (Aurora / Dunes / Blend / None), Tilt light for Glass (a glint of light on the glass that follows how you tilt the board; on by default, uses the motion sensor only while the screen is on, off in low power mode), Battery (Color: red / yellow / green by charge, or Plain) |
+|  | **Display** | Brightness, timeout, always-on, tap to wake, rotation (Normal / Auto / Right / Flipped / Left) |
+|  | **Clock** | Face, zone, daylight saving (off/US/EU), 12/24 h, mesh time, reset clock |
+|  | **Pages** | Show or hide each home page; **Order**: tap a page to pick it up, then tap where it goes (the clock stays first), or reset the order |
+|  | **Night** | From, until, dim and how far, do not disturb |
+|  | **Motion** | Lift to wake, flip to quiet |
+| **Sound** | **Sound** | Volume, new-message alerts (all / direct / off), taps (click / pop / tick / thump / bubble / chirp / type / the theme's), **Theme** (Classic / Soft / Retro / Nature: all the sounds together), **Direct** and **Channel** message chimes (the theme's, or one of 10), **Events** (advert sent, phone connected or gone, charger in or out, low battery, bot replied, a Starlit visit; quiet in do not disturb), **Channels** (mute single channels) |
+| **Power** | **Battery** | Show (icon + % / % only), graph span (6/12/24/48 h), low alert (10/15/20/30 % / off), charge to (100/90/80 %), **Usage**: what used the battery since it was unplugged (screen, system, radio listening and sending, tap to wake, kept awake, Bluetooth) as shares, and the average draw. An estimate: time in each state times a typical current |
+|  | **Low power** | Mode on / off, and Auto at (off / 10 / 15 / 20 / 30 % battery): see [Battery and power](#battery-and-power) |
+|  | **Sleep** | Let the chip sleep with the screen off (on by default) |
+|  | **Reboot / off** | Reboot, power off |
+| **Mesh** | **Bluetooth** | On / off (remembered) |
+|  | **PC link** | The app protocol over the USB cable as well, for PC tools (off by default) |
+|  | **Adverts** | Nearby every 1/3/6/12 h, mesh every 12/24/48 h (both off by default), what the Advert page's hold sends |
+|  | **Resend** | Off / 1x / 2x / 3x (Off by default): a channel message that no repeater was heard passing on is sent again, the same packet, so repeaters that already passed it on drop it |
+|  | **Bot** | Auto-reply, to DMs, channels, daily max (5/10/20/50), repeat per sender (12 h / 24 h / 7 d), gap between replies (1/5/15 min) |
+|  | **SOS to** | The channel Mesh SOS goes to (#emergency by default) |
+| **Starlit** | **Starlit** | Its sounds, reset (fresh needs, the same look) |
+| **Logs** | **Logs** | The last 20 events; tap one for a board snapshot |
 
 A page's swipe-up menu has that page's actions, and a "... menu" row for its settings
 (the same submenu as in Settings; Back returns to where you came from).
@@ -286,7 +290,7 @@ Click a feature to expand it.
   device: asleep at night, holding mail, and so on), and its line under it: its state or mood,
   then today's finds. It animates gently (about 12 frames a second).
 
-Switch by holding the clock, or Settings > Clock > Face (also via the clock page's menu > Clock menu).
+Switch by holding the clock, or Settings > Screen > Clock > Face (also via the clock page's menu > Clock menu).
 The time comes from the phone app when it connects; until then the clock shows `--:--`.
 
 </details>
@@ -294,7 +298,7 @@ The time comes from the phone app when it connects; until then the clock shows `
 <details>
 <summary><b>Time zone</b></summary>
 
-Settings > Clock > Zone: **-** / **+**, **Done** (button A: click = +1 h, double
+Settings > Screen > Clock > Zone: **-** / **+**, **Done** (button A: click = +1 h, double
 click = -1 h, long press = done). The phone can't set it: MeshCore's companion protocol only
 sends UTC. With **Daylight saving** set to US or EU, the zone is your standard time (e.g.
 UTC-5 for US Eastern) and summer time is added automatically. It's MeshCore's own
@@ -308,7 +312,7 @@ UTC-5 for US Eastern) and summer time is added automatically. It's MeshCore's ow
 While the clock isn't known (battery ran flat, battery switch, fresh flash), the times in
 received adverts set it once 3 different nodes agree within 5 minutes. The clock shows
 "(mesh)" after the date until the phone syncs. Only nodes already in your contacts count;
-outliers are ignored. **Reset clock** (Settings > Clock, tap twice) sets the clock back to
+outliers are ignored. **Reset clock** (Settings > Screen > Clock, tap twice) sets the clock back to
 "unknown", the way out of a wrong time ahead (MeshCore only moves the clock forward).
 
 </details>
@@ -322,7 +326,7 @@ The device shows messages but doesn't send them: no typing or replies, by design
 message that alerts (Settings > Sound > Alerts) shows a banner at the top for 6 s with the
 sender and the start of the text. Tap the envelope on the clock to read; swipe left for the
 next, right to go back. Messages count as read once the phone app downloads them, or when
-viewed on the device. **Do not disturb** (Settings > Night) keeps them silent and dark.
+viewed on the device. **Do not disturb** (Settings > Screen > Night) keeps them silent and dark.
 
 The ~120 most used emoji show in colour (the rest as a small block); curly quotes, dashes
 and accented letters show as their plain versions.
@@ -339,20 +343,23 @@ mute a channel in both places. The list shows up to 19 channels.
 
 Triple-press button A, or swipe down > Send SOS. After a 5 s countdown with beeps (Cancel,
 or press A), it sends "SOS! I need help. Location: lat,lon. Battery N%." to the channel in
-Settings > SOS to (default: **#emergency**, the shared hashtag channel, added to the channel
+Settings > Mesh > SOS to (default: **#emergency**, the shared hashtag channel, added to the channel
 list when an SOS needs it; a chosen channel that has gone falls back to it), and repeats
-every 5 min, 6 times in all, until you tap Stop. The location is the node's as set in the app.
+every 5 min, 6 times in all, until you **hold Stop** (a tap only reminds you, and button A
+doesn't stop it, so a stray press can't). It runs in the background: swipe away to read
+replies or use the device, and a red **SOS** chip in the header (tap it) or swipe down >
+**SOS active** brings its screen back. The location is the node's as set in the app.
 
 The first send also turns on **low power mode** (if it isn't on already), so the battery lasts
 as long as it can, but the radio keeps its full receive sensitivity, to hear any reply.
-Tapping Stop turns it back off; when the 6 sends are done it stays on. If a send can't go
+Stopping it turns that back off; when the 6 sends are done it stays on. If a send can't go
 out (MeshCore has no free packet), the screen says "SOS retrying" and it tries again after 30 s.
 
 </details>
 
 > [!CAUTION]
 > An SOS is real: it goes out over the mesh to everyone on that channel (#emergency is
-> shared). To try it, set **Settings > SOS to** a private channel of your own first.
+> shared). To try it, set **Settings > Mesh > SOS to** a private channel of your own first.
 
 ### Starlits
 
@@ -482,7 +489,7 @@ menu > Advert menu > **Hold** picks what its icon hold sends.
   scan (`meshcore://contact/add?...`).
 - **Flashlight** (power menu): the whole panel at full brightness, white or red (tap
   switches; red keeps night vision), 5 min unless touched.
-- **Rotation** (Settings > Display): Normal, Right, Flipped, Left, or **Auto** (the way
+- **Rotation** (Settings > Screen > Display): Normal, Right, Flipped, Left, or **Auto** (the way
   it's held, from the accelerometer; lying flat keeps the last). Touches turn with it.
 
 </details>
@@ -490,7 +497,7 @@ menu > Advert menu > **Hold** picks what its icon hold sends.
 <details>
 <summary><b>Display, sound and motion options</b></summary>
 
-- **Glass style** (Settings > Theme): a wallpaper in the theme's colours (Aurora, Dunes or
+- **Glass style** (Settings > Screen > Theme): a wallpaper in the theme's colours (Aurora, Dunes or
   Blend) or plain black (None), with cards as frosted panes and popups that blur what's
   behind them. It lights more of the screen than Normal, so it uses more power while the
   screen is on. The always-on clock stays on black. **Tilt light**: a glint on the glass
@@ -499,12 +506,12 @@ menu > Advert menu > **Hold** picks what its icon hold sends.
   Rainbow (every page in its own hue), and ChattaMesh ([chattamesh.com](https://chattamesh.com)'s
   colours in full: navy background, periwinkle, gold and green; the navy lights the whole
   panel, so it uses a little more power with the screen on than the black-background themes).
-- **Tap to wake** (Settings > Display, Off by default): taps wake a dark screen. Off, the
+- **Tap to wake** (Settings > Screen > Display, Off by default): taps wake a dark screen. Off, the
   touch controller sleeps while the screen is dark and only button A wakes it: in a night
   test that cut the screen-off battery drain by about 60%.
 - **Always-on**: instead of going dark, the time, date and an unread envelope on black at
   6 % brightness, moved each minute (burn-in care).
-- **Night** (Settings > Night): a lower brightness between two hours and/or do not disturb
+- **Night** (Settings > Screen > Night): a lower brightness between two hours and/or do not disturb
   (silent, dark, and your Starlit sleeps). There's no light sensor for auto brightness.
 - **Timeout**: 15 s, 30 s, 1 min, 5 min, or never while on USB (then it dims after a minute).
 - **Sound**: chime volume off / low / medium / high; tap sounds click / pop / tick plus a
@@ -517,7 +524,7 @@ menu > Advert menu > **Hold** picks what its icon hold sends.
 <details>
 <summary><b>PC link (PC tools and observer, over USB)</b></summary>
 
-Settings > PC link (off by default): the MeshCore app protocol over the USB serial port as
+Settings > Mesh > PC link (off by default): the MeshCore app protocol over the USB serial port as
 well as Bluetooth, both at once. Use it with PC apps (meshcore-cli, the Python library) or
 as an **observer**: every packet heard is pushed raw with its SNR / RSSI
 (`PUSH_CODE_LOG_RX_DATA`), for logging or an MQTT bridge on the PC. 115200 baud on the
@@ -529,7 +536,7 @@ CH343 port; flashing still works. Nothing is written until an app sends a frame.
 <summary><b>Bot (optional)</b></summary>
 
 Off by default; hold the Bot page's icon to turn it on. It auto-replies to messages sent with
-**1-byte path hashes**, asking the sender to switch to 2-byte. Settings > Bot (or the
+**1-byte path hashes**, asking the sender to switch to 2-byte. Settings > Mesh > Bot (or the
 page's menu > Bot menu): **Auto-reply**, **To DMs**, and **Channels** (off / DM / post in
 the channel), and its limits: by default each sender gets it at most once a day (**Repeat**),
 at most one reply a minute (**Gap**) and 20 a day in all (**Daily max**); never to
@@ -551,9 +558,9 @@ Starlit > Friends).
 - **Battery life** (companion, screen mostly off): an estimated **28-30 hours** on the
   480 mAh battery (about 29 mV per hour overnight, roughly 16-17 mA, measured with Bluetooth
   off; a connected phone and a busy mesh add roughly 10 %). With the screen off,
-  the touch controller sleeps (unless Settings > Display > Tap to wake is on) and the
+  the touch controller sleeps (unless Settings > Screen > Display > Tap to wake is on) and the
   audio chip powers down; the LoRa radio keeps listening all the time (about 5 mA of that).
-- **Low power mode** (Power menu, or Settings > Low power): for when only the mesh matters,
+- **Low power mode** (Power menu, or Settings > Power > Low power): for when only the mesh matters,
   say someone lost. The clock page becomes a minimal one (dimmer time on black, "Low power"
   under the date) and a small green leaf shows in the status icons. It turns off tap and
   swipe sounds (message chimes stay), the auto-reply bot, the motion sensor (button A wakes
