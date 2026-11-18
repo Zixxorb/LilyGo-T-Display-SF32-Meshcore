@@ -12,6 +12,7 @@ extern "C" {
 
 #define LOG_TAG "motion"
 #include <ulog.h>
+extern "C" void sf32_wake_loop(void);
 
 SF32Motion motion;
 
@@ -128,6 +129,7 @@ void SF32Motion::poll() {
     float c = x * _rx + y * _ry + z * _rz;  // cos(angle) to the resting direction
     if (c < PICKUP_COS) {
       _pickup = true;
+      sf32_wake_loop();  // (lift to wake: now, not at the next loop pass)
       _still_ticks = 0;
     }
   } else {

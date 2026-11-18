@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <FS.h>
 #include <string.h>
+extern "C" void sf32_wake_loop(void);
 #include <stdio.h>
 
 extern "C" {
@@ -339,6 +340,7 @@ uint8_t SF32SerialBLEInterface::onAttributeWrite(uint8_t conn_idx, uint8_t idx, 
     memcpy(f.buf, value, len);
     _last_activity = millis();
     rt_err_t r = rt_mq_send(&_rx_mq, &f, sizeof(f));  // dropped if the queue is full, as on ESP32
+    sf32_wake_loop();  // (the main loop may be waiting)
     LOG_D("rx frame %d bytes (cmd %d), queued %d", len, value[0], r);
   } else if (idx == NUS_TX_CCCD && len >= 1) {
     _notify_on = (value[0] & 0x01) != 0;

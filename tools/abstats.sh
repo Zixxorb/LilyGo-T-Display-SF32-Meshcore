@@ -1,5 +1,6 @@
 #!/bin/bash
-# Battery A/B test (SF32_LINK_AB=1: low power mode's slow Bluetooth link rhythm, 45 min stretches):
+# Battery A/B test (SF32_LINK_AB=1: low power mode's slow Bluetooth link rhythm; SF32_LOOP_AB=1: the
+# screen-off main loop waiting for events instead of 25 ms naps; 45 min stretches):
 # after a night on battery, plug USB back in and run this. From the unplug, normal and test
 # stretches alternate; it reads the battery voltage logged every 15 min (sf32_ab_log,
 # SF32Board.cpp) and compares each test stretch with the normal ones either side. The ELF
@@ -8,8 +9,12 @@ cd "$(dirname "$0")/.."
 source ./env.sh >/dev/null 2>&1
 elf="${ELF:-project_companion/build_t-display-sf32_hcpu/main.elf}"
 addr=$(arm-none-eabi-nm "$elf" | awk '/ sf32_ab_log$/{print $1}')
-[ -n "$addr" ] || { echo "no sf32_ab_log in this build (build with SF32_LINK_AB=1)"; exit 1; }
-export AB_A="link normal" AB_B="link SLOW" AB_STRETCH=3
+[ -n "$addr" ] || { echo "no sf32_ab_log in this build (build with SF32_LINK_AB=1 or SF32_LOOP_AB=1)"; exit 1; }
+if arm-none-eabi-nm "$elf" 2>/dev/null | grep -q " sf32_ab_test_stretch$" && ! arm-none-eabi-nm "$elf" | grep -q " sf32_ble_link_connected$"; then
+  export AB_A="25 ms loop" AB_B="EVENT wait" AB_STRETCH=3
+else
+  export AB_A="link normal" AB_B="link SLOW" AB_STRETCH=3
+fi
 port=$(readlink -f $(ls /dev/serial/by-id/*1a86* 2>/dev/null | head -1) 2>/dev/null)
 [ -n "$port" ] || { echo "board not found"; exit 1; }
 python3 tools/sf32_debug_uart.py "$port" mem "$addr" 38 | python3 -I -c '

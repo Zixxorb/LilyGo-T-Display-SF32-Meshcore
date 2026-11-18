@@ -17,6 +17,11 @@ volatile uint8_t sf32_ui_wait_ms = 1;  // while animating: how long until the ne
 // The companion UI sets this: 4 ms with the screen in use, 25 ms otherwise (fewer wakeups;
 // the radio holds a received packet, and packets take 30+ ms on air).
 volatile uint8_t sf32_loop_sleep_ms = 4;
+// The companion UI sets this (0: off): with the screen off on battery, wait up to this long for
+// something to happen (radio, touch, button, Bluetooth, lift) instead of napping 25 ms.
+volatile uint16_t sf32_loop_event_ms = 0;
+volatile uint32_t sf32_loop_passes = 0;  // main-loop passes since boot (read over the debug channel)
+extern "C" void sf32_loop_wait(uint32_t ms);  // SF32Board.cpp
 
 int main(void) {
 #if defined(SF32_LOG_LEVEL)
@@ -33,8 +38,13 @@ int main(void) {
   setup();
   while (1) {
     loop();
+    sf32_loop_passes++;
     if (sf32_ui_animating) {  // the UI is mid-animation: back in time for its next frame
       rt_thread_mdelay(sf32_ui_wait_ms);  // (until it's due, not 1 ms polls: each pass runs the whole loop)
+      continue;
+    }
+    if (sf32_loop_event_ms) {
+      sf32_loop_wait(sf32_loop_event_ms);
       continue;
     }
     // Let lower-priority threads (idle, timers) run; the idle thread sleeps the CPU.

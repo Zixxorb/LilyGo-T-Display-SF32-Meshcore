@@ -84,6 +84,7 @@ elif firmware == 'companion':
                                          (['SF32_SHOT_THEME'] if os.getenv('SF32_SHOT_THEME') == '1' else []) +  # README shots: Rainbow + Glass, not saved
                                          (['SF32_REMOTE_TOUCH'] if os.getenv('SF32_REMOTE_TOUCH') == '1' else []) +
                                          (['SF32_LINK_AB'] if os.getenv('SF32_LINK_AB') == '1' else []) +
+                                         (['SF32_LOOP_AB'] if os.getenv('SF32_LOOP_AB') == '1' else []) +
                                          (['SF32_CPU_TEST'] if os.getenv('SF32_CPU_TEST') == '1' else []) +
                                          (['SF32_CPU_TOGGLE_TEST'] if os.getenv('SF32_CPU_TOGGLE_TEST') == '1' else []) +
                                          (['SF32_PM_LOG'] if os.getenv('SF32_PM_LOG') == '1' else []) +

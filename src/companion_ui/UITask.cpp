@@ -50,6 +50,10 @@ extern volatile bool sf32_ui_animating;
 extern volatile uint8_t sf32_ui_wait_ms;
 extern "C" volatile uint32_t sf32_radio_tx, sf32_radio_rx;  // SF32Board.cpp: battery counters  // main.cpp: shorter main-loop sleep while set
 extern volatile uint8_t sf32_loop_sleep_ms;  // main.cpp: main-loop sleep
+extern volatile uint16_t sf32_loop_event_ms;  // main.cpp: screen off, on battery: wait for events up to this
+#ifdef SF32_LOOP_AB
+extern "C" bool sf32_ab_test_stretch(void);  // SF32Board.cpp: battery test, the event-wait stretches
+#endif
 #ifdef ENABLE_WIFI_INTERFACE
   #include <WiFi.h>
 #endif
@@ -788,6 +792,14 @@ void UITask::loop() {
     else if (!idle) board.setCpuLow(false);
 #endif
     sf32_loop_sleep_ms = screen_on && !_aod ? 4 : 25;
+    // screen dark on battery: wait for something to happen (radio, touch, button, Bluetooth,
+    // lift; at most 250 ms) instead of a 25 ms nap. Being tried (SF32_LOOP_AB) before it's the default.
+#ifdef SF32_LOOP_AB
+    bool event_wait = sf32_ab_test_stretch();
+#else
+    bool event_wait = false;
+#endif
+    sf32_loop_event_ms = event_wait && !screen_on && !board.isExternalPowered() ? 250 : 0;
     // sleep (power manager): awake while the screen (always-on too) or audio is on, the
     // first minute after boot, or with Power saving off
     board.holdAwake(SF32Board::AWAKE_SCREEN, screen_on);

@@ -137,8 +137,9 @@ static void pm_notify(uint8_t event, uint8_t mode, void*) {
 // board.loop(): start counting at the unplug (afresh), freeze at the replug
 #define PM_STATS_MIN_MS (5UL * 60 * 1000)
 
-#ifdef SF32_LINK_AB
-// Battery test build (SF32_LINK_AB=1): on battery, 45 min with the normal Bluetooth link
+#if defined(SF32_LINK_AB) || defined(SF32_LOOP_AB)
+// Battery test build (SF32_LINK_AB=1, or SF32_LOOP_AB=1: the screen-off loop waits for events
+// in the second stretches, see sf32_loop_wait): on battery, 45 min with the normal Bluetooth link
 // rhythm, then 45 min with low power mode's slow one, and so on (low power mode must be on,
 // a phone connected). The battery voltage every 15 min, and the minutes a phone was
 // connected in each kind of stretch, go to sf32_ab_log for tools/abstats.sh.
@@ -149,7 +150,9 @@ struct SF32AbLog {
   uint32_t a_conn_ms, a_n, b_conn_ms, b_n;      // connected time in each kind (n: loops seen)
 };
 volatile SF32AbLog sf32_ab_log;
+#ifdef SF32_LINK_AB
 bool sf32_ble_link_connected(void);  // SF32SerialBLEInterface.cpp
+#endif
 }
 #define AB_PHASE_MS  (45UL * 60 * 1000)
 #define AB_SAMPLE_MS (15UL * 60 * 1000)
@@ -157,6 +160,7 @@ static bool ab_second_stretch() {
   return s_pm_counting && sf32_pm_stats.batt_ms >= AB_PHASE_MS && (sf32_pm_stats.batt_ms / AB_PHASE_MS) % 2 == 1;
 }
 extern "C" bool sf32_link_ab_slow(void) { return ab_second_stretch(); }
+extern "C" bool sf32_ab_test_stretch(void) { return ab_second_stretch(); }  // (the UI: SF32_LOOP_AB)
 static void ab_log_loop(uint16_t mv) {
   static bool started = false;
   static unsigned long last = 0;
@@ -172,9 +176,11 @@ static void ab_log_loop(uint16_t mv) {
   }
   uint32_t d = (uint32_t)(now - last);
   last = now;
+#ifdef SF32_LINK_AB
   if (sf32_ble_link_connected()) {
     if (ab_second_stretch()) sf32_ab_log.b_conn_ms += d; else sf32_ab_log.a_conn_ms += d;
   }
+#endif
   if (ab_second_stretch()) sf32_ab_log.b_n++; else sf32_ab_log.a_n++;
   uint32_t n = sf32_ab_log.n;
   if (n < 64 && sf32_pm_stats.batt_ms >= n * AB_SAMPLE_MS) {
@@ -298,7 +304,28 @@ static void touchSleep() {
 }
 #endif
 
+// ---- the main loop's wait with the screen off (companion): instead of a 25 ms nap, wait for
+// something to happen: a radio interrupt (a packet in or out), a touch, button A, a Bluetooth
+// write, a lift (each calls sf32_wake_loop()), or at most the timeout. Interrupt-safe.
+static struct rt_event s_wake_ev;
+static volatile bool s_wake_ready = false;
+extern "C" void sf32_wake_loop(void) { if (s_wake_ready) rt_event_send(&s_wake_ev, 1); }
+extern "C" void sf32_loop_wait(uint32_t ms) {
+  if (!s_wake_ready) { rt_thread_mdelay(ms); return; }
+  rt_uint32_t e;
+  rt_event_recv(&s_wake_ev, 1, RT_EVENT_FLAG_OR | RT_EVENT_FLAG_CLEAR, rt_tick_from_millisecond(ms), &e);
+}
+#ifdef PIN_USER_BTN
+static void on_button_edge(void*) { sf32_wake_loop(); }  // (the button is polled: this only wakes the loop)
+#endif
+
 void SF32Board::begin() {
+  rt_event_init(&s_wake_ev, "wake", RT_IPC_FLAG_FIFO);
+  s_wake_ready = true;
+#ifdef PIN_USER_BTN
+  rt_pin_attach_irq(PIN_USER_BTN, PIN_IRQ_MODE_RISING_FALLING, on_button_edge, RT_NULL);
+  rt_pin_irq_enable(PIN_USER_BTN, PIN_IRQ_ENABLE);
+#endif
   // The SDK feeds the watchdog from the idle thread, which keeps it fed even if
   // MeshCore's loop is stuck. Feed it from loop() instead.
   if (rt_device_find("wdt")) rt_hw_watchdog_hook(0);
@@ -357,7 +384,7 @@ void SF32Board::loop() {
   }
 #ifdef RT_USING_PM
   pm_stats_loop(isExternalPowered());
-#ifdef SF32_LINK_AB
+#if defined(SF32_LINK_AB) || defined(SF32_LOOP_AB)
   ab_log_loop(getBattMilliVolts());
 #endif
 #endif

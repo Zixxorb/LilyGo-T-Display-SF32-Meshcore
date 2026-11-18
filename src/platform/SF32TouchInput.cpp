@@ -21,8 +21,10 @@ extern SF32RTCClock rtc_clock;
 SF32TouchInput touch_input;
 
 static volatile int s_pending_reads = 0;
+extern "C" void sf32_wake_loop(void);
 static rt_err_t on_touch(rt_device_t, rt_size_t) {
   s_pending_reads++;
+  sf32_wake_loop();
   sf32_pm_event(SF32_PM_EV_TOUCH_IRQ);
   return RT_EOK;
 }

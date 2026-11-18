@@ -136,3 +136,4 @@ extern "C" void sf32_cpu_full_speed();
 #define SF32_PM_EV_AUDIO_DOWN 2
 #define SF32_PM_EV_AUDIO_UP   3
 extern "C" void sf32_pm_event(int k);
+extern "C" void sf32_wake_loop(void);  // something happened: a main loop waiting for events goes on (ISR-safe)

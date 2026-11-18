@@ -90,6 +90,7 @@ void SF32SX1262Radio::onDio1(void* ctx) {
   // Interrupt context: just flag it. All SPI work happens in thread context.
   static_cast<SF32SX1262Radio*>(ctx)->_state |= STATE_INT_READY;
   sf32_pm_event(SF32_PM_EV_RADIO_IRQ);
+  sf32_wake_loop();  // (the main loop may be waiting for this)
 }
 
 void SF32SX1262Radio::begin() {
