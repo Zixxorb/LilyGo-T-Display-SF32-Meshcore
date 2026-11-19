@@ -318,14 +318,23 @@ extern "C" void sf32_loop_wait(uint32_t ms) {
 #ifdef PIN_USER_BTN
 static void on_button_edge(void*) { sf32_wake_loop(); }  // (the button is polled: this only wakes the loop)
 #endif
+// Button A wakes the loop on both edges. Call it after anything sets the pin's mode
+// (MomentaryButton::begin's pinMode): SiFli's pin_mode turns a pin's interrupt off
+// (GPIO_MODE_INPUT: DISABLE_ISR), and its irq_enable for both edges drops the pull to none,
+// so the pad's pull-down is put back after (as powerOff() does for the wake pin).
+extern "C" void sf32_button_wake_arm(void) {
+#ifdef PIN_USER_BTN
+  rt_pin_irq_enable(PIN_USER_BTN, PIN_IRQ_DISABLE);
+  rt_pin_detach_irq(PIN_USER_BTN);
+  if (rt_pin_attach_irq(PIN_USER_BTN, PIN_IRQ_MODE_RISING_FALLING, on_button_edge, RT_NULL) == RT_EOK)
+    rt_pin_irq_enable(PIN_USER_BTN, PIN_IRQ_ENABLE);
+  HAL_PIN_Set(PAD_PA34, GPIO_A34, PIN_PULLDOWN, 1);  // (PIN_USER_BTN is PA34)
+#endif
+}
 
 void SF32Board::begin() {
   rt_event_init(&s_wake_ev, "wake", RT_IPC_FLAG_FIFO);
   s_wake_ready = true;
-#ifdef PIN_USER_BTN
-  rt_pin_attach_irq(PIN_USER_BTN, PIN_IRQ_MODE_RISING_FALLING, on_button_edge, RT_NULL);
-  rt_pin_irq_enable(PIN_USER_BTN, PIN_IRQ_ENABLE);
-#endif
   // The SDK feeds the watchdog from the idle thread, which keeps it fed even if
   // MeshCore's loop is stuck. Feed it from loop() instead.
   if (rt_device_find("wdt")) rt_hw_watchdog_hook(0);

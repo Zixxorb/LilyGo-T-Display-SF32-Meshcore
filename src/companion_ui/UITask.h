@@ -158,6 +158,8 @@ class UITask : public AbstractUITask {
   UIScreen* sos_screen = NULL;
   UIScreen* qr_screen = NULL;
   UIScreen* scan_screen = NULL;  // Radio > Band scan
+  UIScreen* _lora_return = NULL;  // LoRa networks: where it goes back to
+  UIScreen* lora_screen = NULL;  // Radio > LoRa networks (ui_lora.inc)
   UIScreen* friends_screen = NULL;  // Starlit > Friends (ui_pet.inc)
   UIScreen* _scan_return = NULL;
   UIScreen* _qr_return = NULL;
@@ -310,6 +312,8 @@ public:
   bool isRadioScreen() const;
   bool dndNow() const;  // do not disturb active (night hours)
   bool radioHasChanges() const;
+  void openLora();   // LoRa networks (ui_lora.inc)
+  void closeLora();
   void openScan();   // band scan (ui_scan.inc)
   void closeScan();
   void openFriends();  // the Starlits of the nodes heard (ui_pet.inc)

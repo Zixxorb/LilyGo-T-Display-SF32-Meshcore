@@ -597,6 +597,7 @@ void UITask::menuAction(uint8_t action) {
     case ACT_SHARE_QR: openQr(); break;
     case ACT_FLASHLIGHT: openFlashlight(); break;
     case ACT_BAND_SCAN: openScan(); break;
+    case ACT_LORA_NETS: openLora(); break;
     case ACT_POWER_SAVE:  // the chip sleeping with the screen off: Off is the way back if it misbehaves
       _ui_prefs.power_save = !_ui_prefs.power_save;
       saveUIPrefs();
@@ -901,7 +902,7 @@ void UITask::handleTouchMenus() {
   bool page_taps = curr == home;  // every home page: taps never change the page (only swipes do)
   bool editor = isRadioScreen() || curr == theme_screen || curr == about_screen || curr == logs_screen ||
                 curr == tz_screen || curr == hour_screen || curr == sos_screen ||
-                curr == qr_screen || curr == scan_screen || curr == friends_screen || curr == msg_preview;
+                curr == qr_screen || curr == scan_screen || curr == lora_screen || curr == friends_screen || curr == msg_preview;
   touch_input.setDirectTaps(curr == menu || editor || page_taps);
   if (_drag_on && (curr != home || _display == NULL || !_display->isOn())) {
     _drag_on = false;  // something else took over mid-drag: the next frame draws what's current
@@ -1017,6 +1018,7 @@ void UITask::handleTouchMenus() {
     else if (curr == sos_screen) leaveSos();  // sending: away from it (it carries on); counting down: stays
     else if (curr == qr_screen) closeQr();
     else if (curr == scan_screen) closeScan();
+    else if (curr == lora_screen) closeLora();
     else if (curr == friends_screen) { if (!((FriendsScreen*)friends_screen)->back()) closeFriends(); }
     else if (curr == menu) {
       // a panel goes back the way it came. The power menu came down from
@@ -1097,6 +1099,8 @@ void UITask::handleTouchMenus() {
   } else if (curr == friends_screen) {
     if (!((FriendsScreen*)friends_screen)->handleTap(x, y)) closeFriends();  // a friend: its card; a card: Battery, or back
     _next_refresh = 0;
+  } else if (curr == lora_screen) {
+    ((LoraScreen*)lora_screen)->reset();  // tap: clear the list
   } else if (curr == scan_screen) {
     ((ScanScreen*)scan_screen)->reset();  // tap: start over (clears the max hold)
   } else if (curr == qr_screen) {

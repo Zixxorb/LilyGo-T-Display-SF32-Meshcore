@@ -49,7 +49,7 @@ device shows what's happening on the mesh, tests links, finds repeaters and keep
 | Feature | What it does |
 |---|---|
 | **7 clock faces** | Color, Sun (sun and moon on the sky's arc), Starlit, Digital, Analog, Big, Info. Hold the clock to switch |
-| **Signal tools** | Signal tester, repeater **finder** (warmer/colder), 902-928 MHz **band scan** |
+| **Signal tools** | Signal tester, repeater **finder** (warmer/colder), 902-928 MHz **band scan**, **LoRa networks** nearby (Meshtastic, MeshCore, LoRaWAN) |
 | **Mesh at a glance** | Activity graph, heard nodes, **My Nodes**, one **card per node** (details, path-hash size, battery on request) |
 | **Battery** | 48 h history graph, time left, low-battery protection |
 | **Starlits** | A little critter of your own, fed by the mesh traffic it hears: stroke it, boop it, play. It reflects the device and shows **today's finds**; meet your friends' Starlits |
@@ -213,7 +213,7 @@ your finger and glide after a flick.
 | **Status** | Unread, messages waiting for the app, Bluetooth PIN or node name |
 | **Battery** | Charge, voltage, chip temperature, time left, 48 h graph |
 | **Heard** | Recently heard nodes |
-| **Radio** | Frequency, BW, SF, CR, TX power, noise floor. Menu: edit radio, **RX gain** (Boost: hears weaker signals for ~0.7 mA more; Normal), band scan |
+| **Radio** | Frequency, BW, SF, CR, TX power, noise floor. Menu: edit radio, **RX gain** (Boost: hears weaker signals for ~0.7 mA more; Normal), band scan, LoRa networks |
 | **Bluetooth** | Connection; menu: on/off, **Pair phone** (a new phone can pair only for 2 min after this, or in the first 5 min after start while none is paired; one wrong PIN closes it), forget paired phones |
 | **Advert** | Send an advert (hold the icon or long press button A: nearby or whole mesh, your choice) |
 | **Bot** | Optional auto-reply to senders using 1-byte path hashes (off by default), and how many nearby nodes are on 2-byte |
@@ -445,6 +445,14 @@ Presets: MeshCore's USA/Canada, Australia and New Zealand (narrow).
 **Band scan** (Radio page menu): the noise level across 902-928 MHz in 250 kHz steps, swept
 continuously, with max-hold marks, our channel marked, and the strongest frequency below.
 MeshCore keeps receiving while it runs. Tap to reset.
+
+**LoRa networks** (Radio page menu): which LoRa networks are on the air nearby, each with when
+it was last heard and how strong. The radio checks each one's settings in turn with channel
+activity detection (two checks in a row must agree, so noise rarely counts): your own mesh,
+MeshCore's US default, Meshtastic's US presets (**MT** LongFast 906.875 MHz, MediumFast,
+MediumSlow, ShortFast, ShortTurbo) and LoRaWAN (sub-band 2 devices, which hop and are caught
+less often, and gateways). It only tells that they're there: nothing is decoded. About 40% of
+the time the radio is off our channel, so the mesh hears less well while it's open. Tap to clear.
 
 </details>
 

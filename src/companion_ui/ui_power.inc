@@ -364,6 +364,7 @@ void UITask::goBack() {
   else if (curr == msg_preview) { gotoHomeScreen(); d->setTransition(SF32Display::TRANSITION_RIGHT); }  // messages stay unread
   else if (curr == qr_screen) closeQr();
   else if (curr == scan_screen) closeScan();
+  else if (curr == lora_screen) closeLora();
   else if (curr == friends_screen) { if (!((FriendsScreen*)friends_screen)->back()) closeFriends(); }
   else if (curr == about_screen) closeAbout();
   else if (curr == logs_screen) { if (((LogScreen*)logs_screen)->inDetail()) ((LogScreen*)logs_screen)->closeDetail(); else closeLogs(); }  // an entry: back to the list

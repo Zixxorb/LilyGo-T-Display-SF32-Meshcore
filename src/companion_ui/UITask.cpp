@@ -41,7 +41,8 @@
 extern MultiSerialInterface interface_manager;  // companion main.cpp
 #include <helpers/rp2040/SerialBLEInterface.h>  // SF32SerialBLEInterface (compat/)
 
-extern SerialBLEInterface bluetooth_interface;  // MeshCore's companion main.cpp
+extern SerialBLEInterface bluetooth_interface;
+extern "C" void sf32_button_wake_arm(void);  // SF32Board.cpp  // MeshCore's companion main.cpp
 #include <helpers/TxtDataHelpers.h>
 #include <MyMesh.h>
 #include "target.h"
@@ -265,6 +266,7 @@ void UITask::begin(DisplayDriver* display, SensorManager* sensors, NodePrefs* no
 
 #if defined(PIN_USER_BTN)
   user_btn.begin();
+  sf32_button_wake_arm();  // SF32: after its pinMode (which turns the pin's interrupt off)
 #endif
 #if defined(PIN_USER_BTN_ANA)
   analog_btn.begin();
@@ -329,6 +331,7 @@ static uint32_t findsToday() {
 
 #include "ui_qr.inc"  // share contact as a QR code
 #include "ui_scan.inc"  // band scan (Radio page)
+#include "ui_lora.inc"  // LoRa networks (Radio page): which LoRa networks are on the air
 #include "ui_sos.inc"  // Mesh SOS: countdown, send to a channel, repeat
 
 #include "ui_prefs.inc"  // time zone offset, screen resume, the UI settings file (/sf32_ui)
@@ -686,7 +689,7 @@ void UITask::loop() {
   if (signal_tester.running && _display != NULL && _display->isOn() && !_aod) {
     _auto_off = millis() + autoOffMillis();  // SF32: stays on while testing (stops by itself)
   }
-  if (curr == scan_screen && _display != NULL && _display->isOn() && millis() - _user_at < 5UL * 60 * 1000) {
+  if ((curr == scan_screen || curr == lora_screen) && _display != NULL && _display->isOn() && millis() - _user_at < 5UL * 60 * 1000) {
     _auto_off = millis() + autoOffMillis();  // SF32: band scan: stays on while watched (5 min after the last touch)
   }
   if (!_startup_sound_done && _display != NULL && _display->isOn()) {
@@ -945,7 +948,7 @@ void UITask::loop() {
     _auto_off = millis() + autoOffMillis();  // SF32: any swipe counts as activity
   }
   bool sub_screen = curr == menu || curr == theme_screen || curr == about_screen || curr == logs_screen ||
-                    curr == tz_screen || curr == hour_screen || curr == sos_screen || curr == qr_screen || curr == scan_screen || curr == friends_screen ||
+                    curr == tz_screen || curr == hour_screen || curr == sos_screen || curr == qr_screen || curr == scan_screen || curr == lora_screen || curr == friends_screen ||
                     curr == msg_preview || isRadioScreen();
   if (rotaryEv == RotaryInputEvent::Prev && sub_screen && _display != NULL && _display->isOn()) {
     goBack();  // SF32: swipe right (finger left -> right) = back

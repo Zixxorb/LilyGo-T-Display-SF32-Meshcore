@@ -42,6 +42,7 @@ public:
   uint32_t getRngSeed();
   float getCurrentRSSI();
   uint8_t getSpreadingFactor() const { return _sf; }
+  float getBandwidth() const { return _bw_khz; }
   void powerOff();
   bool setRxBoostedGainMode(bool enable);
   bool getRxBoostedGainMode() const { return _rx_boost; }
@@ -66,6 +67,12 @@ public:
   int sampleNoise(int samples, int* lo = nullptr, int* hi = nullptr);  // avg instant RSSI in RX
   uint32_t frequencyHz() const { return _radio.config.frequency_hz; }
   void setFrequencyHz(uint32_t hz);
+  // LoRa network finder: channel activity detection (CAD) on other LoRa settings. Returns 1 if
+  // LoRa with this spreading factor and bandwidth is on the air there (two CADs in a row, so
+  // noise rarely counts), 0 if not, < 0 on an error; rssi gets the level then. The radio is
+  // left off our channel: restoreParams() puts MeshCore's settings back and listens again.
+  int cadProbe(uint32_t hz, float bw_khz, uint8_t sf, bool invert_iq, int* rssi);
+  void restoreParams();
   void setRegulatorLDO(bool ldo);
 
 private:
@@ -94,6 +101,9 @@ private:
   int32_t _floor_sample_sum = 0;
 
   float _bw_khz = 125;
+  bool _probed = false;    // cadProbe() left other settings in the radio
+  uint32_t _home_hz = 0;
+  int cadOnce(uint8_t sf, uint32_t bw_hz);
   uint8_t _sf = 9, _cr = 5;
   bool _rx_boost = false;
   bool _lp_gain = false;

@@ -487,6 +487,65 @@ int SF32SX1262Radio::sampleNoise(int samples, int* lo, int* hi) {
   return samples ? sum / samples : 0;
 }
 
+// ---- LoRa network finder (see the header) ----
+// SetCadParams detection peaks by spreading factor, for 4 symbols (Semtech AN1200.48)
+static const uint8_t CAD_PEAK[13] = {0, 0, 0, 0, 0, 22, 22, 22, 22, 23, 24, 25, 28};
+
+int SF32SX1262Radio::cadOnce(uint8_t sf, uint32_t bw_hz) {
+  clearIrqStatus(SX126X_IRQ_ALL);
+  const uint16_t m = SX126X_IRQ_CAD_DONE | SX126X_IRQ_CAD_DETECTED;
+  uint8_t irq[8] = {(uint8_t)(m >> 8), (uint8_t)m, (uint8_t)(m >> 8), (uint8_t)m, 0, 0, 0, 0};
+  Module_writeCommand(&_module, SX126X_CMD_SET_DIO_IRQ_PARAMS, irq, sizeof(irq), true);
+  uint8_t cad[7] = {0x02 /* 4 symbols */, CAD_PEAK[sf], 10 /* detMin */, 0x00 /* CAD only */, 0, 0, 0};
+  Module_writeCommand(&_module, SX126X_CMD_SET_CAD_PARAMS, cad, sizeof(cad), true);
+  _state = STATE_IDLE;  // (CAD-done raises DIO1: not a packet)
+  Module_writeCommand(&_module, SX126X_CMD_SET_CAD, NULL, 0, true);
+  uint32_t limit_ms = (uint32_t)((4ULL * (1000000ULL << sf) / bw_hz) / 1000) + 20;
+  unsigned long t0 = millis();
+  while (!(_state & STATE_INT_READY) && millis() - t0 < limit_ms) rt_thread_mdelay(1);
+  uint8_t st = 0, d[2] = {0, 0};
+  Module_readCommand(&_module, SX126X_CMD_GET_IRQ_STATUS, &st, d, 2);
+  uint16_t f = ((uint16_t)d[0] << 8) | d[1];
+  clearIrqStatus(SX126X_IRQ_ALL);
+  _state = STATE_IDLE;
+  if (!(f & SX126X_IRQ_CAD_DONE)) { SX126x_standby(&_radio); return -2; }
+  return (f & SX126X_IRQ_CAD_DETECTED) ? 1 : 0;
+}
+
+int SF32SX1262Radio::cadProbe(uint32_t hz, float bw_khz, uint8_t sf, bool invert_iq, int* rssi) {
+  SX126xBandwidth_t bw;
+  if (sf < 5 || sf > 12 || !bandwidth_from_khz(bw_khz, &bw)) return -1;
+  if (!_probed) { _home_hz = _radio.config.frequency_hz; _probed = true; }
+  idle();
+  SX126x_setFrequency(&_radio, hz);
+  SX126x_setBandwidth(&_radio, bw);
+  SX126x_setSpreadingFactor(&_radio, sf);
+  if (_radio.config.invert_iq != invert_iq) SX126x_setInvertIQ(&_radio, invert_iq);
+  uint32_t bw_hz = kBandwidthsHz[bw];
+  int r = cadOnce(sf, bw_hz);
+  if (r == 1) r = cadOnce(sf, bw_hz);  // again: still there (a packet lasts far longer than a CAD)
+  if (r == 1 && rssi) {
+    startRecv();
+    rt_thread_mdelay(3);
+    *rssi = (int)getCurrentRSSI();
+    idle();
+  }
+  return r;
+}
+
+void SF32SX1262Radio::restoreParams() {
+  if (!_probed) return;
+  _probed = false;
+  SX126xBandwidth_t bw;
+  idle();
+  SX126x_setFrequency(&_radio, _home_hz);
+  if (bandwidth_from_khz(_bw_khz, &bw)) SX126x_setBandwidth(&_radio, bw);
+  SX126x_setSpreadingFactor(&_radio, _sf);
+  if (_radio.config.invert_iq) SX126x_setInvertIQ(&_radio, false);
+  updateTiming();
+  startRecv();
+}
+
 void SF32SX1262Radio::setFrequencyHz(uint32_t hz) {
   idle();
   SX126x_setFrequency(&_radio, hz);
