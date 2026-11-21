@@ -4,23 +4,28 @@
 #include <helpers/ui/UIScreen.h>  // KEY_*
 
 // Trackball: four Hall sensors, each output toggles as the ball rolls past (interrupts count the
-// edges). EDGES_PER_STEP edges make one key, so a light touch doesn't move things; after a key
-// the ball is ignored for BALL_REST_MS (one roll, one step: a page, a menu row).
+// edges). Enough edges make one key, so a light touch doesn't move things; after a key the ball
+// rests a moment (one roll, one step: a page, a menu row).
 #define BALL_UP     3
 #define BALL_RIGHT  2
 #define BALL_DOWN   15
 #define BALL_LEFT   1
-#define EDGES_PER_STEP 4
-#define BALL_REST_MS   180
+// sideways turns a page: it takes more rolling, and rests longer, than up/down in a menu
+#define EDGES_SIDEWAYS 7
+#define EDGES_UPDOWN   4
+#define REST_SIDEWAYS_MS 400
+#define REST_UPDOWN_MS   180
+#define BALL_FORGET_MS 300  // no edges for this long: a part roll is forgotten
 // Keyboard: an ESP32-C3 on I2C 0x55; reading a byte gives the last key's ASCII (0: none)
 #define KB_ADDR     0x55
 #define KB_POLL_MS  30
 
 static volatile int16_t s_edges[4];  // up, right, down, left
-static void IRAM_ATTR on_up() { s_edges[0]++; }
-static void IRAM_ATTR on_right() { s_edges[1]++; }
-static void IRAM_ATTR on_down() { s_edges[2]++; }
-static void IRAM_ATTR on_left() { s_edges[3]++; }
+static volatile unsigned long s_edge_ms = 0;  // the last edge
+static void IRAM_ATTR on_up() { s_edges[0]++; s_edge_ms = millis(); }
+static void IRAM_ATTR on_right() { s_edges[1]++; s_edge_ms = millis(); }
+static void IRAM_ATTR on_down() { s_edges[2]++; s_edge_ms = millis(); }
+static void IRAM_ATTR on_left() { s_edges[3]++; s_edge_ms = millis(); }
 static bool s_kb = false;
 
 void tdeckKeysBegin() {
@@ -49,13 +54,19 @@ static char ballKey() {
     for (int i = 0; i < 4; i++) s_edges[i] = 0;  // (resting: what it rolls now doesn't count)
     return 0;
   }
+  unsigned long last = s_edge_ms;  // (read first: an edge may come in meanwhile)
+  if ((long)(millis() - last) > BALL_FORGET_MS) {  // stopped part way: start again
+    for (int i = 0; i < 4; i++) s_edges[i] = 0;
+    return 0;
+  }
   int best = -1, n = 0;
   for (int i = 0; i < 4; i++) if (s_edges[i] > n) { n = s_edges[i]; best = i; }
-  if (best < 0 || n < EDGES_PER_STEP) return 0;
+  bool sideways = best == 1 || best == 3;
+  if (best < 0 || n < (sideways ? EDGES_SIDEWAYS : EDGES_UPDOWN)) return 0;
   noInterrupts();
   for (int i = 0; i < 4; i++) s_edges[i] = 0;
   interrupts();
-  rest_until = millis() + BALL_REST_MS;
+  rest_until = millis() + (sideways ? REST_SIDEWAYS_MS : REST_UPDOWN_MS);
   return keys[best];
 }
 
