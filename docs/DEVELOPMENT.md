@@ -384,7 +384,10 @@ shared with the SF32, not copied:
   `SOURCE_DATE_EPOCH` before and after and compare `main.bin` (byte-identical so far).
 
 For now the UI is the SF32's 128x128 layout at 1.875x, centred (layout B, widening it to fill
-the 320x240 screen, comes next). Touch works; of the trackball only the click so far.
+the 320x240 screen, comes next). Touch works. Trackball and keyboard (`TDeckKeys.cpp`): rolling
+left/right = previous/next, up/down = the swipe menus on the home pages and up/down elsewhere
+(one step per roll), the click = the SF32's button A; Enter selects, Backspace goes back, Space
+is next.
 
 ```sh
 cd tdeck

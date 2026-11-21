@@ -4,6 +4,7 @@
 #include <SPIFFS.h>
 #include "SF32RTCClock.h"
 #include "TDeckDevices.h"
+#include "TDeckKeys.h"
 
 void TDeckBoard::begin() {
   // The screen, LoRa radio and microSD share one SPI bus: every chip select high (idle)
@@ -31,6 +32,7 @@ void TDeckBoard::begin() {
   for (uint32_t t = millis(); !Serial && millis() - t < 2000; ) delay(10);
 
   tdeckTrimContacts();  // before MeshCore loads them (see TDeckContacts.h)
+  tdeckKeysBegin();
 }
 
 #ifdef TDECK_SHOT

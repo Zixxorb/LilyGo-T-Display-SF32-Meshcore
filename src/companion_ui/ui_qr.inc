@@ -66,9 +66,15 @@ public:
     }
     // QR with a 4-module quiet zone, whole panel pixels per module, centred
     int size = qrcodegen_getSize(_qr);
+#ifdef VESPER_TDECK  // 320x240, the UI's square at 1.875x from the top: the same place in UI px
+    int m = 185 / (size + 8);
+    int box = (size + 8) * m;
+    int x0 = 160 - box / 2, y0 = 22;
+#else
     int m = 345 / (size + 8);
     int box = (size + 8) * m;
     int x0 = 240 - box / 2, y0 = 58;
+#endif
     display.setColor(0xFFFF);
     d.fillPanelRect(x0, y0, box, box);
     display.setColor(0x0000);

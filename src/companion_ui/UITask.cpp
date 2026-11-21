@@ -37,6 +37,9 @@
 #include "SF32Sound.h"
 #include "SF32Motion.h"
 #include "SF32UsbInterface.h"
+#ifdef VESPER_TDECK
+#include "TDeckKeys.h"
+#endif
 #include <helpers/MultiSerialInterface.h>
 extern MultiSerialInterface interface_manager;  // companion main.cpp
 #include <helpers/rp2040/SerialBLEInterface.h>  // SF32SerialBLEInterface (compat/)
@@ -994,6 +997,22 @@ void UITask::loop() {
     expander.digitalWrite(EXP_PIN_BACKLIGHT, !touch_state);
 #endif
     next_backlight_btn_check = millis() + 300;
+  }
+#endif
+
+#ifdef VESPER_TDECK  // the T-Deck's trackball rolling and keyboard (src/tdeck/TDeckKeys.cpp)
+  if (c == 0) {
+    char k = tdeckTakeKey();
+    if (k == KEY_CANCEL) {  // Backspace: back a screen
+      if (checkDisplayOn(k) && curr != home) goBack();
+    } else if ((k == KEY_UP || k == KEY_DOWN) && curr == home) {  // rolled up / down: as a swipe there
+      if (checkDisplayOn(k) && !_aod) openMenu(k == KEY_UP ? MENU_PAGE : MENU_POWER);
+    } else if (k == KEY_UP || k == KEY_DOWN) {
+      // menus move their selection; elsewhere (lists, values) up/down are previous/next
+      c = checkDisplayOn(curr == menu ? k : k == KEY_UP ? KEY_PREV : KEY_NEXT);
+    } else if (k) {
+      c = checkDisplayOn(k);
+    }
   }
 #endif
 
