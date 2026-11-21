@@ -53,6 +53,7 @@ ColorVal UIColor::corp_blue = RGB565(0x4C, 0x8D, 0xFF);      // MeshCore blue ac
 // Logical (128x64) -> panel mapping, and the clip area (the logical screen).
 #define AREA_W   ((int)(SF32Display::W * SF32Display::SCALE + 0.5f))
 #define WIDE_H   ((int)(SF32Display::H * SF32Display::SCALE + 0.5f))
+#define SQUARE_H ((int)(SF32Display::SQ_H * SF32Display::SCALE + 0.5f))  // (the SF32: = AREA_W)
 // Burn-in care: the whole layout can move a few pixels (setPixelShift).
 static int s_shift_x = 0, s_shift_y = 0;
 #define OFFSET_X ((PANEL_W - AREA_W) / 2 + s_shift_x)
@@ -228,7 +229,7 @@ void SF32Display::setPixelShift(int dx, int dy) {
 }
 
 void SF32Display::panelToLogical(int px, int py, int& x, int& y) {
-  int off = (PANEL_H - AREA_W) / 2 + s_shift_y;  // square layout: AREA_W x AREA_W, centred
+  int off = (PANEL_H - SQUARE_H) / 2 + s_shift_y;  // full-panel layout: AREA_W x SQUARE_H, centred
   x = (int)floorf((px - OFFSET_X) / SCALE);
   y = (int)floorf((py - off) / SCALE);
 }
@@ -679,7 +680,7 @@ void SF32Display::composeSprites(int x, int y, int w, int h, int src_px) {
 }
 
 void SF32Display::setSquareLayout(bool square) {
-  s_area_h = square ? AREA_W : WIDE_H;
+  s_area_h = square ? SQUARE_H : WIDE_H;
   s_offset_y = (PANEL_H - s_area_h) / 2;
 }
 

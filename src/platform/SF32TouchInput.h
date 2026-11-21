@@ -16,8 +16,8 @@
 #define TOUCH_VIRTUAL_PIN 0x7F  // analogRead() pin for the virtual tap button
 // a page drag on screens that take other swipes starts this close to the side (panel px)
 #ifdef VESPER_TDECK
-#define TOUCH_EDGE_L 111   // (the T-Deck: the same UI x as the SF32's, 38 and 90)
-#define TOUCH_EDGE_R 208
+#define TOUCH_EDGE_L 71    // (the T-Deck: 38 UI px from each side, as the SF32's)
+#define TOUCH_EDGE_R 247
 #else
 #define TOUCH_EDGE_L 150
 #define TOUCH_EDGE_R 330

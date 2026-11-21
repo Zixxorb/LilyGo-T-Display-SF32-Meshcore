@@ -70,7 +70,7 @@ public:
     display.fillRect(0, 0, 128, 3);
     display.fillRect(0, 125, 128, 3);
     display.setTextSize(2);
-    display.drawTextCentered(64, 10, "SOS");
+    display.drawTextCentered(UI_CX, 10, "SOS");
 
     uint8_t st = _task->sosState();
     if (st == SOS_COUNTDOWN) {
@@ -78,37 +78,37 @@ public:
       display.setTextSize(5);
       display.setColor(UIColor::primary_txt);
       sprintf(tmp, "%d", left);
-      display.drawTextCentered(64, 32, tmp);
+      display.drawTextCentered(UI_CX, 32, tmp);
       display.setTextSize(1);
       display.setColor(UIColor::secondary_txt);
       sprintf(tmp, "sending to %s", chan);
-      display.drawTextCentered(64, 82, tmp);
+      display.drawTextCentered(UI_CX, 82, tmp);
       themeCard(display, 14, 96, 100, 22);
       display.setTextSize(2);
       display.setColor(UIColor::primary_txt);
-      display.drawTextCentered(64, 100, "Cancel");
+      display.drawTextCentered(UI_CX, 100, "Cancel");
       return 200;
     }
     display.setTextSize(2);
     display.setColor(st == SOS_DONE ? UIColor::primary_txt : THEME_RED);
     bool none = st == SOS_DONE && _task->sosSent() == 0;  // no channel to send to
     bool trying = st == SOS_ACTIVE && _task->sosSent() == 0;  // none has gone out yet (retrying)
-    display.drawTextCentered(64, 36, none ? "SOS not sent" : st == SOS_DONE ? "SOS finished" : trying ? "SOS retrying" : "SOS sent");
+    display.drawTextCentered(UI_CX, 36, none ? "SOS not sent" : st == SOS_DONE ? "SOS finished" : trying ? "SOS retrying" : "SOS sent");
     display.setTextSize(1);
     display.setColor(UIColor::secondary_txt);
     if (none) strcpy(tmp, "channel list full");  // (no room to add #emergency)
     else sprintf(tmp, "to %s, %d of %d", chan, _task->sosSent(), SOS_SENDS);
-    display.drawTextCentered(64, 60, tmp);
+    display.drawTextCentered(UI_CX, 60, tmp);
     if (st == SOS_ACTIVE) {
       int s = _task->sosSecondsLeft();
       sprintf(tmp, "again in %d:%02d", s / 60, s % 60);
-      display.drawTextCentered(64, 72, tmp);
-      display.drawTextCentered(64, 84, "hold Stop to end it");  // (swipe away: it keeps sending)
+      display.drawTextCentered(UI_CX, 72, tmp);
+      display.drawTextCentered(UI_CX, 84, "hold Stop to end it");  // (swipe away: it keeps sending)
     }
     themeCard(display, 14, 96, 100, 22);
     display.setTextSize(2);
     display.setColor(UIColor::primary_txt);
-    display.drawTextCentered(64, 100, st == SOS_DONE ? "Close" : "Stop");
+    display.drawTextCentered(UI_CX, 100, st == SOS_DONE ? "Close" : "Stop");
     return 1000;
   }
 

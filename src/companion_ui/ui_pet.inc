@@ -847,21 +847,21 @@ public:
       d.translateUTF8ToBlocks(name, c.name, sizeof(name));
       d.setTextSize(1);
       d.setColor(UIColor::primary_txt);
-      if (d.getTextWidth(name) > 120) d.drawTextEllipsized(4, 72, 120, name); else d.drawTextCentered(64, 72, name);
+      if (d.getTextWidth(name) > UI_W - 8) d.drawTextEllipsized(4, 72, UI_W - 8, name); else d.drawTextCentered(UI_CX, 72, name);
       d.setColor(UIColor::secondary_txt);
       sprintf(tmp, "%s Starlit%s", PetGame::kindName((seed >> 3) & 3), (c.flags & 1) ? "  -  favourite" : "");
-      d.drawTextCentered(64, 82, tmp);
+      d.drawTextCentered(UI_CX, 82, tmp);
       uint32_t now = rtc_clock.getCurrentTime();
       if (c.lastmod && now >= c.lastmod) formatAge(heard, now - c.lastmod); else strcpy(heard, "-");
       int hops = c.out_path_len & 63;
       if (c.out_path_len == OUT_PATH_UNKNOWN) sprintf(tmp, "heard %s  -  flood", heard);
       else if (hops == 0) sprintf(tmp, "heard %s  -  direct", heard);
       else sprintf(tmp, "heard %s  -  %d hop%s", heard, hops, hops == 1 ? "" : "s");
-      d.drawTextCentered(64, 92, tmp);
+      d.drawTextCentered(UI_CX, 92, tmp);
       if (hs) sprintf(tmp, "%d-byte path hashes%s", hs, hs == 1 && hash_sizes.nudged(c.id.pub_key) ? ", nudged" : "");
       else strcpy(tmp, "path hash size not known yet");
       d.setColor(hs >= 2 ? THEME_ACCENT : (hs == 1 ? UIColor::warning_txt : THEME_DIM));
-      d.drawTextCentered(64, 102, tmp);
+      d.drawTextCentered(UI_CX, 102, tmp);
       // the Battery button: asks it (once, when tapped); shows the answer
       NodeReading* r = my_nodes.reading(c.id.pub_key, false);
       if (NodePing::pingable(c)) {  // a repeater / room server: Battery and Ping, side by side
@@ -895,9 +895,9 @@ public:
         bc = pct <= 15 ? UIColor::warning_txt : THEME_ACCENT;
       } else if (r && r->state == 2) strcpy(tmp, "Battery: not shared");
       else strcpy(tmp, "Battery: tap to ask");
-      themeCard(d, 4, CARD_BTN_Y, 120, 14);
+      themeCard(d, 4, CARD_BTN_Y, UI_W - 8, 14);
       d.setColor(bc);
-      if (d.getTextWidth(tmp) > 114) d.drawTextEllipsized(7, CARD_BTN_Y + 3, 114, tmp); else d.drawTextCentered(64, CARD_BTN_Y + 3, tmp);
+      if (d.getTextWidth(tmp) > 114) d.drawTextEllipsized(7, CARD_BTN_Y + 3, 114, tmp); else d.drawTextCentered(UI_CX, CARD_BTN_Y + 3, tmp);
       if (my_nodes.expire()) {}  // (a request that timed out shows as "no reply")
       return still ? 60000 : 80;
     }
@@ -907,9 +907,9 @@ public:
     d.setTextSize(1);
     if (_n == 0) {
       d.setColor(UIColor::secondary_txt);
-      d.drawTextCentered(64, 50, "No friends yet: the Starlits of");
-      d.drawTextCentered(64, 62, "your favourite nodes and the");
-      d.drawTextCentered(64, 72, "ones heard lately show up here");
+      d.drawTextCentered(UI_CX, 50, "No friends yet: the Starlits of");
+      d.drawTextCentered(UI_CX, 62, "your favourite nodes and the");
+      d.drawTextCentered(UI_CX, 72, "ones heard lately show up here");
       return 5000;
     }
     _ds.max = maxScroll();
@@ -951,7 +951,7 @@ public:
     float s = node_ping.snr[r] / 4.0f;
     sprintf(tmp, "%.1f dB", s);
     d.setColor(s >= 0 ? THEME_GOOD : (s >= -7 ? UIColor::primary_txt : UIColor::warning_txt));
-    d.drawTextRightAlign(122, y, tmp);
+    d.drawTextRightAlign(UI_RX(122), y, tmp);
   }
   int renderPing(DisplayDriver& d, const ContactInfo& c) {
     themeHeader(d, "Ping", _task->getBattMilliVolts());
@@ -959,34 +959,34 @@ public:
     d.translateUTF8ToBlocks(name, c.name, sizeof(name));
     d.setTextSize(1);
     d.setColor(UIColor::primary_txt);
-    if (d.getTextWidth(name) > 120) d.drawTextEllipsized(4, 26, 120, name); else d.drawTextCentered(64, 26, name);
+    if (d.getTextWidth(name) > UI_W - 8) d.drawTextEllipsized(4, 26, UI_W - 8, name); else d.drawTextCentered(UI_CX, 26, name);
     if (node_ping.expire()) _task->showAlert("No reply", 1200);
     if (!node_ping.isFor(c.id.pub_key) || node_ping.state == NodePing::WAITING) {
       d.setColor(UIColor::secondary_txt);
       sprintf(tmp, "Pinging...  %lu s", node_ping.waited() / 1000);
-      d.drawTextCentered(64, 56, tmp);
+      d.drawTextCentered(UI_CX, 56, tmp);
       int hops = node_ping.n / 2;
       if (hops == 0) strcpy(tmp, "direct");
       else sprintf(tmp, "via %d repeater%s", hops, hops == 1 ? "" : "s");
       d.setColor(THEME_DIM);
-      d.drawTextCentered(64, 70, tmp);
+      d.drawTextCentered(UI_CX, 70, tmp);
       return 250;
     }
     if (node_ping.state == NodePing::NO_REPLY) {
       d.setColor(UIColor::warning_txt);
-      d.drawTextCentered(64, 54, "No reply");
+      d.drawTextCentered(UI_CX, 54, "No reply");
       d.setColor(UIColor::secondary_txt);
-      d.drawTextCentered(64, 68, "out of range, busy, or the");
-      d.drawTextCentered(64, 78, "route has changed");
+      d.drawTextCentered(UI_CX, 68, "out of range, busy, or the");
+      d.drawTextCentered(UI_CX, 78, "route has changed");
       d.setColor(THEME_DIM);
-      d.drawTextCentered(64, 112, "tap to ping again");
+      d.drawTextCentered(UI_CX, 112, "tap to ping again");
       return 1000;
     }
     // done: the round trip, then each link
     d.setTextSize(2);
     d.setColor(THEME_ACCENT);
     sprintf(tmp, "%lu.%02lu s", (unsigned long)(node_ping.rtt_ms / 1000), (unsigned long)(node_ping.rtt_ms % 1000) / 10);
-    d.drawTextCentered(64, 38, tmp);
+    d.drawTextCentered(UI_CX, 38, tmp);
     d.setTextSize(1);
     int rows = node_ping.n + 1, y = 60;
     if (rows <= 6) {
@@ -994,13 +994,13 @@ public:
     } else {  // a long route: the first three links and the last two
       for (int r = 0; r < 3; r++, y += 10) pingRow(d, r, y, c);
       d.setColor(THEME_DIM);
-      d.drawTextCentered(64, y, "...");
+      d.drawTextCentered(UI_CX, y, "...");
       y += 10;
       for (int r = rows - 2; r < rows; r++, y += 10) pingRow(d, r, y, c);
     }
     if (rows <= 5) {
       d.setColor(THEME_DIM);
-      d.drawTextCentered(64, 118, "tap to ping again");
+      d.drawTextCentered(UI_CX, 118, "tap to ping again");
     }
     return 60000;
   }

@@ -95,7 +95,7 @@ public:
       d.setCursor(4, 104); d.print(tmp);
       sprintf(tmp, "%d dBm", _live[peak]);
       d.setColor(levelColor(_live[peak]));
-      d.drawTextRightAlign(122, 104, tmp);
+      d.drawTextRightAlign(UI_RX(122), 104, tmp);
     }
     if (chx >= 0 && _live[chx] != 0) {
       sprintf(tmp, "our channel");
@@ -103,7 +103,7 @@ public:
       d.setCursor(4, 114); d.print(tmp);
       sprintf(tmp, "%d dBm", _live[chx]);
       d.setColor(levelColor(_live[chx]));
-      d.drawTextRightAlign(122, 114, tmp);
+      d.drawTextRightAlign(UI_RX(122), 114, tmp);
     }
     return 30;  // keep sweeping
   }

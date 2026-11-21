@@ -108,13 +108,13 @@ public:
         if (a < 60) sprintf(tmp, "%lus", a);
         else if (a < 3600) sprintf(tmp, "%lum", a / 60);
         else sprintf(tmp, "%luh", a / 3600);
-        d.drawTextRightAlign(124, y, tmp);
+        d.drawTextRightAlign(UI_RX(124), y, tmp);
         sprintf(tmp, "%d", s.rssi);
         d.setColor(s.rssi >= -90 ? THEME_GOOD : s.rssi >= -110 ? UIColor::warning_txt : UIColor::secondary_txt);
         d.drawTextRightAlign(102, y, tmp);
       } else {
         d.setColor(THEME_DIM);
-        d.drawTextRightAlign(124, y, "--");
+        d.drawTextRightAlign(UI_RX(124), y, "--");
       }
       y += 10;
     }
@@ -122,7 +122,7 @@ public:
     sprintf(tmp, "%lu checks", (unsigned long)_probes);
     d.setCursor(4, 117);
     d.print(_probes ? tmp : "listening...");
-    d.drawTextRightAlign(124, 117, "tap: clear");
+    d.drawTextRightAlign(UI_RX(124), 117, "tap: clear");
     return 60;
   }
 

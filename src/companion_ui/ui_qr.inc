@@ -53,15 +53,15 @@ public:
       d.fillWholePanel(_red ? 0xF800 : 0xFFFF);
       display.setTextSize(1);
       display.setColor(_red ? 0x7800 : 0x8410);
-      display.drawTextCentered(64, 118, _red ? "tap: white" : "tap: red");
+      display.drawTextCentered(UI_CX, 118, _red ? "tap: white" : "tap: red");
       return 60000;
     }
     display.setTextSize(1);
     display.setColor(UIColor::secondary_txt);
-    display.drawTextCentered(64, 3, "Scan with the MeshCore app");
+    display.drawTextCentered(UI_CX, 3, "Scan with the MeshCore app");
     if (!_ok) {
       display.setColor(UIColor::warning_txt);
-      display.drawTextCentered(64, 60, "Couldn't make the code");
+      display.drawTextCentered(UI_CX, 60, "Couldn't make the code");
       return 5000;
     }
     // QR with a 4-module quiet zone, whole panel pixels per module, centred
@@ -92,8 +92,8 @@ public:
     display.translateUTF8ToBlocks(filtered, _prefs->node_name, sizeof(filtered));
     display.setTextSize(2);
     display.setColor(UIColor::primary_txt);
-    if (display.getTextWidth(filtered) > 120) display.drawTextEllipsized(4, 110, 120, filtered);
-    else display.drawTextCentered(64, 110, filtered);
+    if (display.getTextWidth(filtered) > UI_W - 8) display.drawTextEllipsized(4, 110, UI_W - 8, filtered);
+    else display.drawTextCentered(UI_CX, 110, filtered);
     return 60000;
   }
 

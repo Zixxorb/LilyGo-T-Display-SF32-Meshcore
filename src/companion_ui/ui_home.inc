@@ -134,7 +134,7 @@ class HomeScreen : public UIScreen {
     SF32Display& sd = (SF32Display&)d;
     struct tm tm;
     localTm(_task, now, tm);
-    const float cx = 64, cy = 69, R = 44, PI2 = 6.2831853f;
+    const float cx = UI_CX, cy = 69, R = 44, PI2 = 6.2831853f;
     for (int i = 0; i < 12; i++) {  // hour ticks, longer at 12/3/6/9
       float a = i * PI2 / 12, s = sinf(a), c = cosf(a);
       bool major = i % 3 == 0;
@@ -164,15 +164,15 @@ class HomeScreen : public UIScreen {
     sprintf(tmp, h24 ? "%02d" : "%d", h);
     d.setTextSize(5);
     d.setColor(UIColor::primary_txt);
-    d.drawTextCentered(64, 22, tmp);
+    d.drawTextCentered(UI_CX, 22, tmp);
     sprintf(tmp, "%02d", tm.tm_min);
     d.setColor(THEME_ACCENT);
-    d.drawTextCentered(64, 64, tmp);
+    d.drawTextCentered(UI_CX, 64, tmp);
     dateText(tmp, tm, false);
     if (!h24) strcat(tmp, tm.tm_hour < 12 ? "  AM" : "  PM");
     d.setTextSize(1);
     d.setColor(UIColor::secondary_txt);
-    d.drawTextCentered(64, 108, tmp);
+    d.drawTextCentered(UI_CX, 108, tmp);
   }
 
   // ---- your Starlit, on its page and on the Starlit clock face ----
@@ -221,13 +221,13 @@ class HomeScreen : public UIScreen {
     d.print(tmp);
     uint16_t mv = _task->getBattMilliVolts();
     petPrep(mv, false);
-    pet.draw(d, 64, 79, 0.84f, false, 0, -1, _node_prefs->path_hash_mode + 1);
+    pet.draw(d, UI_CX, 79, 0.84f, false, 0, -1, _node_prefs->path_hash_mode + 1);
     char raw[64];
     petLine(raw, sizeof(raw), false, millis());
     d.translateUTF8ToBlocks(tmp, raw, sizeof(tmp));  // (node names in it: shown as the rest of the UI shows them)
     d.setTextSize(1);
     d.setColor(THEME_DIM);
-    if (d.getTextWidth(tmp) > 120) d.drawTextEllipsized(4, 108, 120, tmp); else d.drawTextCentered(64, 108, tmp);
+    if (d.getTextWidth(tmp) > UI_W - 8) d.drawTextEllipsized(4, 108, UI_W - 8, tmp); else d.drawTextCentered(UI_CX, 108, tmp);
     return petDelay(t0, 80);  // ~12 fps: gentle on the battery for the page seen most
   }
   void drawInfoFace(DisplayDriver& d, uint32_t now) {
@@ -258,25 +258,25 @@ class HomeScreen : public UIScreen {
     }
     // four cards: unread, battery, phone, last heard
     uint16_t mv = _task->getBattMilliVolts();
-    themeCard(d, 4, 52, 58, 30);
+    themeCard(d, 4, 52, UI_HALF_W, 30);
     themeLabel(d, 9, 55, "Unread");
     sprintf(tmp, "%d", _task->getUnreadCount());
     themeValue(d, 9, 64, tmp);
-    themeCard(d, 66, 52, 58, 30);
-    themeLabel(d, 71, 55, "Battery");
+    themeCard(d, UI_C2, 52, UI_HALF_W, 30);
+    themeLabel(d, UI_C2 + 5, 55, "Battery");
     sprintf(tmp, "%d", mv ? batteryPercent(mv) : 0);
-    themeValue(d, 71, 64, tmp, "%");
-    themeCard(d, 4, 86, 58, 30);
+    themeValue(d, UI_C2 + 5, 64, tmp, "%");
+    themeCard(d, 4, 86, UI_HALF_W, 30);
     themeLabel(d, 9, 89, "Phone");
     themeValue(d, 9, 98, _task->hasConnection() ? "Yes" : "No");
-    themeCard(d, 66, 86, 58, 30);
-    themeLabel(d, 71, 89, "Last heard");
+    themeCard(d, UI_C2, 86, UI_HALF_W, 30);
+    themeLabel(d, UI_C2 + 5, 89, "Last heard");
     AdvertPath last[1];
     memset(last, 0, sizeof(last));
     the_mesh.getRecentlyHeard(last, 1);
     if (last[0].name[0] && last[0].recv_timestamp && now >= last[0].recv_timestamp) formatAge(tmp, now - last[0].recv_timestamp);
     else strcpy(tmp, "-");
-    themeValue(d, 71, 98, tmp);
+    themeValue(d, UI_C2 + 5, 98, tmp);
   }
 
   // a time of day (UTC) as local "6:52 AM" / "18:52"
@@ -329,23 +329,23 @@ class HomeScreen : public UIScreen {
     d.setTextSize(1);
     int wa = ampm[0] ? d.getTextWidth(ampm) + 3 : 0;
     d.setTextSize(3);
-    d.setCursor(64 - (w + wa) / 2, 24);
+    d.setCursor(UI_CX - (w + wa) / 2, 24);
     d.print(hm);
     d.setTextSize(1);
     d.setColor(UIColor::secondary_txt);
-    if (ampm[0]) { d.setCursor(64 - (w + wa) / 2 + w + 3, 26); d.print(ampm); }
+    if (ampm[0]) { d.setCursor(UI_CX - (w + wa) / 2 + w + 3, 26); d.print(ampm); }
     dateText(tmp, tm, false);
-    d.drawTextCentered(64, 48, tmp);
+    d.drawTextCentered(UI_CX, 48, tmp);
 
     SunTimes st = sunToday(_task, _node_prefs, now);
     if (st.kind == SunTimes::NONE) {
       d.setColor(UIColor::secondary_txt);
-      d.drawTextCentered(64, 76, "set this node's location");
-      d.drawTextCentered(64, 86, "in the app for sun times");
+      d.drawTextCentered(UI_CX, 76, "set this node's location");
+      d.drawTextCentered(UI_CX, 86, "in the app for sun times");
       return;
     }
     // the arc: a half circle over the horizon, sunrise on the left, sunset on the right
-    const float cx = 64, cy = 96, R = 36, kPi = 3.14159265f;
+    const float cx = UI_CX, cy = 96, R = 36, kPi = 3.14159265f;
     d.setColor(THEME_DIM);
     sd.drawLineAA(cx - R - 8, cy, cx + R + 8, cy, 1.0f);  // the horizon
     for (int i = 0; i <= 36; i++) {
@@ -382,17 +382,17 @@ class HomeScreen : public UIScreen {
       d.print(tmp);
       d.setColor(0xFB00);
       localClock(tmp, st.set);
-      d.drawTextRightAlign(124, cy + 4, tmp);
+      d.drawTextRightAlign(UI_RX(124), cy + 4, tmp);
       // next event
       uint32_t next = day ? st.set : (now < st.rise ? st.rise : st.rise + 86400);
       int mins = (int)((next - now) / 60);
       sprintf(tmp, "%s in %dh %02dm", day ? "sunset" : "sunrise", mins / 60, mins % 60);
       d.setColor(UIColor::secondary_txt);
-      d.drawTextCentered(64, cy + 16, tmp);
+      d.drawTextCentered(UI_CX, cy + 16, tmp);
     } else {
       d.setTextSize(1);
       d.setColor(UIColor::secondary_txt);
-      d.drawTextCentered(64, cy + 8, st.kind == SunTimes::ALL_DAY ? "the sun doesn't set today" : "the sun doesn't rise today");
+      d.drawTextCentered(UI_CX, cy + 8, st.kind == SunTimes::ALL_DAY ? "the sun doesn't set today" : "the sun doesn't rise today");
     }
   }
 
@@ -402,7 +402,7 @@ class HomeScreen : public UIScreen {
     SF32Display& sd = (SF32Display&)d;
     struct tm tm;
     localTm(_task, now, tm);
-    const float cx = 64, cy = 70, R = 46, PI2 = 6.2831853f;
+    const float cx = UI_CX, cy = 70, R = 46, PI2 = 6.2831853f;
     float rot = tm.tm_hour * 30 + tm.tm_min * 0.5f;  // the colours turn slowly through the day
     for (int i = 0; i < 60; i++) {
       float a = i * PI2 / 60, x = cx + sinf(a) * R, y = cy - cosf(a) * R;
@@ -417,7 +417,7 @@ class HomeScreen : public UIScreen {
     formatTime(now, hm, ampm);
     d.setTextSize(3);
     int w = d.getTextWidth(hm);
-    d.setCursor(64 - w / 2, 54);
+    d.setCursor(UI_CX - w / 2, 54);
     for (int k = 0; hm[k]; k++) {  // a colour per digit
       char ch[2] = {hm[k], 0};
       d.setColor(hm[k] == ':' ? UIColor::primary_txt : ringColor(rot + 40 + k * 55, 0.75f, 1.0f));
@@ -427,7 +427,7 @@ class HomeScreen : public UIScreen {
     if (ampm[0]) { strcat(tmp, "  "); strcat(tmp, ampm); }
     d.setTextSize(1);
     d.setColor(ringColor(rot + 200, 0.5f, 1.0f));
-    d.drawTextCentered(64, 82, tmp);
+    d.drawTextCentered(UI_CX, 82, tmp);
   }
 
   // which pages are shown (Settings > Pages); the clock always is
@@ -619,7 +619,7 @@ public:
       char name[sizeof(_node_prefs->node_name)];
       display.translateUTF8ToBlocks(name, _node_prefs->node_name, sizeof(name));
       display.setColor(_task->hasConnection() ? UIColor::corp_blue : UIColor::secondary_txt);
-      if (display.getTextWidth(name) > 120) display.drawTextEllipsized(4, 104, 120, name);
+      if (display.getTextWidth(name) > UI_W - 8) display.drawTextEllipsized(4, 104, UI_W - 8, name);
       else display.drawTextCentered(W / 2, 104, name);
     }
 
@@ -662,8 +662,8 @@ public:
 #if UI_DISCOVER_SCREEN
     if (_page == HomePage::DISCOVERY && disc_nodes_count > 0) return true;
 #endif
-    if (_page == HomePage::GAMES) return _pet_info < 0 && x >= 30 && x < 98 && y >= 24 && y < 88;  // the pet (not under an info card)
-    return x >= 32 && x < 96 && y >= 24 && y < 86;
+    if (_page == HomePage::GAMES) return _pet_info < 0 && x >= UI_CX - 34 && x < UI_CX + 34 && y >= 24 && y < 88;  // the pet (not under an info card)
+    return x >= UI_CX - 32 && x < UI_CX + 32 && y >= 24 && y < 86;
   }
   void iconAction() {
 #ifndef UI_NO_HIBERNATE
@@ -677,7 +677,7 @@ public:
     static const char* const TITLES[] = {"Fed", "Curious", "Rested", "Mood"};
     char tmp[48];
     int k = _pet_info;
-    themeCard(display, 4, 24, 120, 96);
+    themeCard(display, 4, 24, UI_W - 8, 96);
     display.setTextSize(1);
     display.setColor(THEME_ACCENT);
     display.drawTextLeftAlign(9, 28, TITLES[k]);
@@ -685,12 +685,12 @@ public:
     if (k == 3) snprintf(tmp, sizeof(tmp), "%s, happy %d%%", PetGame::moodName(pet.mood()), v);
     else snprintf(tmp, sizeof(tmp), "%d%%", v);
     display.setColor(v < 25 ? UIColor::warning_txt : UIColor::primary_txt);
-    display.drawTextRightAlign(119, 28, tmp);
+    display.drawTextRightAlign(UI_RX(119), 28, tmp);
     if (k < 3) {  // its bar, bigger
       display.setColor(THEME_DIM);
-      display.fillRect(9, 39, 110, 3);
+      display.fillRect(9, 39, UI_W - 18, 3);
       display.setColor(v < 25 ? UIColor::warning_txt : THEME_ACCENT);
-      display.fillRect(9, 39, (110 * v + 50) / 100, 3);
+      display.fillRect(9, 39, ((UI_W - 18) * v + 50) / 100, 3);
     }
     static const char* const TEXT[] = {
       "Fed by the mesh: every packet your radio hears is a bite (+3). Goes down 1 every 30 min. Under 25: hungry.",
@@ -706,8 +706,8 @@ public:
     else if (k == 1) snprintf(tmp, sizeof(tmp), "today: +%d of 60 max", ps.day_cur);
     else if (pet.contextLine()) snprintf(tmp, sizeof(tmp), "now: %s", pet.contextLine());  // the device's state shows on it
     else tmp[0] = 0;
-    if (tmp[0]) display.drawTextCentered(64, 101, tmp);
-    display.drawTextCentered(64, 110, "tap: back");
+    if (tmp[0]) display.drawTextCentered(UI_CX, 101, tmp);
+    display.drawTextCentered(UI_CX, 110, "tap: back");
   }
 
   // what holding the icon does, for a short tap on it (NULL: no hint)
@@ -755,17 +755,17 @@ public:
       return false;
     }
     if (_page == HomePage::CLOCK) {  // the unread envelope (top left): the messages
-      if (x < 64 && y < 30 && _task->getUnreadCount() > 0) { _task->showMessages(); return true; }
+      if (x < UI_CX && y < 30 && _task->getUnreadCount() > 0) { _task->showMessages(); return true; }
       // the Starlit face: your Starlit holding mail ("tap it") opens it too
       bool starlit_face = !_task->lowPower() && _task->uiPrefs().clock_face % NUM_CLOCK_FACES == 6 && timeIsSet(_rtc->getCurrentTime());
-      if (starlit_face && x >= 30 && x < 98 && y >= 50 && y < 106 && _task->getUnreadCount() > 0) { _task->showMessages(); return true; }
+      if (starlit_face && x >= UI_CX - 34 && x < UI_CX + 34 && y >= 50 && y < 106 && _task->getUnreadCount() > 0) { _task->showMessages(); return true; }
       return false;
     }
     if (_page == HomePage::GAMES) {  // the pet: pet it (it looks at where you touched)
       if (_pet_info >= 0) { _pet_info = -1; return true; }  // an info card open: any tap closes it
       if (y >= 86 && y < 105) { int k = (x - 4) / 41; _pet_info = k < 0 ? 0 : (k > 2 ? 2 : k); return true; }  // a need's bar: what it means
       if (y >= 105) { _pet_info = 3; return true; }  // the line under them: its mood
-      if (x < 30 || x >= 98 || y < 24 || y >= 88) return false;
+      if (x < UI_CX - 34 || x >= UI_CX + 34 || y < 24 || y >= 88) return false;
       if (pet.context() & PetGame::CTX_MAIL) { _task->showMessages(); return true; }  // it's holding a message: open it
       pet.look(x, y);
       if (pet.boop()) _task->petSound(3);  // a tap: a boop (stroking it is petting)
@@ -976,7 +976,7 @@ public:
 
     if (_page == HomePage::FIRST) {
       themeHeader(display, "Status", mv);
-      themeCard(display, 4, 27, 58, 40);
+      themeCard(display, 4, 27, UI_HALF_W, 40);
       themeLabel(display, 9, 31, "Unread");
       display.setTextSize(3);
       display.setColor(_task->getUnreadCount() > 0 ? UIColor::warning_txt : UIColor::primary_txt);
@@ -984,15 +984,15 @@ public:
       display.setCursor(9, 41);
       display.print(tmp);
 
-      themeCard(display, 66, 27, 58, 40);
-      themeLabel(display, 71, 31, "For the app");
+      themeCard(display, UI_C2, 27, UI_HALF_W, 40);
+      themeLabel(display, UI_C2 + 5, 31, "For the app");
       display.setTextSize(3);
       display.setColor(UIColor::primary_txt);
       sprintf(tmp, "%d", _task->getMsgCount());
-      display.setCursor(71, 41);
+      display.setCursor(UI_C2 + 5, 41);
       display.print(tmp);
 
-      themeCard(display, 4, 72, 120, 40);
+      themeCard(display, 4, 72, UI_W - 8, 40);
       themeLabel(display, 9, 76, "Bluetooth");
       display.setTextSize(2);
       display.setCursor(9, 89);
@@ -1010,14 +1010,14 @@ public:
         sprintf(tmp, "pairing %lu:%02lu", left / 60, left % 60);
         display.setTextSize(1);
         display.setColor(UIColor::secondary_txt);
-        display.drawTextRightAlign(119, 76, tmp);
+        display.drawTextRightAlign(UI_RX(119), 76, tmp);
       } else if (the_mesh.getBLEPin() != 0) {
         display.setColor(UIColor::primary_txt);
         display.print("Waiting");
         display.setTextSize(1);
         display.setColor(UIColor::secondary_txt);
-        display.drawTextRightAlign(119, 89, "new phone:");  // (beside "Waiting": the label's line has no room)
-        display.drawTextRightAlign(119, 98, "Pair phone");
+        display.drawTextRightAlign(UI_RX(119), 89, "new phone:");  // (beside "Waiting": the label's line has no room)
+        display.drawTextRightAlign(UI_RX(119), 98, "Pair phone");
       } else {
         display.setColor(UIColor::primary_txt);
         display.print("Waiting");
@@ -1025,14 +1025,14 @@ public:
     } else if (_page == HomePage::RECENT) {
       themeHeader(display, "Heard", mv);
       the_mesh.getRecentlyHeard(recent, UI_RECENT_LIST_SIZE);
-      themeCard(display, 4, 27, 120, 88);
+      themeCard(display, 4, 27, UI_W - 8, 88);
       int y = 33, rows = 0;
       for (int i = 0; i < UI_RECENT_LIST_SIZE; i++) {
         auto a = &recent[i];
         if (a->name[0] == 0) continue;  // empty slot
         if (rows > 0) {
           display.setColor(THEME_DIM);
-          display.drawRect(9, y - 6, 110, 1);
+          display.drawRect(9, y - 6, UI_W - 18, 1);
         }
         formatAge(tmp, _rtc->getCurrentTime() - a->recv_timestamp);
         display.setTextSize(1);
@@ -1040,9 +1040,9 @@ public:
         char name[sizeof(a->name)];
         display.translateUTF8ToBlocks(name, a->name, sizeof(name));
         display.setColor(UIColor::primary_txt);
-        display.drawTextEllipsized(9, y, 110 - tw - 4, name);
+        display.drawTextEllipsized(9, y, UI_W - 18 - tw - 4, name);
         display.setColor(UIColor::secondary_txt);
-        display.drawTextRightAlign(119, y, tmp);
+        display.drawTextRightAlign(UI_RX(119), y, tmp);
         y += 21;
         rows++;
       }
@@ -1053,7 +1053,7 @@ public:
       }
     } else if (_page == HomePage::RADIO) {
       themeHeader(display, "Radio", mv);
-      themeCard(display, 4, 27, 120, 28);
+      themeCard(display, 4, 27, UI_W - 8, 28);
       themeLabel(display, 9, 30, "Frequency");
       sprintf(tmp, "%.3f", _node_prefs->freq);
       themeValue(display, 9, 39, tmp, "MHz");
@@ -1064,8 +1064,8 @@ public:
       sprintf(vals[1], "%d", _node_prefs->sf);
       sprintf(vals[2], "%d", _node_prefs->cr);
       for (int i = 0; i < 3; i++) {
-        int x = 4 + i * 41;
-        themeCard(display, x, 58, 38, 28);
+        int x = UI_C3(i);
+        themeCard(display, x, 58, UI_THIRD_W, 28);
         themeLabel(display, x + 5, 61, labels[i]);
         display.setTextSize(2);
         display.setColor(UIColor::primary_txt);
@@ -1073,15 +1073,15 @@ public:
         display.print(vals[i]);
       }
 
-      themeCard(display, 4, 89, 58, 28);
+      themeCard(display, 4, 89, UI_HALF_W, 28);
       themeLabel(display, 9, 92, "TX power");
       sprintf(tmp, "%d", _node_prefs->tx_power_dbm);
       themeValue(display, 9, 101, tmp, "dBm");
 
-      themeCard(display, 66, 89, 58, 28);
-      themeLabel(display, 71, 92, "Noise floor");
+      themeCard(display, UI_C2, 89, UI_HALF_W, 28);
+      themeLabel(display, UI_C2 + 5, 92, "Noise floor");
       sprintf(tmp, "%d", radio_driver.getNoiseFloor());
-      themeValue(display, 71, 101, tmp, "dBm");
+      themeValue(display, UI_C2 + 5, 101, tmp, "dBm");
     } else if (_page == HomePage::BLUETOOTH) {
       themeHeader(display, "Bluetooth", mv);
       bool on = _task->isBluetoothEnabled();
@@ -1124,7 +1124,7 @@ public:
       char num[8];
       sprintf(num, "%d", tf);
       int nw = display.getTextWidth(num), fw = display.getTextWidth("F");
-      int tx = 122 - (nw + 3 + fw);
+      int tx = UI_RX(122) - (nw + 3 + fw);
       display.setCursor(tx, 30);
       display.print(num);
       SF32Display& sdd = (SF32Display&)display;
@@ -1148,14 +1148,14 @@ public:
         else sprintf(tmp, "~%dh %02dm left", h, m);
       } else strcpy(tmp, "estimating...");  // the first hour or so off the charger
       display.setColor(usb ? THEME_GOOD : UIColor::secondary_txt);
-      display.drawTextRightAlign(122, 41, tmp);
-      themeCard(display, 4, 55, 120, 62);
+      display.drawTextRightAlign(UI_RX(122), 41, tmp);
+      themeCard(display, 4, 55, UI_W - 8, 62);
       if (batt_history.count() == 0) {
         display.setColor(UIColor::secondary_txt);
         display.drawTextCentered(W / 2, 74, "history starts a minute");
         display.drawTextCentered(W / 2, 84, "after power on");
       } else {
-        drawBatteryGraph(display, 10, 60, 108, 40, BATT_GRAPH_HOURS[_task->uiPrefs().batt_graph % NUM_BATT_GRAPH]);
+        drawBatteryGraph(display, 10, 60, UI_W - 20, 40, BATT_GRAPH_HOURS[_task->uiPrefs().batt_graph % NUM_BATT_GRAPH]);
       }
     } else if (_page == HomePage::GAMES) {
       unsigned long pet_t0 = millis();
@@ -1178,18 +1178,18 @@ public:
         pet.setContext(pet.context() & ~(PetGame::CTX_NIGHT | PetGame::CTX_LOWPOWER | PetGame::CTX_LOWBATT));  // a visitor wakes it
         unsigned long va = starlit_meet.visitAge();
         float bob = still ? 0 : fabsf(sinf(va * 6.2832f / 900)) * -3;
-        pet.draw(display, 40, 60, 0.82f, still, 0, -1, _node_prefs->path_hash_mode + 1);
-        pet.draw(display, 92, 60 + bob, 0.78f, still, starlit_meet.visitSeed(), -1, 0);
-        if (!still) pet.drawHearts(display, 66, 52, va);
+        pet.draw(display, UI_CX - 24, 60, 0.82f, still, 0, -1, _node_prefs->path_hash_mode + 1);
+        pet.draw(display, UI_CX + 28, 60 + bob, 0.78f, still, starlit_meet.visitSeed(), -1, 0);
+        if (!still) pet.drawHearts(display, UI_CX + 2, 52, va);
       } else {
-        pet.draw(display, 64, 57, 1.08f, still, 0, -1, _node_prefs->path_hash_mode + 1);  // (its ring: your own hash size)
+        pet.draw(display, UI_CX, 57, 1.08f, still, 0, -1, _node_prefs->path_hash_mode + 1);  // (its ring: your own hash size)
       }
       // its needs: three small bars
       const PetSave& ps = pet.stats();
       static const char* const L[] = {"Fed", "Curious", "Rested"};
       uint8_t v[3] = {ps.fed, ps.curious, ps.rested};
       for (int k = 0; k < 3; k++) {
-        int bx = 6 + k * 41;
+        int bx = UI_C3(k) + 2 + (UI_THIRD_W - 38) / 2;  // (the SF32: 6, 47, 88)
         display.setTextSize(1);
         display.setColor(UIColor::secondary_txt);
         display.drawTextCentered(bx + 18, 90, L[k]);
@@ -1231,7 +1231,7 @@ public:
       for (int i = 0; i < shown; i++) {
         const ContactInfo& c = fav[i];
         int y = 27 + i * 24;
-        themeCard(display, 4, y, 120, 22);
+        themeCard(display, 4, y, UI_W - 8, 22);
         char name[sizeof(c.name)];
         display.translateUTF8ToBlocks(name, c.name, sizeof(name));
         display.setTextSize(1);
@@ -1249,9 +1249,9 @@ public:
         else strcpy(bat, ">");  // (tap: its card)
         int bw = display.getTextWidth(bat);
         display.setColor(UIColor::primary_txt);
-        display.drawTextEllipsized(8, y + 3, 112 - bw - 4, name);
+        display.drawTextEllipsized(8, y + 3, UI_W - 16 - bw - 4, name);
         display.setColor(bc);
-        display.drawTextRightAlign(120, y + 3, bat);
+        display.drawTextRightAlign(UI_RX(120), y + 3, bat);
         // second line: last heard, hops, and how old the battery reading is
         char heard[16], line[48];
         if (c.lastmod && now >= c.lastmod) formatAge(heard, now - c.lastmod); else strcpy(heard, "-");
@@ -1267,7 +1267,7 @@ public:
         if (r && r->state == 2 && r->at && now >= r->at) {
           char age[12];
           formatAge(age, now - r->at);
-          display.drawTextRightAlign(120, y + 12, age);
+          display.drawTextRightAlign(UI_RX(120), y + 12, age);
         }
       }
       if (total > shown) {
@@ -1281,12 +1281,12 @@ public:
     } else if (_page == HomePage::ACTIVITY) {
       themeHeader(display, "Activity", mv);
       // last hour / last 24 h / channel use
-      themeCard(display, 4, 27, 38, 28);
+      themeCard(display, 4, 27, UI_THIRD_W, 28);
       themeLabel(display, 8, 30, "1 hour");
-      themeCard(display, 45, 27, 38, 28);
-      themeLabel(display, 49, 30, "24 h");
-      themeCard(display, 86, 27, 38, 28);
-      themeLabel(display, 90, 30, "Busy");
+      themeCard(display, UI_C3(1), 27, UI_THIRD_W, 28);
+      themeLabel(display, UI_C3(1) + 4, 30, "24 h");
+      themeCard(display, UI_C3(2), 27, UI_THIRD_W, 28);
+      themeLabel(display, UI_C3(2) + 4, 30, "Busy");
       display.setTextSize(1);
       display.setColor(UIColor::primary_txt);
       sprintf(tmp, "%lu", (unsigned long)mesh_activity.lastHourPackets());
@@ -1295,18 +1295,18 @@ public:
       display.print(tmp);
       sprintf(tmp, "%lu", (unsigned long)mesh_activity.dayPackets());
       display.setTextSize(mesh_activity.dayPackets() >= 1000 ? 1 : 2);
-      display.setCursor(49, mesh_activity.dayPackets() >= 1000 ? 44 : 40);
+      display.setCursor(UI_C3(1) + 4, mesh_activity.dayPackets() >= 1000 ? 44 : 40);
       display.print(tmp);
       int busy = mesh_activity.busyPercentNow();
       if (busy < 0) strcpy(tmp, "-");
       else sprintf(tmp, "%d%%", busy);
       display.setTextSize(2);
       display.setColor(busy >= 25 ? THEME_RED : busy >= 10 ? UIColor::warning_txt : UIColor::primary_txt);
-      display.setCursor(90, 40);
+      display.setCursor(UI_C3(2) + 4, 40);
       display.print(tmp);
-      themeCard(display, 4, 58, 120, 60);
+      themeCard(display, 4, 58, UI_W - 8, 60);
       themeLabel(display, 8, 61, "packets per hour");
-      drawActivityGraph(display, 10, 73, 108, 30);
+      drawActivityGraph(display, 10, 73, UI_W - 20, 30);
       next_render = 30000;
     } else if (_page == HomePage::SIGNAL && signal_tester.finder) {
       // the finder: the target, its signal strength big, warmer / colder
@@ -1317,7 +1317,7 @@ public:
       char nm[40];
       if (st.locked) {
         display.translateUTF8ToBlocks(nm, st.lock_name, sizeof(nm));
-        display.drawTextEllipsized(6, 28, 116, nm);
+        display.drawTextEllipsized(6, 28, UI_W - 12, nm);
       } else display.drawTextCentered(W / 2, 28, "finding a repeater...");
       if (st.rssi_n > 0) {
         sprintf(tmp, "%d", st.last_rssi);
@@ -1359,23 +1359,23 @@ public:
         display.setColor(UIColor::secondary_txt);
         display.drawTextCentered(W / 2, 104, "hold icon: ping nearby repeaters");
       } else {
-        themeCard(display, 4, 27, 58, 28);
+        themeCard(display, 4, 27, UI_HALF_W, 28);
         themeLabel(display, 9, 30, "We hear");
-        themeCard(display, 66, 27, 58, 28);
-        themeLabel(display, 71, 30, "They hear");
+        themeCard(display, UI_C2, 27, UI_HALF_W, 28);
+        themeLabel(display, UI_C2 + 5, 30, "They hear");
         if (st.last_ok) {
           display.setColor(signalColor(st.last_in));
           sprintf(tmp, "%.1f", st.last_in);
           themeValue(display, 9, 39, tmp, "dB");
           display.setColor(signalColor(st.last_out));
           sprintf(tmp, "%.1f", st.last_out);
-          themeValue(display, 71, 39, tmp, "dB");
+          themeValue(display, UI_C2 + 5, 39, tmp, "dB");
         } else {
           display.setTextSize(2);
           display.setColor(st.pings ? UIColor::warning_txt : UIColor::secondary_txt);
           display.setCursor(9, 39);
           display.print("--");
-          display.setCursor(71, 39);
+          display.setCursor(UI_C2 + 5, 39);
           display.print("--");
         }
         // who answered, and how many
@@ -1390,9 +1390,9 @@ public:
         display.drawTextEllipsized(6, 59, 80, tmp);
         display.setColor(UIColor::secondary_txt);
         sprintf(tmp, "%u/%u", st.replies, st.pings);
-        display.drawTextRightAlign(122, 59, tmp);
-        themeCard(display, 4, 70, 120, 34);
-        drawSignalGraph(display, 8, 73, 112, 28);
+        display.drawTextRightAlign(UI_RX(122), 59, tmp);
+        themeCard(display, 4, 70, UI_W - 8, 34);
+        drawSignalGraph(display, 8, 73, UI_W - 16, 28);
         display.setColor(UIColor::secondary_txt);
         if (st.running) sprintf(tmp, "next ping in %d s  -  hold to stop", st.secsToNextPing());
         else strcpy(tmp, "stopped  -  hold to start");
@@ -1429,7 +1429,7 @@ public:
         }
         int tw = display.getTextWidth(tmp);
         int nw = display.getTextWidth(filtered);
-        if (tw + nw > 116) nw = 116 - tw;
+        if (tw + nw > UI_W - 12) nw = UI_W - 12 - tw;
         int x = (W - tw - nw) / 2;
         display.setCursor(x, 99);
         display.print(tmp);
@@ -1454,7 +1454,7 @@ public:
       int count = disc_nodes_count;
       bool scanning = millis() < discovery_req_time + 5000;
       if (count > 0) {
-        themeCard(display, 4, 27, 120, 88);
+        themeCard(display, 4, 27, UI_W - 8, 88);
         int y = 33;
         for (int i = 0; i < count; i++, y += 21) {
           char name[32];
@@ -1466,7 +1466,7 @@ public:
           }
           if (i > 0) {
             display.setColor(THEME_DIM);
-            display.drawRect(9, y - 6, 110, 1);
+            display.drawRect(9, y - 6, UI_W - 18, 1);
           }
           char snr_s[16];
           sprintf(snr_s, "%.1f / %.1f", a->snr_out, a->snr_in);
@@ -1475,9 +1475,9 @@ public:
           char filtered[sizeof(name)];
           display.translateUTF8ToBlocks(filtered, name, sizeof(filtered));
           display.setColor(UIColor::primary_txt);
-          display.drawTextEllipsized(9, y, 110 - sw - 4, filtered);
+          display.drawTextEllipsized(9, y, UI_W - 18 - sw - 4, filtered);
           display.setColor(UIColor::secondary_txt);
-          display.drawTextRightAlign(119, y, snr_s);
+          display.drawTextRightAlign(UI_RX(119), y, snr_s);
         }
       } else {
         themeBigIcon(display, ICON_ADVERT, advert_icon, scanning ? UIColor::warning_txt : THEME_ACCENT);

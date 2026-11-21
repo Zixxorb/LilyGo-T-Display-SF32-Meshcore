@@ -316,7 +316,7 @@ public:
     themeHeader(d, "Log entry", _task->getBattMilliVolts());
     char when[32], tmp[48];
     formatWhen(when, _times[i]);
-    themeCard(d, 4, 27, 120, 30);
+    themeCard(d, 4, 27, UI_W - 8, 30);
     themeLabel(d, 9, 30, when);
     d.setTextSize(1);
     d.setColor(UIColor::primary_txt);
@@ -337,7 +337,7 @@ public:
     auto row = [&](const char* label, const char* value) {
       themeLabel(d, 6, y, label);
       d.setColor(UIColor::primary_txt);
-      d.drawTextRightAlign(122, y, value);
+      d.drawTextRightAlign(UI_RX(122), y, value);
       y += 10;
     };
     if (nv < 8) {
@@ -391,11 +391,11 @@ public:
       if (_n == 0) {
         d.setTextSize(1);
         d.setColor(UIColor::secondary_txt);
-        d.drawTextCentered(64, 10, "Nothing logged yet");
+        d.drawTextCentered(UI_CX, 10, "Nothing logged yet");
       }
       for (int i = 0; i < _n; i++) {
         int y = i * ENTRY_H;
-        themeCard(d, 4, y, 120, ENTRY_H - 2);
+        themeCard(d, 4, y, UI_W - 8, ENTRY_H - 2);
         char when[32];
         formatWhen(when, _times[i]);
         themeLabel(d, 9, y + 3, when);
@@ -467,7 +467,7 @@ public:
     int off = _prefs->tz_offset;
     if (off == 0) strcpy(tz, "UTC"); else sprintf(tz, "UTC%+d", off);
     themeHeader(d, "Time zone", _task->getBattMilliVolts());
-    themeCard(d, 4, 27, 120, 40);
+    themeCard(d, 4, 27, UI_W - 8, 40);
     uint32_t now = rtc_clock.getCurrentTime();
     bool dst = dstActive(_task->uiPrefs().dst_rule, off, now);
     themeLabel(d, 9, 31, dst ? "Offset (+1 DST now)" : "Offset");
@@ -640,7 +640,7 @@ public:
   int render(DisplayDriver& d) override {
     char tmp[16];
     themeHeader(d, _title, _task->getBattMilliVolts());
-    themeCard(d, 4, 27, 120, 40);
+    themeCard(d, 4, 27, UI_W - 8, 40);
     themeLabel(d, 9, 31, "Hour");
     fmtHour(tmp, *_hour, _task->uiPrefs().clock24);
     d.setTextSize(3);

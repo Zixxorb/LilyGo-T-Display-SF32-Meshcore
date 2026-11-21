@@ -343,11 +343,11 @@ extern "C" void sf32_before_poweroff(int reason) {
   display.setSquareLayout(true);
   display.setTextSize(2);
   display.setColor(UIColor::warning_txt);
-  display.drawTextCentered(64, 44, "Battery empty");
+  display.drawTextCentered(UI_CX, 44, "Battery empty");
   display.setTextSize(1);
   display.setColor(UIColor::secondary_txt);
-  display.drawTextCentered(64, 66, "Powering off to protect it.");
-  display.drawTextCentered(64, 78, "Charge, then press D to start.");
+  display.drawTextCentered(UI_CX, 66, "Powering off to protect it.");
+  display.drawTextCentered(UI_CX, 78, "Charge, then press D to start.");
   display.endFrame();
   delay(4000);
 }

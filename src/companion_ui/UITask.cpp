@@ -218,7 +218,7 @@ public:
     themeHeader(display, "Message", _task->getBattMilliVolts());
     auto p = &unread[head];
 
-    themeCard(display, 4, 27, 120, 86);
+    themeCard(display, 4, 27, UI_W - 8, 86);
     char origin[sizeof(p->origin)];
     display.translateUTF8ToBlocks(origin, p->origin, sizeof(origin));
     formatAge(tmp, _rtc->getCurrentTime() - p->timestamp);

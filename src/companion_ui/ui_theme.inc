@@ -1,7 +1,21 @@
 // Part of UITask.cpp (#included there, in this order; not compiled on its own).
 // The "MeshCore" theme: colours, cards, header, values, scrolling labels, page dots.
 
-// ---- SF32 "MeshCore" theme (all screens use the square 128x128 layout) ----
+// ---- the layout's width ----
+// Screens are laid out in UI pixels, 128 x 128 on the SF32. The T-Deck's are wider (170 x 128,
+// SF32Display::W), so x positions are written by what they hang from: the left (x as it is),
+// the middle (UI_CX, UI_CX - 20) or the right (UI_RX(124): 4 from the right edge, = 124 on the
+// SF32). On the SF32 they're the same numbers as before.
+#define UI_W  SF32Display::W
+#define UI_CX (UI_W / 2)
+#define UI_RX(x) (UI_W - (128 - (x)))
+// cards side by side, 4 from the edges and 4 apart (3 for three): the SF32's 58 / 38 wide
+#define UI_HALF_W  ((UI_W - 12) / 2)
+#define UI_C2      (8 + UI_HALF_W)                  // the second of two (66)
+#define UI_THIRD_W ((UI_W - 14) / 3)
+#define UI_C3(k)   (4 + (k) * (UI_THIRD_W + 3))     // the k-th of three (4, 45, 86)
+
+// ---- SF32 "MeshCore" theme (all screens use the full-panel layout: UI_W x 128) ----
 // Page title + blue accent bar + compact battery on top, rounded slate cards for content,
 // page dots at the bottom. Colours: UIColor in SF32Display.cpp.
 #define THEME_CARD   UIColor::title_bkg
@@ -179,11 +193,11 @@ static void themeBigIcon(DisplayDriver& display, ThemeIcon icon, const uint8_t* 
   SF32Display& d = (SF32Display&)display;
   if (!d.glassOn()) {
     display.setColor(color);
-    d.drawXbmScaled(40, 30, bits, 32, 32, 1.5f);
+    d.drawXbmScaled(UI_CX - 24, 30, bits, 32, 32, 1.5f);
     return;
   }
-  const float cx = 64, cy = 54;
-  d.glassBadge(38, 28, 52);
+  const float cx = UI_CX, cy = 54;
+  d.glassBadge(UI_CX - 26, 28, 52);
   display.setColor(color == UIColor::secondary_txt ? UIColor::primary_txt : (color == THEME_DIM ? UIColor::secondary_txt : color));
   switch (icon) {
     case ICON_ADVERT:
@@ -328,7 +342,7 @@ static void themeHeader(DisplayDriver& d, const char* title, uint16_t mv) {
   d.fillRect(4, 21, 12, 2);
 
   // compact battery: [icon] with % to its left, bolt on USB power
-  int bx = g_batt_icon ? 128 - 4 - 2 - 14 : 128 - 4 + 3, by = 7;  // no icon: the % ends at the right margin
+  int bx = g_batt_icon ? UI_W - 4 - 2 - 14 : UI_W - 4 + 3, by = 7;  // no icon: the % ends at the right margin
   char tmp[8];
   int pct = mv > 0 ? sf32ShownPercent(mv) : -1;
   ColorVal outline = pct >= 0 && g_batt_colors ? battColor(pct, UIColor::secondary_txt) : UIColor::secondary_txt;

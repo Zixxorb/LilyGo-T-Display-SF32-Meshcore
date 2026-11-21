@@ -15,7 +15,12 @@
 
 class SF32Display : public DisplayDriver {
 public:
+#ifdef VESPER_TDECK
+  static const int W = 170, H = 64;  // the T-Deck: wider (320x240 at 1.875: the UI's UI_W, ui_theme.inc)
+#else
   static const int W = 128, H = 64;
+#endif
+  static const int SQ_H = 128;  // the full-panel layout's height (setSquareLayout): W x 128
 #ifdef VESPER_TDECK
   static constexpr float SCALE = 1.875f;  // the T-Deck's 320x240 (must match its TDeckFont.h)
 #else

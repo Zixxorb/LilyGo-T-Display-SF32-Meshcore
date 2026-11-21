@@ -270,7 +270,7 @@ private:
     _marquee_rows &= ~(1UL << i);  // set again below if its label still scrolls
     int y = i * (ROW_H + ROW_GAP);
     ((SF32Display&)display).clearRows(y, ROW_H + ROW_GAP);  // its strip, gap included
-    themeCard(display, 4, y, 120, ROW_H);
+    themeCard(display, 4, y, UI_W - 8, ROW_H);
     if (i == _sel) {  // selection: accent bar on the left
       display.setColor(THEME_ACCENT);
       display.fillRect(4, y + 2, 2, ROW_H - 4);

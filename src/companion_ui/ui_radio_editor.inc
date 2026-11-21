@@ -269,7 +269,7 @@ public:
     char a[24], b[24], line[48];
     RadioValues sv = _edit->saved();
     themeHeader(d, _leaving ? "Unsaved" : "Apply?", _task->getBattMilliVolts());
-    themeCard(d, 4, 27, 120, 68);
+    themeCard(d, 4, 27, UI_W - 8, 68);
     int y = 31;
     for (int f = RF_FREQ; f < RF_COUNT; f++) {
       if (!_edit->v.differs(f, sv)) continue;
@@ -284,7 +284,7 @@ public:
     if (_leaving) {
       d.setTextSize(1);
       d.setColor(UIColor::secondary_txt);
-      d.drawTextCentered(64, 84, "not applied yet");
+      d.drawTextCentered(UI_CX, 84, "not applied yet");
       drawBtn(d, L_KEEP, "Keep", 1, false);
       drawBtn(d, L_DISCARD, "Discard", 1, false);
       drawBtn(d, L_APPLY, "Apply", 1, true);
@@ -292,7 +292,7 @@ public:
     } else {
       d.setTextSize(1);
       d.setColor(UIColor::secondary_txt);
-      d.drawTextCentered(64, 84, "other nodes must match");
+      d.drawTextCentered(UI_CX, 84, "other nodes must match");
       drawBtn(d, A_BACK, "Back", 1, false);
       drawBtn(d, A_APPLY, "Apply", 1, true);
       drawSelBar(d, _sel == 0 ? A_BACK : A_APPLY);
