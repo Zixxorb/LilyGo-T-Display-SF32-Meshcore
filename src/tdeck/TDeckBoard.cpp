@@ -29,3 +29,17 @@ void TDeckBoard::begin() {
 
   tdeckTrimContacts();  // before MeshCore loads them (see TDeckContacts.h)
 }
+
+#ifdef TDECK_SHOT
+void tdeck_shot_poll();  // TDeckShot.cpp (debug builds)
+#endif
+
+void TDeckBoard::loop() {
+#ifdef TDECK_SHOT
+  tdeck_shot_poll();
+#endif
+}
+
+// SF32Display calls this before using the panel (the SF32's display controller runs from the
+// CPU clock). The T-Deck's doesn't: nothing to do.
+extern "C" void sf32_cpu_full_speed() {}

@@ -4,9 +4,16 @@
 #include <string.h>
 #include "mem_section.h"
 #include "bf0_hal.h"  // system_bf0_ap.h: mpu_dcache_clean
+#ifdef VESPER_TDECK  // the T-Deck (src/tdeck/): the same pictures at its scale
+#include "TDeckFont.h"
+#include "TDeckEmoji.h"
+#include "TDeckLogo.h"
+#include <esp_heap_caps.h>
+#else
 #include "SF32Font.h"
 #include "SF32Emoji.h"  // the common emoji (tools/gen_emoji.py)
 #include "SF32Logo.h"  // the boot screen logo (tools/gen_boot_logo.py)
+#endif
 // The chip's graphics hardware: much faster on PSRAM than the CPU going through its cache
 // (measured, one 480x480 frame: copy 15.5 ms by CPU, 5.2 by DMA; a blend 38 by CPU, 8 by EPIC).
 // On the SF32LB52 the panel controller has one layer only, and EPIC 2 layers plus a mask at a time.
@@ -19,7 +26,7 @@ extern "C" {
 }
 #endif
 
-extern "C" void sf32_cpu_full_speed();  // SF32Board.cpp
+extern "C" void sf32_cpu_full_speed();  // SF32Board.cpp (the T-Deck: TDeckBoard.cpp)
 #define LOG_TAG "display"
 #include <ulog.h>
 
@@ -67,6 +74,29 @@ static inline int px_y(int y) { return OFFSET_Y + (int)lroundf(y * SF32Display::
 // Full-panel frame buffers in PSRAM (460 KB each, of 8 MB), as in LilyGo's lcd example:
 // two that alternate between "being drawn" and "last shown" (transitions slide from
 // one to the other).
+#ifdef VESPER_TDECK
+// The T-Deck: its PSRAM is heap only (no linker section), so the same buffers are allocated
+// from it at startup and bound to references: the code below uses them unchanged.
+#define FB_PIXELS (PANEL_W * PANEL_H)
+static void* psram(size_t n) {
+  void* p = heap_caps_aligned_alloc(64, n, MALLOC_CAP_SPIRAM);
+  if (!p) abort();  // 8 MB of PSRAM: only a broken board gets here
+  memset(p, 0, n);
+  return p;
+}
+#define PSRAM_ARRAY(type, name, dims) static type (&name)dims = *(type(*)dims)psram(sizeof(type dims))
+PSRAM_ARRAY(uint16_t, s_fb_a, [FB_PIXELS]);
+PSRAM_ARRAY(uint16_t, s_fb_b, [FB_PIXELS]);
+#define LAYER_ROWS 2600  // panel px (as the SF32's, below)
+PSRAM_ARRAY(uint16_t, s_layer, [PANEL_W * LAYER_ROWS]);
+#define GLASS_GRID 121
+PSRAM_ARRAY(uint16_t, s_wall, [FB_PIXELS]);
+PSRAM_ARRAY(uint16_t, s_frost, [FB_PIXELS]);
+PSRAM_ARRAY(uint8_t, s_glass_grid, [GLASS_GRID * GLASS_GRID * 3]);
+PSRAM_ARRAY(uint8_t, s_glass_tmp, [GLASS_GRID * GLASS_GRID * 3]);
+PSRAM_ARRAY(uint8_t, s_popup_grid, [GLASS_GRID * GLASS_GRID * 3]);
+PSRAM_ARRAY(float, s_glass_curve, [4][PANEL_W]);
+#else
 #define FB_PIXELS (PANEL_W * PANEL_H)
 L2_NON_RET_BSS_SECT_BEGIN(mc_fb)
 L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint16_t s_fb_a[FB_PIXELS]);
@@ -93,6 +123,7 @@ L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint8_t s_over[OVER_W * OVER_ROWS * 
 L2_NON_RET_BSS_SECT(mc_fb, ALIGN(64) static uint8_t s_mask[OVER_W * OVER_ROWS]);      // A8
 #endif
 L2_NON_RET_BSS_SECT_END
+#endif
 static uint16_t* s_fb = s_fb_a;     // frame being drawn
 static uint16_t* s_shown = s_fb_b;  // frame on the panel
 // For tools/sf32_debug_uart.py shot (@address of this pointer): the frame on the panel.

@@ -9,6 +9,7 @@
 #include <helpers/SensorManager.h>
 #include "TDeckBoard.h"
 
+extern SPIClass tdeck_spi;  // the bus the screen, radio and microSD share
 extern TDeckBoard board;
 extern WRAPPER_CLASS radio_driver;
 extern AutoDiscoverRTCClock rtc_clock;

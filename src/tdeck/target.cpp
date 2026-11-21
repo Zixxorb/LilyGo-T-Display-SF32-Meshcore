@@ -4,21 +4,21 @@
 
 TDeckBoard board;
 
-static SPIClass spi;  // the shared bus (screen, radio, microSD): one SPIClass for all of them
-RADIO_CLASS radio = new Module(P_LORA_NSS, P_LORA_DIO_1, P_LORA_RESET, P_LORA_BUSY, spi);
+SPIClass tdeck_spi;  // the shared bus (screen, radio, microSD): one SPIClass for all of them
+RADIO_CLASS radio = new Module(P_LORA_NSS, P_LORA_DIO_1, P_LORA_RESET, P_LORA_BUSY, tdeck_spi);
 WRAPPER_CLASS radio_driver(radio, board);
 
 ESP32RTCClock fallback_clock;
 AutoDiscoverRTCClock rtc_clock(fallback_clock);
 SensorManager sensors;
 
-void tdeckTestPattern(SPIClass& spi);  // (bring-up: TDeckTestPattern.cpp)
+void tdeckTestPattern();  // (bring-up: TDeckTestPattern.cpp)
 
 bool radio_init() {
   fallback_clock.begin();
   rtc_clock.begin(Wire);
-  bool ok = radio.std_init(&spi);  // (starts the shared bus: SCK 40, MISO 38, MOSI 41)
-  tdeckTestPattern(spi);
+  bool ok = radio.std_init(&tdeck_spi);  // (starts the shared bus: SCK 40, MISO 38, MOSI 41)
+  tdeckTestPattern();
   return ok;
 }
 

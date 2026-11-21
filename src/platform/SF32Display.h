@@ -16,7 +16,11 @@
 class SF32Display : public DisplayDriver {
 public:
   static const int W = 128, H = 64;
+#ifdef VESPER_TDECK
+  static constexpr float SCALE = 1.875f;  // the T-Deck's 320x240 (must match its TDeckFont.h)
+#else
   static constexpr float SCALE = 3.5f;  // must match tools/gen_font.py
+#endif
 
   SF32Display() : DisplayDriver(W, H) {}
   bool begin();

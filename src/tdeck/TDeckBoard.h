@@ -20,4 +20,6 @@ public:
   }
 
   const char* getManufacturerName() const override { return "LilyGo T-Deck"; }
+
+  void loop() override;
 };

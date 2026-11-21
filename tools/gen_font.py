@@ -11,6 +11,7 @@ The font is proportional: each glyph has its own advance, and SF32Display report
 real text widths (in logical pixels) to MeshCore's layout code.
 
 usage: python3 tools/gen_font.py [FONT.ttf]   (needs Pillow; run with the system python)
+The T-Deck's font: SCALE=1.875 OUT=src/tdeck/TDeckFont.h python3 tools/gen_font.py
 Default font: Noto Sans Medium (SIL Open Font License 1.1).
 """
 import os
@@ -18,14 +19,14 @@ import sys
 
 from PIL import Image, ImageDraw, ImageFont
 
-SCALE = 3.5  # must match SF32Display::SCALE
+SCALE = float(os.environ.get("SCALE", "3.5"))  # must match SF32Display::SCALE
 # text size -> characters (None = all printable ASCII), or (characters, scale) for a set drawn
 # at another scale than its number. Size 5 is the clock's digits; "size" 9 is the clock
 # page's battery % at 1.5x (SF32Display::TEXT_BATTERY), between sizes 1 and 2.
 SIZES = {1: None, 2: None, 3: None, 5: "0123456789:- ", 9: ("0123456789%- ", 1.5)}
 FIRST, LAST = 32, 126
 FONT = "/usr/share/fonts/noto/NotoSans-Medium.ttf"
-OUT = os.path.join(os.path.dirname(__file__), "..", "src", "platform", "SF32Font.h")
+OUT = os.environ.get("OUT") or os.path.join(os.path.dirname(__file__), "..", "src", "platform", "SF32Font.h")
 
 # Cap height as a fraction of the 8n-pixel cell (the 5x7 font's caps fill 7 of 8 rows,
 # but MeshCore lines are often only 10-11 px apart, so leave room for descenders).

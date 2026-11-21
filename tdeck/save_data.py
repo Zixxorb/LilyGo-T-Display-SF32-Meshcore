@@ -2,9 +2,11 @@
 """Save the T-Deck's data partition (SPIFFS: identity, contacts, channels, settings) before a
 flash.   save_data.py PORT OUT_DIR
 
-Reading all 3.4 MB over the T-Deck's USB takes ~6 minutes, so first the chip works out the
-partition's MD5 itself (a second or two): if it matches the newest copy in ../board-logs/,
-nothing has changed and that copy is enough. Exit 0 = saved (or unchanged), 1 = not saved.
+Reading all 3.4 MB over the T-Deck's USB takes ~6 minutes, so it's saved at most once a day
+(the user's choice, 2026-11-21: flashing the app never writes the data partition): if today's
+copy exists, nothing is read. Otherwise the chip first works out the partition's MD5 itself (a
+second or two): if it matches the newest copy, that copy is enough. FORCE_SAVE=1 always reads.
+Exit 0 = saved (or not needed), 1 = not saved.
 The copies hold the node's private key: board-logs/ is never committed.
 """
 import glob
@@ -27,12 +29,16 @@ def newest_copy(logs):
 def main():
     port, out = sys.argv[1], sys.argv[2]
     logs = os.path.dirname(os.path.abspath(out))
+    today = os.path.basename(out)[:10]  # YYYY-MM-DD
+    last = newest_copy(logs)
+    if last and not os.environ.get("FORCE_SAVE") and os.path.basename(os.path.dirname(last)).startswith(today):
+        print(f"Data partition already saved today ({os.path.relpath(last)}): not read again")
+        return 0
     esp = esptool.cmds.detect_chip(port, 115200)
     esp = esp.run_stub()
     try:
         esp.change_baud(921600)
         on_chip = esp.flash_md5sum(DATA_OFFSET, DATA_SIZE)
-        last = newest_copy(logs)
         if last and hashlib.md5(open(last, "rb").read()).hexdigest() == on_chip:
             print(f"Data partition unchanged since {os.path.relpath(last)}: not read again")
             return 0

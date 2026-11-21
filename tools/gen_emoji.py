@@ -10,7 +10,9 @@
 # when it's translated again. Others show as the placeholder block.
 #
 # Usage: python3 tools/gen_emoji.py DIR_WITH_emoji_uXXXX.png   (keep the order: add at the end)
-import os, sys
+# Another scale (the T-Deck): SCALE=1.875 OUT=src/tdeck/TDeckEmoji.h python3 tools/gen_emoji.py
+#   DIR; or, without the PNGs, shrink the SF32's set: ... gen_emoji.py src/platform/SF32Emoji.h
+import os, re, sys
 from PIL import Image
 
 EMOJI = [  # most used first (Unicode's emoji frequency list), then mesh and status ones
@@ -27,14 +29,35 @@ EMOJI = [  # most used first (Unicode's emoji frequency list), then mesh and sta
     "1f44e", "274c", "26a0", "2757", "2753", "2b50", "1f4e1", "1f4f6", "1f50b", "26a1",
     "1f4cd", "1f3f7", "1f916", "1f319", "1f327", "1f3e0", "1f697", "1f6f0",
 ]
-PX = round(7 * 3.5)  # text size 1: 7 logical px (SF32Display::SCALE 3.5)
+SCALE = float(os.environ.get("SCALE", "3.5"))  # SF32Display::SCALE
+PX = round(7 * SCALE)  # text size 1: 7 logical px
+OUT = os.environ.get("OUT", "src/platform/SF32Emoji.h")
+
+def pictures(src):
+    """(code point, RGBA image) for each of EMOJI: from Noto's PNGs, or from an SF32Emoji.h"""
+    if not src.endswith(".h"):
+        for e in EMOJI:
+            yield e, Image.open(os.path.join(src, f"emoji_u{e}.png")).convert("RGBA")
+        return
+    text = open(src).read()
+    n = int(re.search(r"SF32_EMOJI_PX (\d+)", text).group(1))
+    cps = re.search(r"sf32_emoji_cp\[[^]]*\] = \{(.*?)\};", text, re.S).group(1)
+    cps = [c.strip()[2:] for c in cps.split(",") if c.strip()]
+    rgb = [int(v, 16) for v in re.search(r"sf32_emoji_rgb\[\] = \{(.*?)\};", text, re.S).group(1).replace(",", " ").split()]
+    alpha = [int(v) for v in re.search(r"sf32_emoji_a\[\] = \{(.*?)\};", text, re.S).group(1).replace(",", " ").split()]
+    for k, e in enumerate(EMOJI):
+        i = cps.index(e) * n * n
+        im = Image.new("RGBA", (n, n))
+        im.putdata([(((v >> 11) & 31) * 255 // 31, ((v >> 5) & 63) * 255 // 63, (v & 31) * 255 // 31, a)
+                    for v, a in zip(rgb[i:i + n * n], alpha[i:i + n * n])])
+        yield e, im
 
 def main():
     src = sys.argv[1]
     assert len(EMOJI) <= 128 and len(set(EMOJI)) == len(EMOJI)
     rgb, alpha = [], []
-    for e in EMOJI:
-        im = Image.open(os.path.join(src, f"emoji_u{e}.png")).convert("RGBA").resize((PX, PX), Image.LANCZOS)
+    for e, im in pictures(src):
+        im = im.resize((PX, PX), Image.LANCZOS)
         for r, g, b, a in im.getdata():
             rgb.append((((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3)) if a else 0)
             alpha.append(a)
@@ -49,7 +72,7 @@ def main():
     out += ["};", "static const uint8_t sf32_emoji_a[] = {"]
     out += ["  " + ",".join(str(v) for v in alpha[i:i + 32]) + "," for i in range(0, len(alpha), 32)]
     out += ["};"]
-    open("src/platform/SF32Emoji.h", "w").write("\n".join(out) + "\n")
+    open(OUT, "w").write("\n".join(out) + "\n")
     print(len(EMOJI), "emoji,", PX, "px,", len(rgb) * 3 // 1024, "KB")
 
 main()
