@@ -32,7 +32,7 @@ public:
   const char* getManufacturerName() const override { return "LilyGo T-Deck"; }
 
   // ---- the SF32 board's interface (see SF32Board.h) ----
-  void setCpuLow(bool low) { _cpu_low = low; }  // (power work: later)
+  void setCpuLow(bool low);  // 80 MHz instead of 240 (the UI: screen and sound off a while)
   bool cpuLow() const { return _cpu_low; }
   uint32_t cpuMHz() const { return getCpuFrequencyMhz(); }
   int chipTempC();

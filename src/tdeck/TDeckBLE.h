@@ -18,3 +18,4 @@ private:
   bool _slow_adv = false, _slow_link = false;
 };
 extern TDeckBLE tdeck_ble;
+bool bluetooth_connected();  // a phone is connected (MeshCore's interface)

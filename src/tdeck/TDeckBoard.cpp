@@ -5,6 +5,9 @@
 #include "SF32RTCClock.h"
 #include "TDeckDevices.h"
 #include "TDeckKeys.h"
+#include "target.h"
+#include "SF32TouchInput.h"
+#include "TDeckBLE.h"
 
 void TDeckBoard::begin() {
   // The screen, LoRa radio and microSD share one SPI bus: every chip select high (idle)
@@ -39,20 +42,68 @@ void TDeckBoard::begin() {
 void tdeck_shot_poll();  // TDeckShot.cpp (debug builds)
 #endif
 
+#ifdef TDECK_POWER_AB
+// Measuring build (env tdeck_power_ab): the power savings (pacing, 80 MHz) are on for an hour,
+// off for an hour, and so on from boot; each change goes in the event log (Settings > Logs), so
+// the drain of each can be read off the battery history.
+static bool savingOff() { return (millis() / 3600000UL) % 2 == 1; }
+#else
+static inline bool savingOff() { return false; }
+#endif
+
+// The main loop's pacing, as the SF32's src/main.cpp does it (the companion UI sets these):
+// it runs once per pass of MeshCore's loop, at the end (MeshCore's main.cpp calls board.loop()).
+extern volatile bool sf32_ui_animating;
+extern volatile uint8_t sf32_ui_wait_ms, sf32_loop_sleep_ms;
+extern volatile uint16_t sf32_loop_event_ms;
+
+// Screen off, on battery: wait up to ms for something to happen, in 10 ms naps (each lets the
+// CPU idle): a packet coming in or going out (DIO1), the trackball click or a roll. With a phone
+// connected only the normal nap: its commands would wait otherwise.
+static void waitForEvents(uint32_t ms) {
+  if (bluetooth_connected()) ms = sf32_loop_sleep_ms;
+  for (uint32_t t0 = millis(); millis() - t0 < ms; ) {
+    if (digitalRead(P_LORA_DIO_1) == HIGH || digitalRead(PIN_USER_BTN) == LOW || tdeckKeysPending()) return;
+    delay(10);
+  }
+}
+
 void TDeckBoard::loop() {
   if (!_boot_done) {  // the filesystem is mounted by now (MeshCore's setup())
     _boot_done = true;
     if (_rtc) _rtc->afterSetup();
   }
-  tdeck_touch_poll();
+  // the touch chip and the keyboard are asked over I2C only while the screen is on (or taps
+  // wake it): with it off, nothing they say is used
+  bool screen = !_display || _display->isOn() || touch_input.tapWake();
+  if (screen) tdeck_touch_poll();
+  tdeckKeysActive(screen);
 #ifdef TDECK_SHOT
   tdeck_shot_poll();
 #endif
+#ifdef TDECK_POWER_AB
+  static int phase = -1;
+  if (phase != (int)savingOff()) {
+    phase = savingOff();
+    logEvent(phase ? "A/B: savings off" : "A/B: savings on");
+    if (phase) setCpuLow(false);
+  }
+  if (phase) return;  // (no pacing: the loop runs flat out, as before)
+#endif
+  if (sf32_ui_animating) delay(sf32_ui_wait_ms);  // mid-animation: back for its next frame
+  else if (sf32_loop_event_ms) waitForEvents(sf32_loop_event_ms);
+  else delay(sf32_loop_sleep_ms);  // 4 ms with the screen in use, else 25: the CPU idles meanwhile
 }
 
-// SF32Display calls this before using the panel (the SF32's display controller runs from the
-// CPU clock). The T-Deck's doesn't: nothing to do.
-extern "C" void sf32_cpu_full_speed() {}
+void TDeckBoard::setCpuLow(bool low) {
+  if (savingOff()) low = false;
+  if (low == _cpu_low) return;
+  _cpu_low = low;
+  setCpuFrequencyMhz(low ? 80 : 240);  // (80: the lowest that keeps Bluetooth and the APB clock)
+}
+
+// SF32Display calls this before using the panel: back to full speed to draw
+extern "C" void sf32_cpu_full_speed() { board.setCpuLow(false); }
 
 extern "C" void sf32_pm_event(int) {}  // (battery stats: the SF32's power manager)
 extern "C" void sf32_wake_loop(void) {}  // (the loop doesn't wait for events here yet)

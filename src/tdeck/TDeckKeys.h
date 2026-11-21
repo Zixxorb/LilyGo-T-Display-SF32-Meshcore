@@ -7,3 +7,5 @@
 
 void tdeckKeysBegin();
 char tdeckTakeKey();  // 0: none
+bool tdeckKeysPending();  // the trackball has rolled (not taken yet)
+void tdeckKeysActive(bool on);  // off: the keyboard isn't asked (screen off)

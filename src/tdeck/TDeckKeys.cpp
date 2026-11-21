@@ -27,6 +27,13 @@ static void IRAM_ATTR on_right() { s_edges[1]++; s_edge_ms = millis(); }
 static void IRAM_ATTR on_down() { s_edges[2]++; s_edge_ms = millis(); }
 static void IRAM_ATTR on_left() { s_edges[3]++; s_edge_ms = millis(); }
 static bool s_kb = false;
+static bool s_active = true;
+static bool s_flush = false;
+void tdeckKeysActive(bool on) {
+  if (on && !s_active) s_flush = true;  // keys typed while it was off: not acted on
+  s_active = on;
+}
+bool tdeckKeysPending() { return s_edges[0] || s_edges[1] || s_edges[2] || s_edges[3]; }
 
 void tdeckKeysBegin() {
   const uint8_t pins[4] = {BALL_UP, BALL_RIGHT, BALL_DOWN, BALL_LEFT};
@@ -72,10 +79,11 @@ static char ballKey() {
 
 static char keyboardKey() {
   static unsigned long next = 0;
-  if (!keyboardThere() || (long)(millis() - next) < 0) return 0;
+  if (!s_active || !keyboardThere() || (long)(millis() - next) < 0) return 0;
   next = millis() + KB_POLL_MS;
   if (Wire.requestFrom(KB_ADDR, 1) != 1) return 0;
   char k = Wire.read();
+  if (s_flush) { s_flush = false; return 0; }
   switch (k) {
     case '\r': case '\n': return KEY_ENTER;
     case 0x08: return KEY_CANCEL;              // Backspace: back

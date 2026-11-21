@@ -3,7 +3,7 @@
 //   SF32Sound: the I2S speaker (step 6: silent, the same theme and chime names)
 //   SF32Motion: the T-Deck has no motion sensor (never ready: lift to wake etc. stay off)
 //   SF32UsbInterface: the USB app link (later: off)
-// and the SF32 main loop's pacing variables (TDeckBoard::loop uses the sleep).
+// and the SF32 main loop's pacing variables (TDeckBoard::loop paces the loop with them).
 #include <Arduino.h>
 #include "SF32Sound.h"
 #include "SF32Motion.h"
@@ -46,8 +46,8 @@ void SF32UsbInterface::setConnected(bool c) { _connected = c; }
 
 // ---- the SF32 main loop's pacing (src/main.cpp there) ----
 volatile bool sf32_ui_animating = false;
-volatile uint8_t sf32_ui_wait_ms = 0;
-volatile uint8_t sf32_loop_sleep_ms = 0;
+volatile uint8_t sf32_ui_wait_ms = 1;
+volatile uint8_t sf32_loop_sleep_ms = 4;  // (as the SF32's main.cpp)
 volatile uint16_t sf32_loop_event_ms = 0;
 extern "C" volatile uint32_t sf32_radio_tx = 0, sf32_radio_rx = 0;
 extern "C" void sf32_button_wake_arm(void) {}

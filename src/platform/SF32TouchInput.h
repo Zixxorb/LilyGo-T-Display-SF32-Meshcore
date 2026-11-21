@@ -46,6 +46,7 @@ public:
   // scanning was ~60% of the screen-off drain (2026-11-08 test). Button A always wakes it.
   void setLowPower(bool low);
   void setTapWake(bool on) { _tap_wake = on; }
+  bool tapWake() const { return _tap_wake; }
 
   // Live finger (drag scrolling): panel coordinates while touching.
   bool fingerDown() { update(); return _down; }

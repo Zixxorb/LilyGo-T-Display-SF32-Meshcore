@@ -16,3 +16,5 @@ bool TDeckBLE::forgetBonds() {
   free(list);
   return true;
 }
+
+bool bluetooth_connected() { return bluetooth_interface.isConnected(); }

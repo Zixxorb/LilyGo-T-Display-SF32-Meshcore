@@ -25,6 +25,6 @@ fi
 "$pio" run -e "$env" -t upload --upload-port "$port"
 
 # the normal firmware must not have the debug tools
-if [ "$env" = tdeck_companion ] && grep -q tdeck_shot_poll <(~/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-nm .pio/build/$env/firmware.elf); then
+if [ "$env" != tdeck_debug ] && grep -q tdeck_shot_poll <(~/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-nm .pio/build/$env/firmware.elf); then
   echo "WARNING: the normal build has the screenshot tool in it"; exit 1
 fi
