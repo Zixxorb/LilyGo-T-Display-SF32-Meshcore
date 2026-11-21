@@ -38,7 +38,8 @@ lib/              vendored Crypto, CayenneLPP, base64, and MeshCore (lib/MeshCor
 flasher/          sf32-flash.py: the stand-alone flasher for users (no SDK; downloads sftool)
 tools/            sf32_debug_uart.py (flashing helper, crash debugging), shot.sh
                   (screenshots), touch.sh (remote touch, debug builds), pmstats.sh (sleep
-                  counters), savelogs.sh (save the board's RAM logs), gen_font.py (the UI font)
+                  counters), savelogs.sh (save the board's RAM logs), gen_font.py (the UI font),
+                  gen_emoji.py (colour emoji), gen_logo.py (README banner), gen_boot_logo.py (boot screen logo)
 sdk-patches/      the SDK fixes below (setup.sh applies them)
 setup.sh          one-time setup: MeshCore, SDK fixes, SDK link
 env.sh            activates the SDK through ~/sifli-lilygo-sdk (a symlink; the SDK's
@@ -145,8 +146,9 @@ The same channel works on a running or crashed board:
 | `tools/sf32_debug_uart.py PORT shot ADDR out.png` | Screenshot (see below) |
 | `tools/pmstats.sh` | Sleep counters from the last run on battery (see Power) |
 
-- Never do block reads of XIP flash (0x1xxxxxxx) over this channel: the chip hangs until
-  the watchdog reboots it.
+- Never read XIP flash (0x1xxxxxxx) over this channel: the chip hangs until the watchdog
+  reboots it. `mem` at a flash address reads `.flashed/main.bin` (the flashed image, kept by
+  `flash.sh`) instead and doesn't touch the board.
 - Use `arm-none-eabi-addr2line -e <build>/main.elf` on the addresses. A PC stuck in
   `rt_hw_hard_fault_exception` means a HardFault; the frame is on the PSP after the
   handler's saved registers.
@@ -176,6 +178,7 @@ The same channel works on a running or crashed board:
   `SF32_UI_DEMO_TIME=<epoch>` also sets the RTC at boot. Test builds skip power off and
   reboot, and never transmit an SOS.
 - Other flags: `SF32_SUN_TEST=1` (New York as the location for sun times),
+  `SF32_SPLASH_TEST=1` (the boot screen stays 2 min, for screenshots),
   `SF32_PM_LOG=1` (sleep statistics on the console), `SF32_FRAME_LOG=1` (frame timing),
   `SF32_MOTION_LOG=1` (accelerometer every second), `SF32_SOUND_LOG=1`,
   `SF32_I2C_SCAN=1` (I2C scan at boot), `SF32_SENSOR_PROBE=1` (the motion sensor's virtual

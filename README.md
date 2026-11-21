@@ -55,7 +55,7 @@ Vesper is free and open source. If it's useful to you, you can support its devel
 | **7 clock faces** | Color, Sun (sun and moon on the sky's arc), Starlit, Digital, Analog, Big, Info. Hold the clock to switch |
 | **Signal tools** | Signal tester, repeater **finder** (warmer/colder), 902-928 MHz **band scan**, **LoRa networks** nearby (Meshtastic, MeshCore, LoRaWAN) |
 | **Mesh at a glance** | Activity graph, heard nodes, **My Nodes**, one **card per node** (details, path-hash size, battery on request, ping a repeater) |
-| **Battery** | 48 h history graph, time left, low-battery protection |
+| **Battery** | 48 h history graph, time left, what used it (Usage), low-battery protection |
 | **Starlits** | A little critter of your own, fed by the mesh traffic it hears: stroke it, boop it, play. It reflects the device and shows **today's finds**; meet your friends' Starlits |
 | **Mesh SOS** | Triple-press A: location + battery to a channel, repeated; turns on low power mode |
 | **Low power mode** | For when only the mesh matters: minimal clock, slower Bluetooth, 30 fps; by hand or at a battery level |
@@ -224,7 +224,7 @@ your finger and glide after a flick.
 | **Discover** | Scan for nearby nodes |
 | **Signal** | Signal tester and repeater finder |
 | **Activity** | Packets per hour over 24 h and how busy the channel is |
-| **Nodes** | Your favourite contacts: last heard, hops; tap one for its card (battery on request) |
+| **Nodes** | Your favourite contacts: last heard, hops; tap one for its card (battery on request, Ping for a repeater) |
 | **Starlit** | Your Starlit, its needs and its line (mood, device state, today's finds). Stroke it, tap it, hold it to play; its menu has **Friends**. See [Starlits](#starlits) |
 | **Power** | Hold the icon for the power menu |
 
@@ -399,7 +399,7 @@ and its build: about 345,000 different Starlits.
   SOS is on. The line under its bars says so.
 - **Friends** (its swipe-up menu): the Starlits of your favourite nodes and the 10 others heard
   most recently, a still gallery that scrolls; tap one for its card (it comes to life, with
-  the node's details and its battery on request, as from the Nodes page).
+  the node's details, its battery on request and, for a repeater, Ping, as from the Nodes page).
 - **Path-hash size**: each Starlit glows with a faint aura for its node's path-hash size:
   amber for 1-byte, cyan for 2-byte, violet for 3-byte (none until it's known; yours from your
   setting). The node's card says it in words. Learnt from the node's flooded adverts and
@@ -533,8 +533,10 @@ menu > Advert menu > **Hold** picks what its icon hold sends.
 - **Night** (Settings > Screen > Night): a lower brightness between two hours and/or do not disturb
   (silent, dark, and your Starlit sleeps). There's no light sensor for auto brightness.
 - **Timeout**: 15 s, 30 s, 1 min, 5 min, or never while on USB (then it dims after a minute).
-- **Sound**: chime volume off / low / medium / high; tap sounds click / pop / tick plus a
-  whoosh on swipes that change the page or open a menu. No vibration motor on this board.
+- **Sound** (Settings > Sound): volume off / low / medium / high, a sound theme (Classic, Soft,
+  Retro, Nature), message chimes, tap styles, and a whoosh on swipes that change the page or
+  open a menu. Optional event sounds (advert sent, phone connected, charger, low battery, bot
+  reply, a Starlit visit). No vibration motor on this board.
 - **Lift to wake**: lying still, then tilted, turns the screen on (walking or a pocket
   doesn't). **Flip to quiet**: face down turns the screen off and silences alerts.
 
@@ -576,9 +578,12 @@ Starlit > Friends).
 
 - **Battery life** (companion, screen mostly off): an estimated **28-30 hours** on the
   480 mAh battery (about 29 mV per hour overnight, roughly 16-17 mA, measured with Bluetooth
-  off; a connected phone and a busy mesh add roughly 10 %). With the screen off,
-  the touch controller sleeps (unless Settings > Screen > Display > Tap to wake is on) and the
-  audio chip powers down; the LoRa radio keeps listening all the time (about 5 mA of that).
+  off; a connected phone and a busy mesh add roughly 10 %). With regular use, about a day
+  (a full charge lasted about 21 hours in real use, with the bot on). With the screen off,
+  the touch controller sleeps (unless Settings > Screen > Display > Tap to wake is on), the
+  audio chip powers down and the main loop waits for something to happen (a packet, a touch,
+  a button, Bluetooth) instead of checking 40 times a second; the LoRa radio keeps listening
+  all the time (about 5 mA of that).
 - **Low power mode** (Power menu, or Settings > Power > Low power): for when only the mesh matters,
   say someone lost. The clock page becomes a minimal one (dimmer time on black, "Low power"
   under the date) and a small green leaf shows in the status icons. It turns off tap and
@@ -601,7 +606,8 @@ Starlit > Friends).
 - **Charge shown**: from the battery voltage, with 0 % at the power-off below. While charging (which lifts the voltage) it
   carries on from the reading before USB at the charger's pace, and shows 100 % only when
   the charger reports done.
-- **Warnings**: a popup at 20 %; at 10 % it also wakes the screen.
+- **Warnings** (Settings > Power > Battery > Low alert): a popup at 20 % by default; at 10 % a
+  second one wakes the screen (at 5 % when the first is set to 10 %).
 - **Protection**: on battery below 3.55 V for 30 s the board powers off (same threshold as
   LilyGo's factory firmware). Started again on battery before it's charged (the D key), it
   needs 3.65 V in its first minute, or it shows "Battery empty" and powers off again.
@@ -671,7 +677,7 @@ src/platform/     board support: battery, radio, display, touch, BLE, USB, RTC, 
 src/arduino/      a minimal Arduino layer for MeshCore
 src/companion_ui/ the companion's screen UI (MeshCore's ui-new plus ui_*.inc)
 lib/              vendored libraries; MeshCore is fetched by setup.sh, unmodified
-tools/            flashing helper, screenshots, remote touch, battery counters, font generator
+tools/            flashing helper, screenshots, remote touch, battery counters, font/emoji/logo generators
 flasher/          stand-alone flasher for users (no SDK needed)
 ci/               build-all.sh: the clean build GitHub Actions runs on code pushes
 sdk-patches/      fixes the LilyGo SDK needs (applied by setup.sh)
