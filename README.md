@@ -16,6 +16,7 @@ Companion (phone app over Bluetooth, with its own touch UI) · Repeater · Room 
 ![Board](https://img.shields.io/badge/board-T--Display--SF32-3b82f6)
 ![Radio](https://img.shields.io/badge/radio-SX1262%20915%20MHz-22c55e)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-support-ff5e5b?logo=ko-fi&logoColor=white)](https://ko-fi.com/zixxorb)
 
 <img src="docs/images/face-color.png" width="200"> <img src="docs/images/face-sun.png" width="200"> <img src="docs/images/face-info.png" width="200">
 
@@ -28,6 +29,9 @@ start screen and in About), separate from the MeshCore version it runs.
 
 The companion is a **handheld node**, not a messenger: the phone does the messaging, the
 device shows what's happening on the mesh, tests links, finds repeaters and keeps time.
+
+Vesper is free and open source. If it's useful to you, you can support its development on
+[Ko-fi](https://ko-fi.com/zixxorb).
 
 ## Contents
 
