@@ -9,7 +9,29 @@
 #include "SF32TouchInput.h"
 #include "TDeckBLE.h"
 
+#define ON_HOLD_MS 1000  // powered off: the trackball held this long turns it on
+
+// Woken from "off" by the trackball: on only if it's held down a second (a knock in a pocket
+// goes back to sleep at once)
+static void checkPowerOnHold() {
+  if (esp_reset_reason() != ESP_RST_DEEPSLEEP) return;
+  rtc_gpio_hold_dis((gpio_num_t)P_LORA_NSS);  // (held high while off: powerOff())
+  rtc_gpio_deinit((gpio_num_t)PIN_USER_BTN);   // (the wake pin: a normal pin again)
+  if (esp_sleep_get_wakeup_cause() != ESP_SLEEP_WAKEUP_EXT0) return;
+  pinMode(PIN_USER_BTN, INPUT_PULLUP);
+  for (uint32_t t0 = millis(); millis() - t0 < ON_HOLD_MS; delay(10)) {
+    if (digitalRead(PIN_USER_BTN) == HIGH) {  // let go too soon: back off
+      rtc_gpio_hold_en((gpio_num_t)P_LORA_NSS);
+      rtc_gpio_pullup_en((gpio_num_t)PIN_USER_BTN);
+      esp_sleep_enable_ext0_wakeup((gpio_num_t)PIN_USER_BTN, 0);
+      esp_deep_sleep_start();
+    }
+  }
+}
+
 void TDeckBoard::begin() {
+  checkPowerOnHold();
+
   // The screen, LoRa radio and microSD share one SPI bus: every chip select high (idle)
   // before anything talks on it, or a floating CS lets two chips answer at once.
   pinMode(P_LORA_NSS, OUTPUT);
@@ -93,6 +115,25 @@ void TDeckBoard::loop() {
   if (sf32_ui_animating) delay(sf32_ui_wait_ms);  // mid-animation: back for its next frame
   else if (sf32_loop_event_ms) waitForEvents(sf32_loop_event_ms);
   else delay(sf32_loop_sleep_ms);  // 4 ms with the screen in use, else 25: the CPU idles meanwhile
+}
+
+void TDeckBoard::powerOff() {
+#ifdef DISPLAY_CLASS
+  display.turnOff();
+#endif
+  radio_driver.powerOff();
+  digitalWrite(P_LORA_NSS, HIGH);
+  rtc_gpio_hold_en((gpio_num_t)P_LORA_NSS);  // (the radio stays deselected, asleep)
+  // the peripherals' power (keyboard, touch, backlight, trackball sensors, microSD, amplifier)
+  // off: their pins first to inputs, so nothing feeds them through a pin meanwhile
+  for (int pin : {PIN_TFT_CS, PIN_SD_CS, 11 /* TFT DC */, 42 /* backlight */}) pinMode(pin, INPUT);
+  digitalWrite(PIN_PERF_POWERON, LOW);
+  Serial.flush();
+  delay(100);
+  esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_ALL);
+  rtc_gpio_pullup_en((gpio_num_t)PIN_USER_BTN);  // the trackball click: pressed = low
+  esp_sleep_enable_ext0_wakeup((gpio_num_t)PIN_USER_BTN, 0);
+  esp_deep_sleep_start();
 }
 
 void TDeckBoard::setCpuLow(bool low) {

@@ -21,6 +21,8 @@ class TDeckBoard : public ESP32Board {
 public:
   void begin();
   void loop() override;
+  // Off: deep sleep with the peripherals unpowered; on again: hold the trackball down 1 s
+  void powerOff() override;
 
   uint16_t getBattMilliVolts() override {
     uint32_t mv = 0;
