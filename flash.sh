@@ -43,4 +43,5 @@ sftool -p "$port" -c SF32LB52 -m nor write_flash \
 cd ../..
 mkdir -p .flashed
 cp "$dir/build_t-display-sf32_hcpu/main.elf" .flashed/main.elf
+cp "$dir/build_t-display-sf32_hcpu/main.bin" .flashed/main.bin  # (sf32_debug_uart.py mem: flash addresses)
 echo "$target" > .flashed/target

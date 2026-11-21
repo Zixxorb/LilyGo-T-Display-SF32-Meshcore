@@ -24,8 +24,9 @@ usage:
                                              the buffer address from the pointer at ADDR
                                              (SF32Display: @&sf32_shown_fb, see main.map)
 
-Never read XIP flash (0x10000000-0x1FFFFFFF) with multi-word reads: it stalls the bus
-and the chip hangs until the watchdog reboots it.
+Never read XIP flash (0x10000000-0x1FFFFFFF) over the debug channel: it stalls the bus
+and the chip hangs until the watchdog reboots it. `mem` at a flash address reads the copy of
+the flashed image instead (.flashed/main.bin, kept by flash.sh) and doesn't touch the board.
 """
 import struct
 import sys
@@ -179,6 +180,26 @@ def leave(port):
     command(port, EXIT)
 
 
+FLASH_MAIN = 0x12020000  # where flash.sh writes main.bin (XIP address)
+
+
+def mem_from_image(addr, n):
+    """Flash addresses: read the flashed image on the PC (the same bytes), never the chip."""
+    import os
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".flashed", "main.bin")
+    try:
+        data = open(path, "rb").read()
+    except OSError:
+        print("flash address: no .flashed/main.bin (flash once with flash.sh); not reading the chip")
+        return 1
+    print("(flash: from .flashed/main.bin, the board isn't touched)")
+    for i in range(n):
+        o = addr + 4 * i - FLASH_MAIN
+        v = struct.unpack_from("<I", data, o)[0] if 0 <= o <= len(data) - 4 else None
+        print("%08X: %s" % (addr + 4 * i, ("%08X" % v) if v is not None else "?"))
+    return 0
+
+
 def main():
     if len(sys.argv) < 3 or sys.argv[2] not in ("probe", "download", "where", "mem", "shot"):
         print(__doc__)
@@ -187,6 +208,8 @@ def main():
     if action == "mem":
         mem_addr, mem_n = int(sys.argv[3], 16), int(sys.argv[4])
         baud = int(sys.argv[5]) if len(sys.argv) > 5 else 115200
+        if 0x10000000 <= mem_addr < 0x20000000:
+            return mem_from_image(mem_addr, mem_n)
     elif action == "shot":
         ptr = sys.argv[3].startswith("@")
         mem_addr, out, baud = int(sys.argv[3].lstrip("@"), 16), sys.argv[4], 115200
