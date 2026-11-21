@@ -1,5 +1,9 @@
 #include "SF32TouchInput.h"
+#ifdef VESPER_TDECK
+#include "TDeckBoard.h"  // (the T-Deck's board; its "touch" device is the GT911: src/tdeck/TDeckTouch.cpp)
+#else
 #include "SF32Board.h"
+#endif
 
 #include <Arduino.h>
 #include <rtthread.h>
@@ -15,8 +19,13 @@ extern SF32Display display;  // target.cpp
 extern SF32RTCClock rtc_clock;
 #endif
 
+#ifdef VESPER_TDECK  // 320x240 at 1.875 panel px per UI px: the same distances in UI px
+#define SWIPE_MIN_PX  32
+#define TAP_MAX_PX    14
+#else
 #define SWIPE_MIN_PX  60    // horizontal travel that counts as a swipe (480 px panel)
 #define TAP_MAX_PX    25    // more travel than this is neither a tap nor a swipe
+#endif
 
 SF32TouchInput touch_input;
 

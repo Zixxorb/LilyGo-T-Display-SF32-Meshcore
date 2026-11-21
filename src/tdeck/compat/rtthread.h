@@ -11,6 +11,8 @@ typedef uint16_t rt_uint16_t;
 typedef uint8_t rt_uint8_t;
 typedef uint32_t rt_uint32_t;
 typedef int32_t rt_int32_t;
+typedef uint32_t rt_size_t;
+typedef int32_t rt_base_t;
 #define RT_EOK        0
 #define RT_ERROR      1
 #define RT_ETIMEOUT   2
@@ -18,6 +20,7 @@ typedef int32_t rt_int32_t;
 #define RT_WAITING_FOREVER  -1
 #define RT_TICK_PER_SECOND  1000
 #define RT_DEVICE_OFLAG_RDWR 0x003
+#define RT_DEVICE_FLAG_RDONLY 0x001
 #define RT_IPC_FLAG_FIFO     0x00
 #define RT_IPC_CMD_RESET     0x01
 
@@ -47,10 +50,12 @@ static inline rt_err_t rt_sem_control(struct rt_semaphore* s, int cmd, void*) {
   return RT_EOK;
 }
 
-// devices: only "lcd"
+// devices: "lcd", "rtc", "touch" (TDeckDevices.cpp)
 struct rt_device;
 typedef struct rt_device* rt_device_t;
 rt_device_t rt_device_find(const char* name);
 rt_err_t rt_device_open(rt_device_t dev, uint16_t flags);
 rt_err_t rt_device_control(rt_device_t dev, int cmd, void* arg);
 rt_err_t rt_device_set_tx_complete(rt_device_t dev, rt_err_t (*done)(rt_device_t dev, void* buffer));
+rt_err_t rt_device_set_rx_indicate(rt_device_t dev, rt_err_t (*ind)(rt_device_t dev, rt_size_t size));
+rt_size_t rt_device_read(rt_device_t dev, int pos, void* buffer, rt_size_t size);

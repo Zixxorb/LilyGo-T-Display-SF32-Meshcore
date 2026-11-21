@@ -1,6 +1,5 @@
 // The SF32 parts the companion UI uses that the T-Deck doesn't have yet, as silent stand-ins,
 // so the UI runs while they're ported one by one (the order in tdeck-port-research.md):
-//   SF32TouchInput: the GT911 touchscreen (step 3: no touches yet)
 //   SF32Sound: the I2S speaker (step 6: silent, the same theme and chime names)
 //   SF32Motion: the T-Deck has no motion sensor (never ready: lift to wake etc. stay off)
 //   SF32UsbInterface: the USB app link (later: off)
@@ -8,7 +7,7 @@
 #include <Arduino.h>
 #include "SF32Sound.h"
 #include "SF32Motion.h"
-#include "SF32TouchInput.h"
+#include "SF32TouchInput.h"  // (touch_input: the shared SF32TouchInput.cpp, over TDeckTouch.cpp)
 #include "SF32UsbInterface.h"
 
 // ---- sound: silent ----
@@ -35,17 +34,6 @@ void SF32Motion::begin() {}
 void SF32Motion::poll() {}
 bool SF32Motion::takePickup() { return false; }
 void SF32Motion::setActive(bool on) { _active = on; }
-
-// ---- touch: not yet ----
-SF32TouchInput touch_input;
-bool SF32TouchInput::begin() { return false; }
-RotaryInputEvent SF32TouchInput::poll() { return RotaryInputEvent::None; }
-int SF32TouchInput::analogRead() { return 4095; }
-SF32TouchInput::Gesture SF32TouchInput::takeGesture() { return Gesture::None; }
-bool SF32TouchInput::takeTap(int&, int&) { return false; }
-void SF32TouchInput::setLowPower(bool low) { _low_power = low; }
-unsigned long SF32TouchInput::stillHeldMs() { return 0; }
-void SF32TouchInput::update() {}
 
 // ---- the USB app link: off ----
 SF32UsbInterface usb_app_interface;

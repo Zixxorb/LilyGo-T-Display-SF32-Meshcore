@@ -157,4 +157,4 @@ static rt_err_t lcd_control(rt_device_t dev, int cmd, void* arg) {
   return RT_EOK;
 }
 
-struct rt_device tdeck_lcd_device = {lcd_open, lcd_control, false};
+struct rt_device tdeck_lcd_device = {lcd_open, lcd_control, false, nullptr, nullptr};

@@ -14,6 +14,14 @@
 #include <helpers/ui/RotaryInput.h>
 
 #define TOUCH_VIRTUAL_PIN 0x7F  // analogRead() pin for the virtual tap button
+// a page drag on screens that take other swipes starts this close to the side (panel px)
+#ifdef VESPER_TDECK
+#define TOUCH_EDGE_L 111   // (the T-Deck: the same UI x as the SF32's, 38 and 90)
+#define TOUCH_EDGE_R 208
+#else
+#define TOUCH_EDGE_L 150
+#define TOUCH_EDGE_R 330
+#endif
 
 class SF32TouchInput : public RotaryInput {
 public:
@@ -48,7 +56,7 @@ public:
   bool touchConsumed() const { return _consumed; }
   // the touch started near the left or right edge (home pages change only with such a swipe,
   // which frees the middle for the page's own touches); remote test swipes count as edge swipes
-  bool edgeStart() const { return _remote_swipe || _x0 < 150 || _x0 >= 330; }
+  bool edgeStart() const { return _remote_swipe || _x0 < TOUCH_EDGE_L || _x0 >= TOUCH_EDGE_R; }
   void click(uint8_t c) { _click = c; }  // touch feedback for what took the touch over
   // a press held in place (hold gestures): how long, 0 if not touching or it moved
   unsigned long stillHeldMs();

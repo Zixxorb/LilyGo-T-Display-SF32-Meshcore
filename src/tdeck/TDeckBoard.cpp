@@ -3,6 +3,7 @@
 #include "TDeckContacts.h"
 #include <SPIFFS.h>
 #include "SF32RTCClock.h"
+#include "TDeckDevices.h"
 
 void TDeckBoard::begin() {
   // The screen, LoRa radio and microSD share one SPI bus: every chip select high (idle)
@@ -41,6 +42,7 @@ void TDeckBoard::loop() {
     _boot_done = true;
     if (_rtc) _rtc->afterSetup();
   }
+  tdeck_touch_poll();
 #ifdef TDECK_SHOT
   tdeck_shot_poll();
 #endif

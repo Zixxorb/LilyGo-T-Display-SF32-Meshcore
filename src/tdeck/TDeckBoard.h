@@ -66,5 +66,7 @@ private:
 using SF32Board = TDeckBoard;
 
 extern "C" void sf32_cpu_full_speed();
+#define SF32_PM_EV_RADIO_IRQ  0  // (sf32_pm_event: the SF32's battery stats)
+#define SF32_PM_EV_TOUCH_IRQ  1
 extern "C" void sf32_pm_event(int k);
 extern "C" void sf32_wake_loop(void);

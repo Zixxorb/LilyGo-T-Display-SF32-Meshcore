@@ -372,7 +372,10 @@ shared with the SF32, not copied:
 - `TDeckBoard` also has `SF32Board`'s interface (and is called that here); `TDeckRadio` adds the
   SF32 radio's extras to MeshCore's SX1262 wrapper; `TDeckBLE` adds the pairing window etc. to
   MeshCore's ESP32 Bluetooth.
-- `TDeckStubs.cpp`: silent stand-ins for what isn't ported yet (touch, sound, the USB app link;
+- Touch: the shared `SF32TouchInput.cpp` (gestures, taps, drags) reads a "touch" device that is
+  the GT911 (`TDeckTouch.cpp`, polled from the main loop every 15 ms; its axes swapped, y mirrored).
+  Its distances are per board (`SWIPE_MIN_PX`, `TAP_MAX_PX`, `TOUCH_EDGE_L/R`).
+- `TDeckStubs.cpp`: silent stand-ins for what isn't ported yet (sound, the USB app link;
   the T-Deck has no motion sensor).
 - `SF32Display.cpp` changes for the T-Deck are behind `VESPER_TDECK` (its buffers come from PSRAM
   there). The font, emoji and logo are generated at the T-Deck's scale (1.875x) into
@@ -381,7 +384,7 @@ shared with the SF32, not copied:
   `SOURCE_DATE_EPOCH` before and after and compare `main.bin` (byte-identical so far).
 
 For now the UI is the SF32's 128x128 layout at 1.875x, centred (layout B, widening it to fill
-the 320x240 screen, comes next), and only the trackball click works.
+the 320x240 screen, comes next). Touch works; of the trackball only the click so far.
 
 ```sh
 cd tdeck
