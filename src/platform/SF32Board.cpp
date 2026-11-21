@@ -32,7 +32,7 @@ extern SF32Board board;  // target.cpp
 
 // Low-battery protection, as in LilyGo's factory firmware: on battery (no USB) below
 // 3550 mV for 30 s, power off. The SF32LB52 needs > 3.5 V to start.
-#define LOW_BATT_MV           3550
+#define LOW_BATT_MV           SF32_BATT_EMPTY_MV
 #define BATT_CHECK_MS         10000
 #define LOW_BATT_CHECKS       3
 // Starting again after an empty-battery power-off (the D key, or a USB cable that drops at

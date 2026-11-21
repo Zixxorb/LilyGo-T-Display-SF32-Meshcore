@@ -348,7 +348,7 @@ public:
       else if (up < 86400) sprintf(tmp, "%luh %lum", up / 3600, (up / 60) % 60);
       else sprintf(tmp, "%lud %luh", up / 86400, (up / 3600) % 24);
       row("Up for", tmp);
-      if (v[1] > 0) sprintf(tmp, "%ld.%02ld V  %d%%", v[1] / 1000, (v[1] % 1000) / 10, sf32BatteryPercent((uint16_t)v[1]));
+      if (v[1] > 0) sprintf(tmp, "%ld.%02ld V  %d%%", v[1] / 1000, (v[1] % 1000) / 10, (int)sf32OwnPercentF((uint16_t)v[1]));
       else strcpy(tmp, "none");
       row("Battery", tmp);
       static const char* const chg[] = {"not charging", "pre-charge", "charging", "charged"};

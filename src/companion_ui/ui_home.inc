@@ -1140,7 +1140,7 @@ public:
       float rate = batt_history.drainPerHour();
       if (usb) strcpy(tmp, board.chargeState() == 3 || pct >= g_chg_full_pct ? "charged" : "charging");
       else if (rate > 0) {  // until the low-battery power-off (3.55 V, SF32Board.cpp)
-        float left = (sf32BatteryPercentF(mv) - sf32BatteryPercentF(3550)) / rate;
+        float left = (sf32BatteryPercentF(mv) - sf32BatteryPercentF(SF32_BATT_EMPTY_MV)) / rate;
         if (left < 0) left = 0;
         int h = (int)left, m = (int)((left - h) * 60);
         if (h >= 48) sprintf(tmp, "~%d days left", (h + 12) / 24);

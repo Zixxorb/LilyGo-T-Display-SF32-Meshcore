@@ -88,6 +88,13 @@ static float sf32BatteryPercentF(uint16_t mv) {
   return 0;
 }
 static int sf32BatteryPercent(uint16_t mv) { return (int)sf32BatteryPercentF(mv); }
+// This board's own charge: 0 % at its low-battery power-off (3550 mV, ~9.5 % on the curve
+// above), not at the cell's 3.3 V. (Other nodes' batteries keep the plain curve.)
+static float sf32OwnPercentF(uint16_t mv) {
+  static const float empty = sf32BatteryPercentF(SF32_BATT_EMPTY_MV);
+  float p = (sf32BatteryPercentF(mv) - empty) * 100.0f / (100.0f - empty);
+  return p < 0 ? 0 : p;
+}
 
 // The charge shown for this board's own battery (header, Battery page, warnings, log).
 // On battery it's the voltage. While charging the charger lifts the reading ~0.33 V (measured:
@@ -127,7 +134,7 @@ static int sf32ShownPercent(uint16_t mv) {
   last = now;
   bool usb = board.isExternalPowered();
   if (usb) {
-    float floor = sf32BatteryPercentF(mv > CHG_LIFT_MV ? mv - CHG_LIFT_MV : 0);
+    float floor = sf32OwnPercentF(mv > CHG_LIFT_MV ? mv - CHG_LIFT_MV : 0);
     if (est < 0) est = floor;  // started on USB: nothing better to go on
     uint8_t st = board.chargeState();
     if (st == 3) est = floor > g_chg_full_pct ? floor : g_chg_full_pct;  // charge done (to the limit, or above it if lowered since)
@@ -144,7 +151,7 @@ static int sf32ShownPercent(uint16_t mv) {
     }
   } else {
     if (was_usb) unplugged_at = now | 1;
-    float volt = sf32BatteryPercentF(mv);
+    float volt = sf32OwnPercentF(mv);
     if (est >= 0 && unplugged_at && now - unplugged_at < CHG_SETTLE_MS) { if (volt < est) est = volt; }
     else { est = volt; unplugged_at = 0; }
   }

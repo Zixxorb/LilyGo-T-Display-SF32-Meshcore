@@ -587,12 +587,13 @@ Starlit > Friends).
 - **Sleep** (on by default): the chip light-sleeps whenever the screen is off; the
   radio keeps listening and Bluetooth stays up. It stays awake on USB (charging), which
   keeps flashing working.
-- **Charge shown**: from the battery voltage. While charging (which lifts the voltage) it
+- **Charge shown**: from the battery voltage, with 0 % at the power-off below. While charging (which lifts the voltage) it
   carries on from the reading before USB at the charger's pace, and shows 100 % only when
   the charger reports done.
 - **Warnings**: a popup at 20 %; at 10 % it also wakes the screen.
 - **Protection**: on battery below 3.55 V for 30 s the board powers off (same threshold as
-  LilyGo's factory firmware).
+  LilyGo's factory firmware). Started again on battery before it's charged (the D key), it
+  needs 3.65 V in its first minute, or it shows "Battery empty" and powers off again.
 - **Clock**: kept across reboots and the menu's power off; lost on a battery-empty
   shutdown, with the battery switch off, and on flashing.
 

@@ -14,6 +14,9 @@ inline bool sf32IsLocalConsole(uint32_t sender_timestamp) {
 class SF32RTCClock;
 class DisplayDriver;
 
+// On battery below this for 30 s the board powers off (the UI's 0 %)
+#define SF32_BATT_EMPTY_MV 3550
+
 class SF32Board : public mesh::MainBoard {
 public:
   void begin();

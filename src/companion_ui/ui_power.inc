@@ -87,9 +87,9 @@ void UITask::powerCare() {
         _lp_note_pending = true;  // told next time the screen is on
       }
       int warn_pct = BATT_WARN_LEVELS[_ui_prefs.batt_warn % NUM_BATT_WARN];
-      // the second alert (it wakes the screen) well before the power-off at 3550 mV (~9.5 %);
-      // with the first set at 10 %, that one is the waking alert
-      int crit_pct = warn_pct > 12 ? 12 : warn_pct;
+      // the second alert (it wakes the screen) at 10 %, or 5 % when the first is at 10 %
+      // (0 % is the power-off: 1.5 h after 10 % on the 2026-11-20 run, mostly screen off)
+      int crit_pct = warn_pct > 10 ? 10 : 5;
       if (warn_pct == 0) {
         // alerts off (the board still powers itself off when the battery is empty)
       } else if (pct <= crit_pct && _batt_warn_level < 2) {
