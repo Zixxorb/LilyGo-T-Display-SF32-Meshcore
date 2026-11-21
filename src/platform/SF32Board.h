@@ -101,6 +101,7 @@ private:
   CommandHook _command_hook = nullptr;
   unsigned long _next_wdt_feed = 0, _next_batt_check = 0;
   uint8_t _low_batt_count = 0;
+  bool _after_empty = false;  // started again after powering off on an empty battery
   uint8_t _btn_level[3] = {0, 0, 0};
   uint16_t _btn_edges[3] = {0, 0, 0};
   uint16_t _chg_limit_mv = 4200;

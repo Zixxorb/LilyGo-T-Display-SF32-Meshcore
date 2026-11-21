@@ -142,6 +142,20 @@ void UITask::botLoop() {
   board.logEvent(line);
 }
 
+// "<head><name> in <channel>" for the event log, which keeps 47 characters of a line:
+// the sender's name is shortened (not mid-character) so the channel still shows
+static void botLogLine(char* out, size_t n, const char* head, const char* name, const char* chan) {
+  int room = 47 - (int)strlen(head) - 4 - (int)strlen(chan);
+  if (room < 6) room = 6;
+  int len = strlen(name);
+  if (len > room) {
+    len = room;
+    while (len > 0 && ((unsigned char)name[len] & 0xC0) == 0x80) len--;  // a UTF-8 continuation byte
+    while (len > 0 && name[len - 1] == ' ') len--;
+  }
+  snprintf(out, n, "%s%.*s in %s", head, len, name, chan);
+}
+
 // The bot's channel reply: once the tracker is done listening, log it with the repeats heard
 // ("heard 2x": repeaters passed it on; "not heard": none in range heard it, or we missed them)
 void UITask::botEchoLoop() {
@@ -153,15 +167,17 @@ void UITask::botEchoLoop() {
     _bot_log_pending = false;  // never followed (it didn't go out, or something else went first)
     echo_tracker.tagNext(0);   // (and the tag doesn't land on the user's next message)
     _bot_last_heard = -2;
-    snprintf(line, sizeof(line), "Bot replied: %s in %s", _bot_last, _bot_log_chan);
+    botLogLine(line, sizeof(line), "Bot replied: ", _bot_last, _bot_log_chan);
     board.logEvent(line);
     return;
   }
   _bot_log_pending = false;
   _bot_last_heard = heard;
   _next_refresh = 0;  // the Bot page shows it
-  if (heard) snprintf(line, sizeof(line), "Bot (heard %ux): %s in %s", heard, _bot_last, _bot_log_chan);
-  else if (tries) snprintf(line, sizeof(line), "Bot (not heard, resent %ux): %s in %s", tries, _bot_last, _bot_log_chan);
-  else snprintf(line, sizeof(line), "Bot (not heard): %s in %s", _bot_last, _bot_log_chan);
+  char head[32];
+  if (heard) snprintf(head, sizeof(head), "Bot (heard %ux): ", heard);
+  else if (tries) snprintf(head, sizeof(head), "Bot (not heard, resent %ux): ", tries);
+  else snprintf(head, sizeof(head), "Bot (not heard): ");
+  botLogLine(line, sizeof(line), head, _bot_last, _bot_log_chan);
   board.logEvent(line);
 }

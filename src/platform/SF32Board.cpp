@@ -35,6 +35,12 @@ extern SF32Board board;  // target.cpp
 #define LOW_BATT_MV           3550
 #define BATT_CHECK_MS         10000
 #define LOW_BATT_CHECKS       3
+// Starting again after an empty-battery power-off (the D key, or a USB cable that drops at
+// once): a resting cell creeps back above LOW_BATT_MV and the board would run a few more
+// minutes before cutting off again. In the first minute after such a start, on battery,
+// it needs RESTART_BATT_MV or it shows "Battery empty" and powers off again.
+#define RESTART_BATT_MV       (LOW_BATT_MV + 100)
+#define RESTART_WINDOW_MS     60000UL
 
 #define WDT_FEED_MS       1000
 #define CHG_POLL_MS       1000
@@ -455,7 +461,8 @@ void SF32Board::trackChargerState() {
 void SF32Board::checkBattery() {
   bool on_usb = readCharger() && _chg_power_good;
   uint16_t mv = getBattMilliVolts();  // 0 if no battery (only possible on USB)
-  if (on_usb || mv == 0 || mv >= LOW_BATT_MV) {
+  uint16_t limit = _after_empty && millis() < RESTART_WINDOW_MS ? RESTART_BATT_MV : LOW_BATT_MV;
+  if (on_usb || mv == 0 || mv >= limit) {
     if (_low_batt_count) LOG_W("battery OK again (%d mV, USB %d)", mv, on_usb);
     _low_batt_count = 0;
     return;
@@ -463,7 +470,7 @@ void SF32Board::checkBattery() {
   _low_batt_count++;
   LOG_W("low battery: %d mV (%d/%d)", mv, _low_batt_count, LOW_BATT_CHECKS);
   if (_low_batt_count >= LOW_BATT_CHECKS) {
-    LOG_E("battery below %d mV for 30 s: powering off", LOW_BATT_MV);
+    LOG_E("battery below %d mV for 30 s: powering off", limit);
     sf32_before_poweroff(1);  // 1 = battery empty
     setPowerOffReason("battery empty");
     powerOff();
@@ -578,6 +585,7 @@ void SF32Board::checkBootLog() {
     f.close();
   }
   pm_power_on_mode_t mode = SystemPowerOnModeGet();
+  _after_empty = strcmp(prev, "off:battery empty") == 0;
   if (prev[0] == 0) strcpy(_last_stop, "none yet (first start)");
   else if (strncmp(prev, "off:", 4) == 0) snprintf(_last_stop, sizeof(_last_stop), "power off (%s)", prev + 4);
   else if (strcmp(prev, "reboot") == 0) strcpy(_last_stop, "normal reboot");
