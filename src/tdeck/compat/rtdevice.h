@@ -7,6 +7,8 @@
 #define RTGRAPHIC_CTRL_SET_BRIGHTNESS  3
 #define RTGRAPHIC_CTRL_SET_BUF_FORMAT  4
 #define RTGRAPHIC_PIXEL_FORMAT_RGB565  1
+#define RT_DEVICE_CTRL_RTC_GET_TIME    0x20
+#define RT_DEVICE_CTRL_RTC_SET_TIME    0x21
 
 struct rt_device_graphic_ops {
   // the window the next draw_rect_async fills (panel pixels, inclusive)

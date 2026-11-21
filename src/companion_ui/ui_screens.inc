@@ -197,7 +197,7 @@ public:
     for (int i = 0; i < NUM_ABOUT; i++) _content_h += aboutLineH(ABOUT_LINES[i].kind);
   }
   void reset() { _ds = DragScroll(); _dirty = true; }
-  int maxScroll() const { int m = _content_h - LIST_H; return m > 0 ? m : 0; }
+  int maxScroll() const { int m = _content_h - LIST_HEIGHT; return m > 0 ? m : 0; }
   bool scrolls() const { return maxScroll() > 0; }
   void scrollBy(int dir) { _ds.max = maxScroll(); _ds.set(_ds.pos + dir * 60); }
   DragScroll& drag() { _ds.max = maxScroll(); return _ds; }
@@ -223,14 +223,14 @@ public:
       sd.endLayer();
       sd.layerSpans();
     } else if (moving || _ds.active) {
-      sd.setFlushBand(LIST_Y, LIST_H);  // only the list moves: send just its band
+      sd.setFlushBand(LIST_Y, LIST_HEIGHT);  // only the list moves: send just its band
     }
-    sd.composeLayer(0, LIST_Y, 124, LIST_H, (int)lroundf(_ds.pos * SF32Display::SCALE));
+    sd.composeLayer(0, LIST_Y, 124, LIST_HEIGHT, (int)lroundf(_ds.pos * SF32Display::SCALE));
     if (scrolls()) {
-      int thumb = LIST_H * LIST_H / (LIST_H + maxScroll());
-      int ty = LIST_Y + (int)((LIST_H - thumb) * (_ds.pos / maxScroll()));
+      int thumb = LIST_HEIGHT * LIST_HEIGHT / (LIST_HEIGHT + maxScroll());
+      int ty = LIST_Y + (int)((LIST_HEIGHT - thumb) * (_ds.pos / maxScroll()));
       d.setColor(THEME_DIM);
-      d.fillRect(125, LIST_Y, 2, LIST_H);
+      d.fillRect(125, LIST_Y, 2, LIST_HEIGHT);
       d.setColor(THEME_ACCENT);
       d.fillRect(125, ty, 2, thumb);
     }
@@ -249,7 +249,7 @@ public:
   }
 
 private:
-  static const int LIST_Y = 26, LIST_H = 98;
+  static const int LIST_Y = 26, LIST_HEIGHT = 98;
   UITask* _task;
   int _content_h;
   DragScroll _ds;
@@ -291,7 +291,7 @@ public:
     if (i >= 0 && i < _n) _detail = i;
   }
   int contentH() const { return _n ? _n * ENTRY_H : 30; }
-  int maxScroll() const { int m = contentH() - LIST_H; return m > 0 ? m : 0; }
+  int maxScroll() const { int m = contentH() - LIST_HEIGHT; return m > 0 ? m : 0; }
   bool scrolls() const { return maxScroll() > 0; }
   DragScroll& drag() { _ds.max = maxScroll(); return _ds; }
 
@@ -408,19 +408,19 @@ public:
       sd.layerRowsDone(0, contentH() + 2);  // for the graphics hardware's copy (cards, as in the menus)
       sd.layerSpans();
     } else if (moving || _ds.active) {
-      sd.setFlushBand(LIST_Y, LIST_H);  // only the list moves: send just its band
+      sd.setFlushBand(LIST_Y, LIST_HEIGHT);  // only the list moves: send just its band
     }
     int src = (int)lroundf(_ds.pos * SF32Display::SCALE);
-    bool hw = sd.composeList(LIST_Y, LIST_H, src);  // the graphics hardware where it can (the first ~14)
-    if (!hw) sd.composeLayer(4, LIST_Y, 120, LIST_H, src);
-    if (sd.listFrame()) sd.setFlushBand(LIST_Y, LIST_H);
+    bool hw = sd.composeList(LIST_Y, LIST_HEIGHT, src);  // the graphics hardware where it can (the first ~14)
+    if (!hw) sd.composeLayer(4, LIST_Y, 120, LIST_HEIGHT, src);
+    if (sd.listFrame()) sd.setFlushBand(LIST_Y, LIST_HEIGHT);
     // still moving, by hardware, with room to spare: the next frame is just the list, as in the menus
-    if ((moving || _ds.active) && hw && src + (int)(LIST_H * SF32Display::SCALE) + 200 < SF32Display::listRows()) sd.nextFrameIsList();
+    if ((moving || _ds.active) && hw && src + (int)(LIST_HEIGHT * SF32Display::SCALE) + 200 < SF32Display::listRows()) sd.nextFrameIsList();
     if (scrolls()) {
-      int thumb = LIST_H * LIST_H / (LIST_H + maxScroll());
-      int ty = LIST_Y + (int)((LIST_H - thumb) * (_ds.pos / maxScroll()));
+      int thumb = LIST_HEIGHT * LIST_HEIGHT / (LIST_HEIGHT + maxScroll());
+      int ty = LIST_Y + (int)((LIST_HEIGHT - thumb) * (_ds.pos / maxScroll()));
       d.setColor(THEME_DIM);
-      d.fillRect(125, LIST_Y, 2, LIST_H);
+      d.fillRect(125, LIST_Y, 2, LIST_HEIGHT);
       d.setColor(THEME_ACCENT);
       d.fillRect(125, ty, 2, thumb);
     }
@@ -438,7 +438,7 @@ public:
   }
 
 private:
-  static const int LIST_Y = 27, LIST_H = 96, ENTRY_H = 34;
+  static const int LIST_Y = 27, LIST_HEIGHT = 96, ENTRY_H = 34;
   UITask* _task;
   uint32_t _times[LOG_SHOW];
   char _texts[LOG_SHOW][48];

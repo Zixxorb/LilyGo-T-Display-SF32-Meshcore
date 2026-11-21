@@ -89,9 +89,9 @@ public:
 
   // Row geometry, logical px (square layout): big rows; menus with more rows than fit
   // the list area scroll (swipe up/down, or following the selection with button A).
-  static const int ROW_H = 22, ROW_GAP = 2, LIST_Y = 27, LIST_H = 96;  // 4 rows fit
+  static const int ROW_H = 22, ROW_GAP = 2, LIST_Y = 27, LIST_HEIGHT = 96;  // 4 rows fit
   int rowY(int i) const { return LIST_Y + i * (ROW_H + ROW_GAP) - (int)(_ds.pos + 0.5f); }
-  int maxScroll() const { int h = _n * (ROW_H + ROW_GAP) - ROW_GAP - LIST_H; return h > 0 ? h : 0; }
+  int maxScroll() const { int h = _n * (ROW_H + ROW_GAP) - ROW_GAP - LIST_HEIGHT; return h > 0 ? h : 0; }
   bool scrolls() const { return maxScroll() > 0; }
 
   // dir > 0: show later rows (button / no-touch use)
@@ -99,12 +99,12 @@ public:
   void ensureVisible(int i) {
     int top = i * (ROW_H + ROW_GAP), bottom = top + ROW_H;
     if (top < _ds.pos) _ds.set(top);
-    if (bottom > _ds.pos + LIST_H) _ds.set(bottom - LIST_H);
+    if (bottom > _ds.pos + LIST_HEIGHT) _ds.set(bottom - LIST_HEIGHT);
   }
   DragScroll& drag() { _ds.max = maxScroll(); return _ds; }
 
   int hitTest(int x, int y) const {
-    if (x < 4 || x >= 124 || y < LIST_Y - 1 || y >= LIST_Y + LIST_H + 1) return -1;
+    if (x < 4 || x >= 124 || y < LIST_Y - 1 || y >= LIST_Y + LIST_HEIGHT + 1) return -1;
     for (int i = 0; i < _n; i++) {
       if (y >= rowY(i) - 1 && y < rowY(i) + ROW_H + 2) return i;
     }
@@ -130,7 +130,7 @@ public:
     // rows in view first (it appears sooner), then the rest a few per frame. A label too
     // long for its row scrolls sideways; only that row is redrawn, and only when it moves.
     uint32_t all = _n >= 32 ? 0xFFFFFFFFUL : (1UL << _n) - 1;
-    int first = (int)(_ds.pos / (ROW_H + ROW_GAP)), last = (int)((_ds.pos + LIST_H - 1) / (ROW_H + ROW_GAP));
+    int first = (int)(_ds.pos / (ROW_H + ROW_GAP)), last = (int)((_ds.pos + LIST_HEIGHT - 1) / (ROW_H + ROW_GAP));
     bool fresh = false;
     if (_dirty) {  // rebuilt: still the list in the layer? then only redraw rows that changed
       _dirty = false;
@@ -164,7 +164,7 @@ public:
     if (!fresh && !_entering) {  // (nothing else while rows glide in: the frames are for that)
       bool urgent = _ds.active || moving;  // scrolling: the rest are needed now
       // only the list changes while it scrolls: send just its band to the panel
-      if (urgent) sd.setFlushBand(LIST_Y, LIST_H);
+      if (urgent) sd.setFlushBand(LIST_Y, LIST_HEIGHT);
       uint32_t due = (_marquee_rows && (long)(millis() - _marquee_at) >= 0) ? _marquee_rows : 0;
       if ((_drawn & all) != all || due) {
         if (due) _marquee_set = false;  // the redraw below sets the next time
@@ -198,18 +198,18 @@ public:
         if (t < 1) busy = true; else t = 1;
         int y = rowY(i) + (int)((1 - t) * (1 - t) * (1 - t) * 24 + 0.5f), h = ROW_H, src = i * (ROW_H + ROW_GAP);
         if (y < LIST_Y) { h -= LIST_Y - y; src += LIST_Y - y; y = LIST_Y; }
-        if (y + h > LIST_Y + LIST_H) h = LIST_Y + LIST_H - y;
+        if (y + h > LIST_Y + LIST_HEIGHT) h = LIST_Y + LIST_HEIGHT - y;
         if (h > 0 && !sd.composeList(y, h, (int)lroundf(src * SF32Display::SCALE)))
           sd.composeLayer(4, y, 120, h, (int)lroundf(src * SF32Display::SCALE));
       }
-      if (!_enter_first) sd.setFlushBand(LIST_Y, LIST_H);  // the first frame has the new header to send
+      if (!_enter_first) sd.setFlushBand(LIST_Y, LIST_HEIGHT);  // the first frame has the new header to send
       _enter_first = false;
       if (!busy) _entering = false;
     } else {
       int src = (int)lroundf(_ds.pos * SF32Display::SCALE);
       // only as far as the rows go: below the last one the layer still holds an older list's
       int h = _n * (ROW_H + ROW_GAP) - (int)_ds.pos;
-      if (h > LIST_H) h = LIST_H;
+      if (h > LIST_HEIGHT) h = LIST_HEIGHT;
       if (h > 0 && !sd.composeList(LIST_Y, h, src)) sd.composeLayer(4, LIST_Y, 120, h, src);
     }
 #ifdef SF32_FRAME_LOG
@@ -222,7 +222,7 @@ public:
       display.fillRect(52, 124, 24, 2);
     }
     if (scrolls()) {  // scrollbar on the right edge
-      int track = LIST_H, total = track + maxScroll();
+      int track = LIST_HEIGHT, total = track + maxScroll();
       int thumb = track * track / total;
       int ty = LIST_Y + (int)((track - thumb) * (_ds.pos / maxScroll()));
       display.setColor(THEME_DIM);
@@ -232,7 +232,7 @@ public:
     }
     // still moving: the next frame only changes the list. The frame that was told so must go out
     // as just its band, moving or not: nothing else in it was drawn.
-    if (sd.listFrame()) sd.setFlushBand(LIST_Y, LIST_H);
+    if (sd.listFrame()) sd.setFlushBand(LIST_Y, LIST_HEIGHT);
     if (!_entering && (moving || _ds.active)) sd.nextFrameIsList();
     if (_entering || moving || (_drawn & all) != all) return 16;  // rows gliding in / follow the finger / glide / finish the rows
     if (_marquee_rows) {                              // a long label: when it next moves

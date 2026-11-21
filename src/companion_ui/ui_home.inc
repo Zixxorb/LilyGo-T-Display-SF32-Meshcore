@@ -345,11 +345,11 @@ class HomeScreen : public UIScreen {
       return;
     }
     // the arc: a half circle over the horizon, sunrise on the left, sunset on the right
-    const float cx = 64, cy = 96, R = 36, PI = 3.14159265f;
+    const float cx = 64, cy = 96, R = 36, kPi = 3.14159265f;
     d.setColor(THEME_DIM);
     sd.drawLineAA(cx - R - 8, cy, cx + R + 8, cy, 1.0f);  // the horizon
     for (int i = 0; i <= 36; i++) {
-      float a = PI * i / 36;
+      float a = kPi * i / 36;
       float x = cx - cosf(a) * R, y = cy - sinf(a) * R;
       sd.drawLineAA(x, y, x, y, 1.2f);
     }
@@ -359,7 +359,7 @@ class HomeScreen : public UIScreen {
       if (day) {  // the part of the day gone: brighter
         d.setColor(0xFD20);  // orange
         for (int i = 0; i <= (int)(36 * f); i++) {
-          float a = PI * i / 36;
+          float a = kPi * i / 36;
           float x = cx - cosf(a) * R, y = cy - sinf(a) * R;
           sd.drawLineAA(x, y, x, y, 1.6f);
         }
@@ -367,11 +367,11 @@ class HomeScreen : public UIScreen {
       // the moon, where it really is: on the arc between its own rise and set, with its phase
       MoonNow mn = moonNow(_node_prefs, now);
       if (mn.known && mn.up) {
-        float a = PI * mn.f;
+        float a = kPi * mn.f;
         drawMoonIcon(sd, cx - cosf(a) * R, cy - sinf(a) * R, 4.2f, mn.lit, mn.waxing);
       }
       if (day) {  // the sun, on top
-        float a = PI * f;
+        float a = kPi * f;
         drawSunIcon(sd, cx - cosf(a) * R, cy - sinf(a) * R);
       }
       // times: sunrise left, sunset right

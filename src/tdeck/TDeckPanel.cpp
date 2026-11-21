@@ -8,6 +8,7 @@
 #include "compat/rtdevice.h"
 #include "compat/bf0_hal.h"
 #include "target.h"
+#include "TDeckDevices.h"
 
 #define TFT_DC     11
 #define TFT_BL     42
@@ -16,8 +17,6 @@
 #define SPI_HZ     40000000
 #define BL_LEVELS  16
 
-struct rt_device { int open; };
-static struct rt_device s_lcd;
 static LCDC_HandleTypeDef s_lcdc = {{{TFT_W}}};
 static rt_err_t (*s_done)(rt_device_t, void*) = nullptr;
 static int s_x0, s_y0, s_x1, s_y1;  // the window (set_window)
@@ -94,12 +93,11 @@ static void draw_rect(const char* pixels, int x1, int y1, int x2, int y2) {
     }
   }
   end_tx();
-  if (s_done) s_done(&s_lcd, (void*)pixels);
+  if (s_done) s_done(&tdeck_lcd_device, (void*)pixels);
 }
 
 static struct rt_device_graphic_ops s_ops = {set_window, draw_rect};
 
-rt_device_t rt_device_find(const char* name) { return strcmp(name, "lcd") == 0 ? &s_lcd : nullptr; }
 struct rt_device_graphic_ops* rt_graphix_ops(rt_device_t) { return &s_ops; }
 extern "C" LCDC_HandleTypeDef* get_drv_lcd_handler(void) { return &s_lcdc; }
 rt_err_t rt_device_set_tx_complete(rt_device_t, rt_err_t (*done)(rt_device_t, void*)) {
@@ -118,8 +116,7 @@ void HAL_LCDC_WriteU32Reg(LCDC_HandleTypeDef*, uint32_t cmd, uint8_t* data, int 
   command(reg, data, n);
 }
 
-rt_err_t rt_device_open(rt_device_t dev, uint16_t) {
-  if (dev->open) return RT_EOK;
+static rt_err_t lcd_open(rt_device_t dev) {
   // the shared bus: started here (the screen comes up before the radio), the radio's
   // begin() then finds it running
   tdeck_spi.begin(P_LORA_SCLK, P_LORA_MISO, P_LORA_MOSI);
@@ -134,11 +131,10 @@ rt_err_t rt_device_open(rt_device_t dev, uint16_t) {
   const uint8_t madctl = 0x60;  command(0x36, &madctl, 1);  // landscape
   command(0x21);                                     // inversion on (this IPS panel needs it)
   command(0x13);                                     // normal mode
-  dev->open = 1;
   return RT_EOK;
 }
 
-rt_err_t rt_device_control(rt_device_t dev, int cmd, void* arg) {
+static rt_err_t lcd_control(rt_device_t dev, int cmd, void* arg) {
   switch (cmd) {
     case RTGRAPHIC_CTRL_POWERON:
       command(0x11);  // out of sleep
@@ -160,3 +156,5 @@ rt_err_t rt_device_control(rt_device_t dev, int cmd, void* arg) {
   }
   return RT_EOK;
 }
+
+struct rt_device tdeck_lcd_device = {lcd_open, lcd_control, false};

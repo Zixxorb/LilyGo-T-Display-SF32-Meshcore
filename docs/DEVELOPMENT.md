@@ -361,21 +361,43 @@ The LilyGo T-Deck (ESP32-S3) build is a PlatformIO project in `tdeck/`. Like the
 compiles MeshCore (`lib/MeshCore`) unmodified: `tdeck/platformio.ini`'s `build_src_filter` picks
 MeshCore's core, the ESP32 helpers, its ed25519 and the companion_radio example. Our code is
 `src/tdeck/`: TDeckBoard (based on MeshCore's `variants/lilygo_tdeck`), target.h/.cpp, and
-TDeckContacts. Pins and radio settings follow MeshCore's T-Deck variant. No screen UI yet.
+TDeckContacts. Pins and radio settings follow MeshCore's T-Deck variant.
+
+The companion UI (`src/companion_ui`) and the display code (`src/platform/SF32Display.cpp`) are
+shared with the SF32, not copied:
+- `src/tdeck/compat/` supplies the few RT-Thread and SF32 HAL calls that code makes. Its "lcd"
+  device is the ST7789 (`TDeckPanel.cpp`, synchronous sends on the shared bus) and its "rtc" the
+  ESP32's clock (`TDeckDevices.cpp`), so `SF32Display.cpp` and `SF32RTCClock.cpp` compile as
+  they are. `tdeck_platform.h` is force-included (InternalFS = the SPIFFS data partition).
+- `TDeckBoard` also has `SF32Board`'s interface (and is called that here); `TDeckRadio` adds the
+  SF32 radio's extras to MeshCore's SX1262 wrapper; `TDeckBLE` adds the pairing window etc. to
+  MeshCore's ESP32 Bluetooth.
+- `TDeckStubs.cpp`: silent stand-ins for what isn't ported yet (touch, sound, the USB app link;
+  the T-Deck has no motion sensor).
+- `SF32Display.cpp` changes for the T-Deck are behind `VESPER_TDECK` (its buffers come from PSRAM
+  there). The font, emoji and logo are generated at the T-Deck's scale (1.875x) into
+  `src/tdeck/TDeck*.h` (`SCALE=1.875 OUT=... tools/gen_font.py` etc.).
+- Keep the SF32 build unchanged when touching shared code: build the companion with a fixed
+  `SOURCE_DATE_EPOCH` before and after and compare `main.bin` (byte-identical so far).
+
+For now the UI is the SF32's 128x128 layout at 1.875x, centred (layout B, widening it to fill
+the 320x240 screen, comes next), and only the trackball click works.
 
 ```sh
 cd tdeck
 ./build.sh      # PlatformIO (~/.platformio/penv/bin/pio or pio on PATH)
 ./flash.sh      # saves the data partition first, then flashes; finds the T-Deck by its USB id
 ./monitor.sh    # USB serial
+./build.sh -e tdeck_debug && ENV=tdeck_debug ./flash.sh   # debug firmware: screenshots
+python3 shot.py ../shots/x.png                           # (debug firmware only)
 ```
 
 - Flashing writes the bootloader, partition table, boot_app0 and the app only. The data
   partition (SPIFFS at 0xc90000, 3.4 MB, MeshCore's usual place on the T-Deck) is kept, so a
   T-Deck coming from MeshCore or meshcomod keeps its identity, contacts, channels and settings.
-- `flash.sh` saves the data partition to `board-logs/` first (`save_data.py`). Reading it takes
-  ~6 minutes over the T-Deck's USB, so the chip's own MD5 of it is compared with the newest copy
-  first and an unchanged partition isn't read again. The copies hold the private key.
+- `flash.sh` saves the data partition to `board-logs/` first (`save_data.py`), at most once a
+  day: reading it takes ~6 minutes over the T-Deck's USB, and flashing the app never writes it.
+  The copies hold the private key. It refuses a normal build that has the screenshot tool.
 - Contacts: firmwares like meshcomod keep more than MeshCore's 350. MeshCore would load the first
   350 in file order and drop the rest at its next save, so `TDeckContacts` trims the file once at
   boot, before MeshCore reads it: favourites, then the most recently updated. The full file

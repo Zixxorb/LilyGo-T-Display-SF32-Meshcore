@@ -6,20 +6,25 @@ TDeckBoard board;
 
 SPIClass tdeck_spi;  // the shared bus (screen, radio, microSD): one SPIClass for all of them
 RADIO_CLASS radio = new Module(P_LORA_NSS, P_LORA_DIO_1, P_LORA_RESET, P_LORA_BUSY, tdeck_spi);
-WRAPPER_CLASS radio_driver(radio, board);
-
-ESP32RTCClock fallback_clock;
-AutoDiscoverRTCClock rtc_clock(fallback_clock);
+TDeckRadio radio_driver(radio, board);
+SF32RTCClock rtc_clock;
 SensorManager sensors;
 
-void tdeckTestPattern();  // (bring-up: TDeckTestPattern.cpp)
+#ifdef DISPLAY_CLASS
+  DISPLAY_CLASS display;
+  MomentaryButton user_btn(PIN_USER_BTN, 1000, true);  // the trackball's click (active low)
+  #ifdef PIN_USER_BTN_ANA
+    MomentaryButton analog_btn(PIN_USER_BTN_ANA, 1000, 2000);  // "pressed" when analogRead < 2000
+  #endif
+#endif
 
 bool radio_init() {
-  fallback_clock.begin();
-  rtc_clock.begin(Wire);
-  bool ok = radio.std_init(&tdeck_spi);  // (starts the shared bus: SCK 40, MISO 38, MOSI 41)
-  tdeckTestPattern();
-  return ok;
+  rtc_clock.begin();
+  board.setRTC(&rtc_clock);
+#ifdef DISPLAY_CLASS
+  board.setDisplay(&display);
+#endif
+  return radio.std_init(&tdeck_spi);  // (the screen has started the shared bus already)
 }
 
 mesh::LocalIdentity radio_new_identity() {

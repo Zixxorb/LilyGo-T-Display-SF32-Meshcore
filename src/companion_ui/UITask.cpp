@@ -971,7 +971,7 @@ void UITask::loop() {
   }
 #endif
 #if defined(PIN_USER_BTN_ANA)
-  if (abs(millis() - _analogue_pin_read_millis) > 10) {
+  if (millis() - _analogue_pin_read_millis > 10) {  // (unsigned: abs() of it was the same)
     int ev = analog_btn.check();
     if (ev == BUTTON_EVENT_CLICK) {
       c = checkDisplayOn(KEY_NEXT);
