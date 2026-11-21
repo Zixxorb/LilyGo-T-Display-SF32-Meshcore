@@ -45,6 +45,8 @@ setup.sh          one-time setup: MeshCore, SDK fixes, SDK link
 env.sh            activates the SDK through ~/sifli-lilygo-sdk (a symlink; the SDK's
                   linker flags break on paths with spaces). SF32_SDK_DIR picks the SDK.
 licenses/, THIRD_PARTY.md   licenses of the bundled code and font
+tdeck/            the LilyGo T-Deck port (in progress): a PlatformIO project; its own code
+                  is src/tdeck/. See "T-Deck port" below.
 ```
 
 Each firmware builds in its own folder (`project/`, `project_room_server/`,
@@ -352,3 +354,34 @@ TCXO 3.0 V, DC-DC regulator, DIO2 RF switch, PA26 enable (as LilyGo's examples).
     nothing), the console UART pins released. Not fitted: microSD. Too small to matter: the
     SPI MISO pull-down (PA25).
   - What's left (about 11 mA) is spread across the chip and the board's always-on parts.
+
+## T-Deck port (in progress)
+
+The LilyGo T-Deck (ESP32-S3) build is a PlatformIO project in `tdeck/`. Like the SF32 build it
+compiles MeshCore (`lib/MeshCore`) unmodified: `tdeck/platformio.ini`'s `build_src_filter` picks
+MeshCore's core, the ESP32 helpers, its ed25519 and the companion_radio example. Our code is
+`src/tdeck/`: TDeckBoard (based on MeshCore's `variants/lilygo_tdeck`), target.h/.cpp, and
+TDeckContacts. Pins and radio settings follow MeshCore's T-Deck variant. No screen UI yet.
+
+```sh
+cd tdeck
+./build.sh      # PlatformIO (~/.platformio/penv/bin/pio or pio on PATH)
+./flash.sh      # saves the data partition first, then flashes; finds the T-Deck by its USB id
+./monitor.sh    # USB serial
+```
+
+- Flashing writes the bootloader, partition table, boot_app0 and the app only. The data
+  partition (SPIFFS at 0xc90000, 3.4 MB, MeshCore's usual place on the T-Deck) is kept, so a
+  T-Deck coming from MeshCore or meshcomod keeps its identity, contacts, channels and settings.
+- `flash.sh` saves the data partition to `board-logs/` first (`save_data.py`). Reading it takes
+  ~6 minutes over the T-Deck's USB, so the chip's own MD5 of it is compared with the newest copy
+  first and an unchanged partition isn't read again. The copies hold the private key.
+- Contacts: firmwares like meshcomod keep more than MeshCore's 350. MeshCore would load the first
+  350 in file order and drop the rest at its next save, so `TDeckContacts` trims the file once at
+  boot, before MeshCore reads it: favourites, then the most recently updated. The full file
+  stays as `/contacts3.full`.
+- The screen, radio and microSD share one SPI bus: all three chip selects (9, 12, 39) go high
+  first, and everything uses the one SPIClass that the radio starts.
+- A build that crashes before USB comes up: hold the trackball down and press reset (download
+  mode), then flash.
+

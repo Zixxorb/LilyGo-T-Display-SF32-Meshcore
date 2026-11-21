@@ -21,3 +21,6 @@ board-logs/
 
 # written by src/platform/SConscript each build
 src/platform/sf32_build_date.c
+
+# T-Deck PlatformIO build
+tdeck/.pio/
