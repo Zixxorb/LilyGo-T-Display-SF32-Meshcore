@@ -185,11 +185,11 @@ public:
 private:
   static const int NUM_CELLS = RF_COUNT + 1;
   static constexpr Btn CELLS[NUM_CELLS] = {
-    {4, 27, 120, 18},                                      // preset
-    {4, 48, 120, 24},                                      // frequency
-    {4, 75, 38, 25}, {45, 75, 38, 25}, {86, 75, 38, 25},   // BW, SF, CR
-    {4, 103, 56, 18},                                      // TX power
-    {63, 103, 61, 18},                                     // Apply
+    {4, 27, UI_W - 8, 18},                                      // preset
+    {4, 48, UI_W - 8, 24},                                      // frequency
+    {UI_C3(0), 75, UI_THIRD_W, 25}, {UI_C3(1), 75, UI_THIRD_W, 25}, {UI_C3(2), 75, UI_THIRD_W, 25},   // BW, SF, CR
+    {4, 103, UI_HALF_W - 2, 18},                                      // TX power
+    {UI_HALF_W + 5, 103, UI_W - UI_HALF_W - 9, 18},                                     // Apply
   };
   UITask* _task;
   NodePrefs* _prefs;
@@ -210,7 +210,7 @@ public:
     themeHeader(d, RF_TITLES[_field], _task->getBattMilliVolts());
 
     d.setColor(diff ? THEME_CHANGED : THEME_CARD);
-    d.fillRect(4, 27, 120, 44);
+    d.fillRect(4, 27, UI_W - 8, 44);
     themeLabel(d, 9, 31, diff ? "New" : "Current");
     sv.format(_field, saved);
     sprintf(tmp, "saved: %s", saved);
@@ -248,11 +248,11 @@ public:
   }
 
 private:
-  static constexpr Btn B_MINUS = {4, 76, 56, 22};
-  static constexpr Btn B_PLUS = {68, 76, 56, 22};
-  static constexpr Btn B_STEP = {4, 101, 58, 18};
-  static constexpr Btn B_DONE = {66, 101, 58, 18};
-  static constexpr Btn B_DONE_WIDE = {4, 101, 120, 18};
+  static constexpr Btn B_MINUS = {4, 76, UI_HALF_W - 2, 22};
+  static constexpr Btn B_PLUS = {UI_C2 + 2, 76, UI_HALF_W - 2, 22};
+  static constexpr Btn B_STEP = {4, 101, UI_HALF_W, 18};
+  static constexpr Btn B_DONE = {UI_C2, 101, UI_HALF_W, 18};
+  static constexpr Btn B_DONE_WIDE = {4, 101, UI_W - 8, 18};
   UITask* _task;
   RadioEditScreen* _edit;
   int _field = RF_FREQ;
@@ -332,11 +332,11 @@ public:
   }
 
 private:
-  static constexpr Btn L_KEEP = {4, 99, 38, 19};
-  static constexpr Btn L_DISCARD = {45, 99, 38, 19};
-  static constexpr Btn L_APPLY = {86, 99, 38, 19};
-  static constexpr Btn A_BACK = {4, 99, 58, 19};
-  static constexpr Btn A_APPLY = {66, 99, 58, 19};
+  static constexpr Btn L_KEEP = {UI_C3(0), 99, UI_THIRD_W, 19};
+  static constexpr Btn L_DISCARD = {UI_C3(1), 99, UI_THIRD_W, 19};
+  static constexpr Btn L_APPLY = {UI_C3(2), 99, UI_THIRD_W, 19};
+  static constexpr Btn A_BACK = {4, 99, UI_HALF_W, 19};
+  static constexpr Btn A_APPLY = {UI_C2, 99, UI_HALF_W, 19};
   UITask* _task;
   RadioEditScreen* _edit;
   bool _leaving = false;

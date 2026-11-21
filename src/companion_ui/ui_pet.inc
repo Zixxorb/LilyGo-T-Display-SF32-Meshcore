@@ -805,7 +805,7 @@ public:
       ContactInfo* c = the_mesh.lookupContactByPubKey(_card_key, PUB_KEY_SIZE);
       if (c && _ping_view) { ping(*c); return true; }
       if (c && y >= CARD_BTN_Y - 2) {
-        if (NodePing::pingable(*c) && x >= 64) {
+        if (NodePing::pingable(*c) && x >= UI_CX) {
           if (ping(*c)) _ping_view = true;
         } else if (!my_nodes.ask(*c)) {
           _task->showAlert(my_nodes.waiting() ? "Still waiting for a reply" : "Wait a few seconds", 1200);
@@ -815,7 +815,7 @@ public:
       return back();
     }
     if (y < TOP) return true;
-    int row = (int)((y - TOP + _ds.pos) / ROW_H), i = row * 2 + (x >= 64 ? 1 : 0);
+    int row = (int)((y - TOP + _ds.pos) / ROW_H), i = row * 2 + (x >= UI_CX ? 1 : 0);
     ContactInfo* c = i >= 0 && i < _n ? the_mesh.lookupContactByPubKey(_keys[i], KEY_LEN) : NULL;
     if (c) openCard(*c, false);
     return true;
@@ -842,7 +842,7 @@ public:
       themeHeader(d, "Node", _task->getBattMilliVolts());
       uint32_t seed = PetGame::seedOf(c.id.pub_key);
       uint8_t hs = hash_sizes.get(c.id.pub_key);
-      pet.draw(d, 64, 47, 0.78f, still, seed, -1, hs);
+      pet.draw(d, UI_CX, 47, 0.78f, still, seed, -1, hs);
       char name[sizeof(c.name)], tmp[48], heard[16];
       d.translateUTF8ToBlocks(name, c.name, sizeof(name));
       d.setTextSize(1);
@@ -874,13 +874,13 @@ public:
           bc2 = pct <= 15 ? UIColor::warning_txt : THEME_ACCENT;
         } else if (r && r->state == 2) strcpy(tmp, "private");
         else strcpy(tmp, "Battery");
-        themeCard(d, 4, CARD_BTN_Y, 58, 14);
+        themeCard(d, 4, CARD_BTN_Y, UI_HALF_W, 14);
         d.setColor(bc2);
-        if (d.getTextWidth(tmp) > 54) d.drawTextEllipsized(6, CARD_BTN_Y + 3, 54, tmp); else d.drawTextCentered(33, CARD_BTN_Y + 3, tmp);
-        themeCard(d, 66, CARD_BTN_Y, 58, 14);
+        if (d.getTextWidth(tmp) > UI_HALF_W - 4) d.drawTextEllipsized(6, CARD_BTN_Y + 3, UI_HALF_W - 4, tmp); else d.drawTextCentered(4 + UI_HALF_W / 2, CARD_BTN_Y + 3, tmp);
+        themeCard(d, UI_C2, CARD_BTN_Y, UI_HALF_W, 14);
         uint8_t rt[PING_MAX_HOPS * 2]; int hops; uint8_t h;
         d.setColor(NodePing::route(c, rt, hops, h) ? UIColor::primary_txt : THEME_DIM);
-        d.drawTextCentered(95, CARD_BTN_Y + 3, "Ping");
+        d.drawTextCentered(UI_C2 + UI_HALF_W / 2, CARD_BTN_Y + 3, "Ping");
         if (my_nodes.expire()) {}
         return still ? 60000 : 80;
       }
@@ -925,7 +925,7 @@ public:
     } else if (moving || _ds.active) {
       sd.setFlushBand(TOP, 128 - TOP);  // only the grid moves
     }
-    sd.composeSprites(0, TOP, 124, 128 - TOP, (int)lroundf(_ds.pos * SF32Display::SCALE));
+    sd.composeSprites(0, TOP, UI_RX(124), 128 - TOP, (int)lroundf(_ds.pos * SF32Display::SCALE));
     scrollBar(d);
     return moving || _ds.active ? 16 : 60000;  // still: nothing to redraw
   }
@@ -947,7 +947,7 @@ public:
     pingLabel(d, r, c, b);
     snprintf(tmp, sizeof(tmp), "%s > %s", a, b);
     d.setColor(UIColor::secondary_txt);
-    d.drawTextEllipsized(6, y, 76, tmp);
+    d.drawTextEllipsized(6, y, UI_W - 52, tmp);
     float s = node_ping.snr[r] / 4.0f;
     sprintf(tmp, "%.1f dB", s);
     d.setColor(s >= 0 ? THEME_GOOD : (s >= -7 ? UIColor::primary_txt : UIColor::warning_txt));
@@ -1008,7 +1008,7 @@ public:
     ContactInfo* cp = the_mesh.lookupContactByPubKey(_keys[i], KEY_LEN);  // (by key: a list that changes can't shift it)
     if (!cp) return;
     const ContactInfo& c = *cp;
-    float x = i % 2 ? 94 : 34;
+    float x = UI_CX + (i % 2 ? 1 : -1) * (30 + (UI_W - 128) / 4);  // (the SF32: 34, 94)
     pet.draw(d, x, y, 0.6f, still, PetGame::seedOf(c.id.pub_key), -1, hash_sizes.get(c.id.pub_key));
     char name[sizeof(c.name)];
     d.translateUTF8ToBlocks(name, c.name, sizeof(name));
@@ -1028,9 +1028,9 @@ public:
     if (maxScroll() <= 0) return;
     int track = 128 - TOP - 4, thumb = track * (128 - TOP) / (rowsH()), ty = TOP + (int)((track - thumb) * (_ds.pos / maxScroll()));
     d.setColor(THEME_DIM);
-    d.fillRect(125, TOP, 2, track);
+    d.fillRect(UI_RX(125), TOP, 2, track);
     d.setColor(THEME_ACCENT);
-    d.fillRect(125, ty, 2, thumb);
+    d.fillRect(UI_RX(125), ty, 2, thumb);
   }
   bool handleInput(char c) override {  // the button: back (out of meeting one first)
     if (c == 0) return false;

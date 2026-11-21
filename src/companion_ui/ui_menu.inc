@@ -104,7 +104,7 @@ public:
   DragScroll& drag() { _ds.max = maxScroll(); return _ds; }
 
   int hitTest(int x, int y) const {
-    if (x < 4 || x >= 124 || y < LIST_Y - 1 || y >= LIST_Y + LIST_HEIGHT + 1) return -1;
+    if (x < 4 || x >= UI_RX(124) || y < LIST_Y - 1 || y >= LIST_Y + LIST_HEIGHT + 1) return -1;
     for (int i = 0; i < _n; i++) {
       if (y >= rowY(i) - 1 && y < rowY(i) + ROW_H + 2) return i;
     }
@@ -200,7 +200,7 @@ public:
         if (y < LIST_Y) { h -= LIST_Y - y; src += LIST_Y - y; y = LIST_Y; }
         if (y + h > LIST_Y + LIST_HEIGHT) h = LIST_Y + LIST_HEIGHT - y;
         if (h > 0 && !sd.composeList(y, h, (int)lroundf(src * SF32Display::SCALE)))
-          sd.composeLayer(4, y, 120, h, (int)lroundf(src * SF32Display::SCALE));
+          sd.composeLayer(4, y, UI_W - 8, h, (int)lroundf(src * SF32Display::SCALE));
       }
       if (!_enter_first) sd.setFlushBand(LIST_Y, LIST_HEIGHT);  // the first frame has the new header to send
       _enter_first = false;
@@ -210,7 +210,7 @@ public:
       // only as far as the rows go: below the last one the layer still holds an older list's
       int h = _n * (ROW_H + ROW_GAP) - (int)_ds.pos;
       if (h > LIST_HEIGHT) h = LIST_HEIGHT;
-      if (h > 0 && !sd.composeList(LIST_Y, h, src)) sd.composeLayer(4, LIST_Y, 120, h, src);
+      if (h > 0 && !sd.composeList(LIST_Y, h, src)) sd.composeLayer(4, LIST_Y, UI_W - 8, h, src);
     }
 #ifdef SF32_FRAME_LOG
     rt_kprintf("menu: header %d, rows %d (dirty %d, marquee %lx), compose %d ms\n", (int)(m1 - m0), (int)(m2 - m1),
@@ -219,16 +219,16 @@ public:
 
     if (_handle) {  // a grab handle: swipe up to put the menu back
       display.setColor(THEME_DIM);
-      display.fillRect(52, 124, 24, 2);
+      display.fillRect(UI_CX - 12, 124, 24, 2);
     }
     if (scrolls()) {  // scrollbar on the right edge
       int track = LIST_HEIGHT, total = track + maxScroll();
       int thumb = track * track / total;
       int ty = LIST_Y + (int)((track - thumb) * (_ds.pos / maxScroll()));
       display.setColor(THEME_DIM);
-      display.fillRect(125, LIST_Y, 2, track);
+      display.fillRect(UI_RX(125), LIST_Y, 2, track);
       display.setColor(THEME_ACCENT);
-      display.fillRect(125, ty, 2, thumb);
+      display.fillRect(UI_RX(125), ty, 2, thumb);
     }
     // still moving: the next frame only changes the list. The frame that was told so must go out
     // as just its band, moving or not: nothing else in it was drawn.
@@ -256,7 +256,7 @@ private:
     display.setTextSize(2);
     for (int i = 0; i < _n; i++) {
       if (!_items[i].value[0] || strchr(_items[i].value, '\n')) continue;
-      if (10 + display.getTextWidth(_items[i].label) + 6 + display.getTextWidth(_items[i].value) > 119) return 1;
+      if (10 + display.getTextWidth(_items[i].label) + 6 + display.getTextWidth(_items[i].value) > UI_RX(119)) return 1;
     }
     return 2;
   }
@@ -275,7 +275,7 @@ private:
       display.setColor(THEME_ACCENT);
       display.fillRect(4, y + 2, 2, ROW_H - 4);
     }
-    int right = 119;
+    int right = UI_RX(119);
     const char* nl = strchr(_items[i].value, '\n');
     if (nl) {  // a two-line value ("never\non USB"): small, stacked
       char first[16];
@@ -284,15 +284,15 @@ private:
       first[k] = 0;
       display.setTextSize(1);
       display.setColor(THEME_ACCENT);
-      display.drawTextRightAlign(119, y + 3, first);
-      display.drawTextRightAlign(119, y + 12, nl + 1);
+      display.drawTextRightAlign(UI_RX(119), y + 3, first);
+      display.drawTextRightAlign(UI_RX(119), y + 12, nl + 1);
       int w = display.getTextWidth(first), w2 = display.getTextWidth(nl + 1);
-      right = 119 - (w > w2 ? w : w2) - 6;
+      right = UI_RX(119) - (w > w2 ? w : w2) - 6;
     } else if (_items[i].value[0]) {  // value: the menu's size (valueSize)
       display.setTextSize(_vs);
       display.setColor(THEME_ACCENT);
-      display.drawTextRightAlign(119, y + (ROW_H - 8 * _vs) / 2, _items[i].value);
-      right = 119 - display.getTextWidth(_items[i].value) - 6;
+      display.drawTextRightAlign(UI_RX(119), y + (ROW_H - 8 * _vs) / 2, _items[i].value);
+      right = UI_RX(119) - display.getTextWidth(_items[i].value) - 6;
     }
     display.setTextSize(2);
     display.setColor(_items[i].action == ACT_POWER_OFF ? UIColor::warning_txt : UIColor::primary_txt);

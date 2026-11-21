@@ -122,7 +122,7 @@ public:
     display.drawTextCentered(display.width() / 2, y + 9, "v" VESPER_VERSION);
     display.setColor(UIColor::secondary_txt);
     char tmp[40];
-    sprintf(tmp, "MeshCore %s  -  T-Display-SF32", _version_info);
+    sprintf(tmp, "MeshCore %s  -  " UI_BOARD, _version_info);
     display.drawTextCentered(display.width() / 2, y + 23, tmp);
     display.setColor(THEME_DIM);
     display.drawTextCentered(display.width() / 2, y + 35, FIRMWARE_BUILD_DATE);
@@ -225,15 +225,15 @@ public:
     display.setTextSize(1);
     int tw = display.getTextWidth(tmp);
     display.setColor(THEME_ACCENT);
-    display.drawTextEllipsized(9, 31, 110 - tw - 4, origin);
+    display.drawTextEllipsized(9, 31, UI_W - 18 - tw - 4, origin);
     display.setColor(UIColor::secondary_txt);
-    display.drawTextRightAlign(119, 31, tmp);
+    display.drawTextRightAlign(UI_RX(119), 31, tmp);
 
     display.setColor(UIColor::primary_txt);
     char msg[sizeof(p->msg)];
     display.translateUTF8ToBlocks(msg, p->msg, sizeof(msg));
     display.setCursor(9, 44);
-    display.printWordWrap(msg, 110);
+    display.printWordWrap(msg, UI_W - 18);
 
     display.setTextSize(1);
     display.setColor(UIColor::secondary_txt);
@@ -1092,7 +1092,7 @@ void UITask::loop() {
         _display->translateUTF8ToBlocks(text, _banner_text, sizeof(text));
         ((SF32Display*)_display)->setPopupFade(e);
         _display->setColor(UIColor::popup_bkg);
-        _display->fillRect(4, by, 120, 34);
+        _display->fillRect(4, by, UI_W - 8, 34);
         _display->setColor(THEME_ACCENT);
         _display->fillRect(4, by + 4, 2, 26);
         _display->setTextSize(1);
@@ -1100,10 +1100,10 @@ void UITask::loop() {
         // channel gets up to half the line, the sender the rest
         int ww = _display->getTextWidth(where);
         if (ww > 54) ww = 54;
-        int fw = 110 - ww - 5;
+        int fw = UI_W - 18 - ww - 5;
         if (from[0]) _display->drawTextEllipsized(10, by + 3, fw, from);
         _display->setColor(UIColor::secondary_txt);
-        _display->drawTextEllipsized(120 - ww, by + 3, ww, where);
+        _display->drawTextEllipsized(UI_RX(120) - ww, by + 3, ww, where);
         _display->setColor(UIColor::popup_txt);
         // two lines at most (the rest is in the message view): the first broken at a word
         const char* t = text;
@@ -1112,7 +1112,7 @@ void UITask::loop() {
         while (t[n] && n < 44) {
           int step = (unsigned char)t[n] >= 0xF8 && ((unsigned char)t[n + 1] & 0xC0) == 0x80 ? 2 : 1;  // an emoji: both bytes
           memcpy(line, t, n + step); line[n + step] = 0;
-          if (_display->getTextWidth(line) > 110) break;
+          if (_display->getTextWidth(line) > UI_W - 18) break;
           n += step;
           if (t[n] == ' ' || t[n] == 0) cut = n;
         }
@@ -1123,7 +1123,7 @@ void UITask::loop() {
         _display->print(line);
         t += cut;
         while (*t == ' ') t++;
-        if (*t) _display->drawTextEllipsized(10, by + 23, 110, t);
+        if (*t) _display->drawTextEllipsized(10, by + 23, UI_W - 18, t);
       }
       bool alert_up = popupUp(_alert_expiry);
       if (alert_up) {  // render alert popup (SF32: themed card): grows in, and shrinks away
@@ -1132,13 +1132,13 @@ void UITask::loop() {
         popup_moving |= moving;
         if (_alert_first) { popup_full = true; _alert_first = false; }
         float scale = 0.84f + 0.16f * e;
-        int aw = (int)(108 * scale + 0.5f), ah = (int)(30 * scale + 0.5f);
+        int aw = (int)((UI_W - 20) * scale + 0.5f), ah = (int)(30 * scale + 0.5f);
         ((SF32Display*)_display)->setPopupFade(e);
         _display->setColor(UIColor::popup_bkg);
-        _display->fillRect((128 - aw) / 2, 63 - ah / 2, aw, ah);
+        _display->fillRect((UI_W - aw) / 2, 63 - ah / 2, aw, ah);
         if (e > 0.6f) {
           _display->setColor(THEME_ACCENT);
-          _display->fillRect(58, 63 + ah / 2 - 6, 12, 2);
+          _display->fillRect(UI_CX - 6, 63 + ah / 2 - 6, 12, 2);
           _display->setTextSize(1);
           ColorVal txt = UIColor::popup_txt;  // fades in with it
           int f = (int)((e - 0.6f) / 0.4f * 31 + 0.5f);

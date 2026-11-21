@@ -383,8 +383,10 @@ shared with the SF32, not copied:
 - Keep the SF32 build unchanged when touching shared code: build the companion with a fixed
   `SOURCE_DATE_EPOCH` before and after and compare `main.bin` (byte-identical so far).
 
-For now the UI is the SF32's 128x128 layout at 1.875x, centred (layout B, widening it to fill
-the 320x240 screen, comes next). Touch works. Trackball and keyboard (`TDeckKeys.cpp`): rolling
+The UI is 170 x 128 UI px on the T-Deck (`SF32Display::W`; 128 x 128 on the SF32), at 1.875x:
+319 x 240. Screens write x positions by what they hang from (`ui_theme.inc`): `UI_CX` (the
+middle), `UI_RX(124)` (from the right edge), `UI_W - 8` (full width), `UI_HALF_W`/`UI_C2` and
+`UI_THIRD_W`/`UI_C3(k)` (cards side by side). On the SF32 they're the old numbers. Touch works. Trackball and keyboard (`TDeckKeys.cpp`): rolling
 left/right = previous/next, up/down = the swipe menus on the home pages and up/down elsewhere
 (one step per roll), the click = the SF32's button A; Enter selects, Backspace goes back, Space
 is next.
@@ -394,8 +396,9 @@ cd tdeck
 ./build.sh      # PlatformIO (~/.platformio/penv/bin/pio or pio on PATH)
 ./flash.sh      # saves the data partition first, then flashes; finds the T-Deck by its USB id
 ./monitor.sh    # USB serial
-./build.sh -e tdeck_debug && ENV=tdeck_debug ./flash.sh   # debug firmware: screenshots
-python3 shot.py ../shots/x.png                           # (debug firmware only)
+./build.sh -e tdeck_debug && ENV=tdeck_debug ./flash.sh   # debug firmware: remote control
+python3 remote.py up . shot ../shots/x.png               # swipe, wait, screenshot (see its help)
+../tools/tdeck_pages.sh DIR                              # every home page, as grids
 ```
 
 - Flashing writes the bootloader, partition table, boot_app0 and the app only. The data

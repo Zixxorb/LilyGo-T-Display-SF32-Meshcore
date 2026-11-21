@@ -1064,7 +1064,7 @@ void UITask::handleTouchMenus() {
   _auto_off = millis() + autoOffMillis();
   _next_refresh = 0;
   // an SOS going on: the header's red chip (top right) brings its screen back
-  if (_sos_state == SOS_ACTIVE && curr != sos_screen && y < 22 && x >= 76) {
+  if (_sos_state == SOS_ACTIVE && curr != sos_screen && y < 22 && x >= UI_RX(76)) {
     openSos();
     return;
   }

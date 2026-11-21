@@ -67,8 +67,8 @@ public:
     const char* chan = sosChannelName(_task->uiPrefs().sos_chan, ch);
     // red frame, title
     display.setColor(THEME_RED);
-    display.fillRect(0, 0, 128, 3);
-    display.fillRect(0, 125, 128, 3);
+    display.fillRect(0, 0, UI_W, 3);
+    display.fillRect(0, 125, UI_W, 3);
     display.setTextSize(2);
     display.drawTextCentered(UI_CX, 10, "SOS");
 
@@ -83,7 +83,7 @@ public:
       display.setColor(UIColor::secondary_txt);
       sprintf(tmp, "sending to %s", chan);
       display.drawTextCentered(UI_CX, 82, tmp);
-      themeCard(display, 14, 96, 100, 22);
+      themeCard(display, UI_CX - 50, 96, 100, 22);
       display.setTextSize(2);
       display.setColor(UIColor::primary_txt);
       display.drawTextCentered(UI_CX, 100, "Cancel");
@@ -105,7 +105,7 @@ public:
       display.drawTextCentered(UI_CX, 72, tmp);
       display.drawTextCentered(UI_CX, 84, "hold Stop to end it");  // (swipe away: it keeps sending)
     }
-    themeCard(display, 14, 96, 100, 22);
+    themeCard(display, UI_CX - 50, 96, 100, 22);
     display.setTextSize(2);
     display.setColor(UIColor::primary_txt);
     display.drawTextCentered(UI_CX, 100, st == SOS_DONE ? "Close" : "Stop");

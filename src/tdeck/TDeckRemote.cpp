@@ -6,9 +6,12 @@
 //   rt HEX          a remote touch for SF32TouchInput (its sf32_remote_touch codes), queued
 //   fakemsg         a pretend direct message (sf32_fake_msg)
 //   fakemeet HEX    a pretend nearby Starlit's hello (sf32_fake_meet)
+//   cat PATH        a data file, in hex: "CAT n" then the bytes (UI settings and the like; not
+//                   the identity: /identity is refused)
 #ifdef TDECK_SHOT
 #include <Arduino.h>
 #include "compat/rtthread.h"
+#include <SPIFFS.h>
 
 extern "C" uint16_t* volatile sf32_shown_fb;  // SF32Display.cpp: the frame on the panel
 #ifdef SF32_REMOTE_TOUCH
@@ -40,7 +43,7 @@ void tdeck_shot_poll() {
     s_rt_n--;
   }
 #endif
-  static char line[32];
+  static char line[48];
   static int n = 0;
   while (Serial.available()) {
     char c = Serial.read();
@@ -48,6 +51,12 @@ void tdeck_shot_poll() {
     line[n] = 0;
     n = 0;
     if (strcmp(line, "shot") == 0) shot();
+    else if (strncmp(line, "cat /", 5) == 0 && strncmp(line + 4, "/identity", 9) != 0) {
+      File f = SPIFFS.open(line + 4, "r");
+      Serial.printf("CAT %d\n", f ? (int)f.size() : -1);
+      while (f && f.available()) Serial.printf("%02x", f.read());
+      Serial.println();
+    }
 #ifdef SF32_REMOTE_TOUCH
     else if (strncmp(line, "rt ", 3) == 0 && s_rt_n < 32) {
       s_rt[(s_rt_head + s_rt_n) % 32] = strtoul(line + 3, NULL, 16);

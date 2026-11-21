@@ -9,6 +9,7 @@ ENV=tdeck_debug ./flash.sh). Steps run in order:
   drag X0 Y X1 MS        finger dragged sideways
   vdrag X Y0 Y1 MS       finger dragged up or down (scrolls a list)
   fakemsg | fakemeet HEX a pretend message / nearby Starlit
+  cat /FILE              a data file in hex (not the identity)
   .                      wait 1.2 s
 e.g. remote.py press . up . shot ../shots/menu.png"""
 import glob, os, sys, time
@@ -86,6 +87,12 @@ while i < len(args):
     elif a == "vdrag":
         x, y0, y1, ms = map(int, args[i + 1:i + 5]); i += 5
         path(x, y0, x, y1, ms)
+    elif a == "cat":
+        s.reset_input_buffer()
+        s.write(b"cat %s\n" % args[i + 1].encode())
+        n = int(answer("CAT ").split()[1])
+        print(args[i + 1], n, s.readline().decode().strip() if n >= 0 else "(none)")
+        i += 2
     elif a == "fakemsg":
         s.write(b"fakemsg\n"); answer("OK"); i += 1
     elif a == "fakemeet":

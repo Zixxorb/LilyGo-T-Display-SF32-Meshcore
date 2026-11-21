@@ -50,7 +50,7 @@ public:
   int render(DisplayDriver& d) override {
     step();
     themeHeader(d, "Band scan", _task->getBattMilliVolts());
-    const int gx = 2, gy = 30, gw = SCAN_POINTS, gh = 60;  // one logical px per 250 kHz
+    const int gx = 2 + (UI_W - 128) / 2, gy = 30, gw = SCAN_POINTS, gh = 60;  // one logical px per 250 kHz
     // grid: -60 / -90 / -120 dBm
     d.setColor(THEME_DIM);
     d.fillRect(gx, gy, gw, 1);

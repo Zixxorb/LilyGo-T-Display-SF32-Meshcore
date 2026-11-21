@@ -700,7 +700,7 @@ public:
     };
     display.setColor(UIColor::primary_txt);
     display.setCursor(9, k < 3 ? 46 : 39);
-    display.printWordWrap(TEXT[k], 110);
+    display.printWordWrap(TEXT[k], UI_W - 18);
     display.setColor(UIColor::secondary_txt);
     if (k == 0) snprintf(tmp, sizeof(tmp), "today: +%d of 70 max", ps.day_fed);
     else if (k == 1) snprintf(tmp, sizeof(tmp), "today: +%d of 60 max", ps.day_cur);
@@ -751,7 +751,7 @@ public:
     }
 #endif
     if (_page == HomePage::FIRST) {  // Status: the Unread card opens the messages
-      if (x >= 4 && x < 62 && y >= 27 && y < 67 && _task->getUnreadCount() > 0) { _task->showMessages(); return true; }
+      if (x >= 4 && x < 4 + UI_HALF_W && y >= 27 && y < 67 && _task->getUnreadCount() > 0) { _task->showMessages(); return true; }
       return false;
     }
     if (_page == HomePage::CLOCK) {  // the unread envelope (top left): the messages
@@ -763,7 +763,7 @@ public:
     }
     if (_page == HomePage::GAMES) {  // the pet: pet it (it looks at where you touched)
       if (_pet_info >= 0) { _pet_info = -1; return true; }  // an info card open: any tap closes it
-      if (y >= 86 && y < 105) { int k = (x - 4) / 41; _pet_info = k < 0 ? 0 : (k > 2 ? 2 : k); return true; }  // a need's bar: what it means
+      if (y >= 86 && y < 105) { int k = (x - 4) / (UI_THIRD_W + 3); _pet_info = k < 0 ? 0 : (k > 2 ? 2 : k); return true; }  // a need's bar: what it means
       if (y >= 105) { _pet_info = 3; return true; }  // the line under them: its mood
       if (x < UI_CX - 34 || x >= UI_CX + 34 || y < 24 || y >= 88) return false;
       if (pet.context() & PetGame::CTX_MAIL) { _task->showMessages(); return true; }  // it's holding a message: open it

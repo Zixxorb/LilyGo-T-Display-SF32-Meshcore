@@ -111,7 +111,7 @@ public:
         d.drawTextRightAlign(UI_RX(124), y, tmp);
         sprintf(tmp, "%d", s.rssi);
         d.setColor(s.rssi >= -90 ? THEME_GOOD : s.rssi >= -110 ? UIColor::warning_txt : UIColor::secondary_txt);
-        d.drawTextRightAlign(102, y, tmp);
+        d.drawTextRightAlign(UI_RX(102), y, tmp);
       } else {
         d.setColor(THEME_DIM);
         d.drawTextRightAlign(UI_RX(124), y, "--");

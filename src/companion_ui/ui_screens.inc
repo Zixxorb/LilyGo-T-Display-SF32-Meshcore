@@ -103,8 +103,8 @@ public:
   }
 
 private:
-  static Btn cell(int i) { return Btn{4 + (i % 3) * 41, 27 + (i / 3) * 19, 38, 17}; }  // 3 x 4
-  static constexpr Btn B_DONE = {4, 106, 120, 15};
+  static Btn cell(int i) { return Btn{UI_C3(i % 3), 27 + (i / 3) * 19, UI_THIRD_W, 17}; }  // 3 x 4
+  static constexpr Btn B_DONE = {4, 106, UI_W - 8, 15};
   UITask* _task;
   int _sel = -1;
 };
@@ -160,7 +160,7 @@ static const AboutLine ABOUT_LINES[] = {
   {0, "Powered by"},
   {1, "VesperOS"},
   {2, "v" VESPER_VERSION " - MeshCore " FIRMWARE_VERSION},
-  {2, "LilyGo T-Display-SF32"},
+  {2, "LilyGo " UI_BOARD},
   {3, ""},
   {0, "Port & design"},
   {1, SF32_CREDIT_PORT},
@@ -216,7 +216,7 @@ public:
         if (l.kind != 3) {
           d.setTextSize(l.kind == 1 ? 2 : 1);
           d.setColor(l.kind == 0 ? THEME_ACCENT : (l.kind == 1 ? UIColor::primary_txt : UIColor::secondary_txt));
-          d.drawTextCentered(62, y + (l.kind == 0 ? 3 : 0), l.text);
+          d.drawTextCentered(UI_CX - 2, y + (l.kind == 0 ? 3 : 0), l.text);
         }
         y += aboutLineH(l.kind);
       }
@@ -225,14 +225,14 @@ public:
     } else if (moving || _ds.active) {
       sd.setFlushBand(LIST_Y, LIST_HEIGHT);  // only the list moves: send just its band
     }
-    sd.composeLayer(0, LIST_Y, 124, LIST_HEIGHT, (int)lroundf(_ds.pos * SF32Display::SCALE));
+    sd.composeLayer(0, LIST_Y, UI_RX(124), LIST_HEIGHT, (int)lroundf(_ds.pos * SF32Display::SCALE));
     if (scrolls()) {
       int thumb = LIST_HEIGHT * LIST_HEIGHT / (LIST_HEIGHT + maxScroll());
       int ty = LIST_Y + (int)((LIST_HEIGHT - thumb) * (_ds.pos / maxScroll()));
       d.setColor(THEME_DIM);
-      d.fillRect(125, LIST_Y, 2, LIST_HEIGHT);
+      d.fillRect(UI_RX(125), LIST_Y, 2, LIST_HEIGHT);
       d.setColor(THEME_ACCENT);
-      d.fillRect(125, ty, 2, thumb);
+      d.fillRect(UI_RX(125), ty, 2, thumb);
     }
     return moving ? 16 : 2000;
   }
@@ -321,7 +321,7 @@ public:
     d.setTextSize(1);
     d.setColor(UIColor::primary_txt);
     d.setCursor(9, 40);
-    d.printWordWrap(_texts[i], 110);
+    d.printWordWrap(_texts[i], UI_W - 18);
 
     // the snapshot: uptime_s,mV,usb,charge,chip_C,heap_free,heap_min_free,MHz[,extra...]
     long v[8];
@@ -402,7 +402,7 @@ public:
         d.setTextSize(1);
         d.setColor(UIColor::primary_txt);
         d.setCursor(9, y + 13);
-        d.printWordWrap(_texts[i], 110);  // up to two lines
+        d.printWordWrap(_texts[i], UI_W - 18);  // up to two lines
       }
       sd.endLayer();
       sd.layerRowsDone(0, contentH() + 2);  // for the graphics hardware's copy (cards, as in the menus)
@@ -412,7 +412,7 @@ public:
     }
     int src = (int)lroundf(_ds.pos * SF32Display::SCALE);
     bool hw = sd.composeList(LIST_Y, LIST_HEIGHT, src);  // the graphics hardware where it can (the first ~14)
-    if (!hw) sd.composeLayer(4, LIST_Y, 120, LIST_HEIGHT, src);
+    if (!hw) sd.composeLayer(4, LIST_Y, UI_W - 8, LIST_HEIGHT, src);
     if (sd.listFrame()) sd.setFlushBand(LIST_Y, LIST_HEIGHT);
     // still moving, by hardware, with room to spare: the next frame is just the list, as in the menus
     if ((moving || _ds.active) && hw && src + (int)(LIST_HEIGHT * SF32Display::SCALE) + 200 < SF32Display::listRows()) sd.nextFrameIsList();
@@ -420,9 +420,9 @@ public:
       int thumb = LIST_HEIGHT * LIST_HEIGHT / (LIST_HEIGHT + maxScroll());
       int ty = LIST_Y + (int)((LIST_HEIGHT - thumb) * (_ds.pos / maxScroll()));
       d.setColor(THEME_DIM);
-      d.fillRect(125, LIST_Y, 2, LIST_HEIGHT);
+      d.fillRect(UI_RX(125), LIST_Y, 2, LIST_HEIGHT);
       d.setColor(THEME_ACCENT);
-      d.fillRect(125, ty, 2, thumb);
+      d.fillRect(UI_RX(125), ty, 2, thumb);
     }
     return moving ? 16 : 5000;
   }
@@ -479,7 +479,7 @@ public:
       else sprintf(tmp, "%d:%02d %s", tm.tm_hour % 12 ? tm.tm_hour % 12 : 12, tm.tm_min, tm.tm_hour < 12 ? "AM" : "PM");
       d.setTextSize(1);
       d.setColor(UIColor::secondary_txt);
-      d.drawTextRightAlign(119, 31, tmp);
+      d.drawTextRightAlign(UI_RX(119), 31, tmp);
     }
     d.setTextSize(3);
     d.setColor(UIColor::primary_txt);
@@ -524,9 +524,9 @@ public:
   int _sel = -1;
 
 private:
-  static constexpr Btn B_MINUS = {4, 72, 56, 24};
-  static constexpr Btn B_PLUS = {68, 72, 56, 24};
-  static constexpr Btn B_DONE = {4, 99, 120, 19};
+  static constexpr Btn B_MINUS = {4, 72, UI_HALF_W - 2, 24};
+  static constexpr Btn B_PLUS = {UI_C2 + 2, 72, UI_HALF_W - 2, 24};
+  static constexpr Btn B_DONE = {4, 99, UI_W - 8, 19};
   UITask* _task;
   NodePrefs* _prefs;
 };
@@ -579,7 +579,7 @@ public:
     }
     d.setTextSize(5);
     d.setColor(TXT);
-    d.drawTextCentered(64 + ox, 38 + oy, hm);
+    d.drawTextCentered(UI_CX + ox, 38 + oy, hm);
     if (known) {
       static const char* const days[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
       static const char* const months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -587,7 +587,7 @@ public:
       sprintf(tmp, "%s, %s %d", days[tm.tm_wday], months[tm.tm_mon], tm.tm_mday);
       d.setTextSize(1);
       d.setColor(UIColor::secondary_txt);
-      d.drawTextCentered(64 + ox, 82 + oy, tmp);
+      d.drawTextCentered(UI_CX + ox, 82 + oy, tmp);
     }
     int unread = _task->getUnreadCount();
     if (unread > 0) {  // envelope + count, centred under the date
@@ -596,7 +596,7 @@ public:
       sprintf(tmp, "%d", unread);
       d.setTextSize(2);
       int w = 16 + 3 + d.getTextWidth(tmp);
-      int x = 64 + ox - w / 2;
+      int x = UI_CX + ox - w / 2;
       d.setColor(UIColor::warning_txt);
       d.drawXbm(x, 98 + oy, envelope, 16, 12);
       d.setCursor(x + 19, 96 + oy);
@@ -605,7 +605,7 @@ public:
     if (_task->dndNow()) {  // do not disturb (night hours)
       d.setTextSize(1);
       d.setColor(UIColor::secondary_txt);
-      d.drawTextCentered(64 + ox, 114 + oy, "DND");
+      d.drawTextCentered(UI_CX + ox, 114 + oy, "DND");
     }
     // until the next minute
     return known ? (int)(60 - now % 60) * 1000 + 50 : 60000;
@@ -678,9 +678,9 @@ public:
   int _sel = -1;
 
 private:
-  static constexpr Btn B_MINUS = {4, 72, 56, 24};
-  static constexpr Btn B_PLUS = {68, 72, 56, 24};
-  static constexpr Btn B_DONE = {4, 99, 120, 19};
+  static constexpr Btn B_MINUS = {4, 72, UI_HALF_W - 2, 24};
+  static constexpr Btn B_PLUS = {UI_C2 + 2, 72, UI_HALF_W - 2, 24};
+  static constexpr Btn B_DONE = {4, 99, UI_W - 8, 19};
   UITask* _task;
   uint8_t* _hour = nullptr;
   const char* _title = "";

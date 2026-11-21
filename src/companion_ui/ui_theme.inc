@@ -6,6 +6,11 @@
 // SF32Display::W), so x positions are written by what they hang from: the left (x as it is),
 // the middle (UI_CX, UI_CX - 20) or the right (UI_RX(124): 4 from the right edge, = 124 on the
 // SF32). On the SF32 they're the same numbers as before.
+#ifdef VESPER_TDECK
+#define UI_BOARD "T-Deck"
+#else
+#define UI_BOARD "T-Display-SF32"  // the board, as the UI names it (About, splash)
+#endif
 #define UI_W  SF32Display::W
 #define UI_CX (UI_W / 2)
 #define UI_RX(x) (UI_W - (128 - (x)))
