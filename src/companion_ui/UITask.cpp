@@ -796,11 +796,13 @@ void UITask::loop() {
 #endif
     sf32_loop_sleep_ms = screen_on && !_aod ? 4 : 25;
     // screen dark on battery: wait for something to happen (radio, touch, button, Bluetooth,
-    // lift; at most 250 ms) instead of a 25 ms nap. Being tried (SF32_LOOP_AB) before it's the default.
+    // lift; at most 250 ms) instead of a 25 ms nap: ~4 loop passes a second instead of ~40. The
+    // default since 2026-11-21 (the SF32_LOOP_AB battery test leaned its way); that test
+    // build still alternates it with the naps.
 #ifdef SF32_LOOP_AB
     bool event_wait = sf32_ab_test_stretch();
 #else
-    bool event_wait = false;
+    bool event_wait = true;
 #endif
     sf32_loop_event_ms = event_wait && !screen_on && !board.isExternalPowered() ? 250 : 0;
     // sleep (power manager): awake while the screen (always-on too) or audio is on, the
