@@ -116,6 +116,46 @@ void HAL_LCDC_WriteU32Reg(LCDC_HandleTypeDef*, uint32_t cmd, uint8_t* data, int 
   command(reg, data, n);
 }
 
+// The panel's tuning, from LilyGo's T-Deck firmware (TFT_eSPI) and Meshtastic's (LovyanGFX), in
+// groups (debug firmware: remote.py tune N tries them). Compared by eye on the T-Deck
+// (2026-11-21): the chip's defaults look washed out, all of it too orange; the gamma curves
+// alone look best. (TIMING with RAM left the panel black.)
+#define TUNE_TIMING  1  // display function, porches, gate voltages, LCM, frame rate, power
+#define TUNE_VCOM    2  // VCOM 1.1 V
+#define TUNE_VRH     4  // VRH and VDV (the gamma reference voltages)
+#define TUNE_GAMMA   8  // gamma curves
+#define TUNE_RAM     16 // 16 to 18 bit colour: r0 = r5, b0 = b5
+#ifndef TUNING_GROUPS
+#define TUNING_GROUPS TUNE_GAMMA
+#endif
+static uint8_t s_tuning = TUNING_GROUPS;
+static const uint8_t TUNING[] = {  // group, command, length, data
+  TUNE_TIMING, 0xB6, 2, 0x0A, 0x82,
+  TUNE_RAM,    0xB0, 2, 0x00, 0xE0,
+  TUNE_TIMING, 0xB2, 5, 0x0C, 0x0C, 0x00, 0x33, 0x33,
+  TUNE_TIMING, 0xB7, 1, 0x35,
+  TUNE_VCOM,   0xBB, 1, 0x28,
+  TUNE_TIMING, 0xC0, 1, 0x0C,
+  TUNE_VRH,    0xC2, 2, 0x01, 0xFF,
+  TUNE_VRH,    0xC3, 1, 0x10,
+  TUNE_VRH,    0xC4, 1, 0x20,
+  TUNE_TIMING, 0xC6, 1, 0x0F,
+  TUNE_TIMING, 0xD0, 2, 0xA4, 0xA1,
+  TUNE_GAMMA,  0xE0, 14, 0xD0, 0x00, 0x02, 0x07, 0x0A, 0x28, 0x32, 0x44, 0x42, 0x06, 0x0E, 0x12, 0x14, 0x17,
+  TUNE_GAMMA,  0xE1, 14, 0xD0, 0x00, 0x02, 0x07, 0x0A, 0x28, 0x31, 0x54, 0x47, 0x0E, 0x1C, 0x17, 0x1B, 0x1E,
+};
+
+static void panel_setup() {
+  command(0x01); delay(150);                         // software reset
+  command(0x11); delay(120);                         // out of sleep
+  const uint8_t colmod = 0x55;  command(0x3A, &colmod, 1);  // 16 bits per pixel
+  const uint8_t madctl = 0x60;  command(0x36, &madctl, 1);  // landscape
+  for (size_t i = 0; i < sizeof(TUNING); i += 3 + TUNING[i + 2])
+    if (TUNING[i] & s_tuning) command(TUNING[i + 1], &TUNING[i + 3], TUNING[i + 2]);
+  command(0x21);                                     // inversion on (this IPS panel needs it)
+  command(0x13);                                     // normal mode
+}
+
 static rt_err_t lcd_open(rt_device_t dev) {
   // the shared bus: started here (the screen comes up before the radio), the radio's
   // begin() then finds it running
@@ -125,32 +165,28 @@ static rt_err_t lcd_open(rt_device_t dev) {
   pinMode(TFT_DC, OUTPUT);
   pinMode(TFT_BL, OUTPUT);
   digitalWrite(TFT_BL, LOW);
-  command(0x01); delay(150);                         // software reset
-  command(0x11); delay(120);                         // out of sleep
-  const uint8_t colmod = 0x55;  command(0x3A, &colmod, 1);  // 16 bits per pixel
-  const uint8_t madctl = 0x60;  command(0x36, &madctl, 1);  // landscape
-  // The panel's own tuning, as LilyGo's T-Deck firmware sets it (TFT_eSPI's ST7789 setup):
-  // without it the chip's defaults give off colours
-  static const uint8_t TUNING[] = {
-    0xB6, 2, 0x0A, 0x82,                    // display function
-    0xB0, 2, 0x00, 0xE0,                    // RAM: 16 to 18 bit colour, r0 = r5, b0 = b5
-    0xB2, 5, 0x0C, 0x0C, 0x00, 0x33, 0x33,  // porches
-    0xB7, 1, 0x35,                          // gate voltages
-    0xBB, 1, 0x28,                          // VCOM
-    0xC0, 1, 0x0C,                          // LCM
-    0xC2, 2, 0x01, 0xFF,                    // VDV and VRH from these
-    0xC3, 1, 0x10,                          // VRH
-    0xC4, 1, 0x20,                          // VDV
-    0xC6, 1, 0x0F,                          // frame rate (60 Hz)
-    0xD0, 2, 0xA4, 0xA1,                    // power
-    0xE0, 14, 0xD0, 0x00, 0x02, 0x07, 0x0A, 0x28, 0x32, 0x44, 0x42, 0x06, 0x0E, 0x12, 0x14, 0x17,  // gamma +
-    0xE1, 14, 0xD0, 0x00, 0x02, 0x07, 0x0A, 0x28, 0x31, 0x54, 0x47, 0x0E, 0x1C, 0x17, 0x1B, 0x1E,  // gamma -
-  };
-  for (size_t i = 0; i < sizeof(TUNING); i += 2 + TUNING[i + 1]) command(TUNING[i], &TUNING[i + 2], TUNING[i + 1]);
-  command(0x21);                                     // inversion on (this IPS panel needs it)
-  command(0x13);                                     // normal mode
+  panel_setup();
   return RT_EOK;
 }
+
+#ifdef TDECK_SHOT
+// debug firmware (remote.py tune N): set the panel up again with tuning groups N, and show
+// the frame again
+extern "C" uint16_t* volatile sf32_shown_fb;
+void tdeck_panel_retune(uint8_t groups) {
+  s_tuning = groups;
+  uint8_t level = s_level;
+  panel_setup();
+  command(0x29);
+  s_x0 = 0; s_y0 = 0; s_x1 = TFT_W - 1; s_y1 = TFT_H - 1;
+  rt_err_t (*done)(rt_device_t, void*) = s_done;
+  s_done = nullptr;
+  if (sf32_shown_fb) draw_rect((const char*)sf32_shown_fb, 0, 0, TFT_W - 1, TFT_H - 1);
+  s_done = done;
+  s_level = 0;
+  backlight(level);
+}
+#endif
 
 static rt_err_t lcd_control(rt_device_t dev, int cmd, void* arg) {
   switch (cmd) {

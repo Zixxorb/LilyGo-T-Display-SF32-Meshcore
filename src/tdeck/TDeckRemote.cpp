@@ -6,6 +6,7 @@
 //   rt HEX          a remote touch for SF32TouchInput (its sf32_remote_touch codes), queued
 //   fakemsg         a pretend direct message (sf32_fake_msg)
 //   fakemeet HEX    a pretend nearby Starlit's hello (sf32_fake_meet)
+//   tune N          the panel set up again with tuning groups N (TDeckPanel.cpp), to compare
 //   cat PATH        a data file, in hex: "CAT n" then the bytes (UI settings and the like; not
 //                   the identity: /identity is refused)
 #ifdef TDECK_SHOT
@@ -14,6 +15,7 @@
 #include <SPIFFS.h>
 
 extern "C" uint16_t* volatile sf32_shown_fb;  // SF32Display.cpp: the frame on the panel
+void tdeck_panel_retune(uint8_t groups);  // TDeckPanel.cpp
 #ifdef SF32_REMOTE_TOUCH
 extern "C" volatile uint32_t sf32_remote_touch;  // SF32TouchInput.cpp: taken (zeroed) by the UI
 extern volatile uint32_t sf32_fake_msg, sf32_fake_meet;  // ui_meet.inc
@@ -51,6 +53,7 @@ void tdeck_shot_poll() {
     line[n] = 0;
     n = 0;
     if (strcmp(line, "shot") == 0) shot();
+    else if (strncmp(line, "tune ", 5) == 0) { tdeck_panel_retune(atoi(line + 5)); Serial.println("OK"); }
     else if (strncmp(line, "cat /", 5) == 0 && strncmp(line + 4, "/identity", 9) != 0) {
       File f = SPIFFS.open(line + 4, "r");
       Serial.printf("CAT %d\n", f ? (int)f.size() : -1);

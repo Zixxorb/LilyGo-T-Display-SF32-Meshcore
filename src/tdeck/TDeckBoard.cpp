@@ -94,6 +94,13 @@ void TDeckBoard::loop() {
   if (!_boot_done) {  // the filesystem is mounted by now (MeshCore's setup())
     _boot_done = true;
     if (_rtc) _rtc->afterSetup();
+    // why it started, when that wasn't a normal start: in the event log (Settings > Logs)
+    switch (esp_reset_reason()) {
+      case ESP_RST_PANIC: logEvent("restarted: crash"); break;
+      case ESP_RST_INT_WDT: case ESP_RST_TASK_WDT: case ESP_RST_WDT: logEvent("restarted: watchdog"); break;
+      case ESP_RST_BROWNOUT: logEvent("restarted: power dip"); break;
+      default: break;
+    }
   }
   // the touch chip and the keyboard are asked over I2C only while the screen is on (or taps
   // wake it): with it off, nothing they say is used

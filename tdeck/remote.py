@@ -10,6 +10,7 @@ ENV=tdeck_debug ./flash.sh). Steps run in order:
   vdrag X Y0 Y1 MS       finger dragged up or down (scrolls a list)
   fakemsg | fakemeet HEX a pretend message / nearby Starlit
   cat /FILE              a data file in hex (not the identity)
+  tune N                 the panel's tuning groups N (TDeckPanel.cpp), to compare colours
   .                      wait 1.2 s
 e.g. remote.py press . up . shot ../shots/menu.png"""
 import glob, os, sys, time
@@ -93,6 +94,8 @@ while i < len(args):
         n = int(answer("CAT ").split()[1])
         print(args[i + 1], n, s.readline().decode().strip() if n >= 0 else "(none)")
         i += 2
+    elif a == "tune":
+        s.write(b"tune %s\n" % args[i + 1].encode()); answer("OK"); i += 2
     elif a == "fakemsg":
         s.write(b"fakemsg\n"); answer("OK"); i += 1
     elif a == "fakemeet":
