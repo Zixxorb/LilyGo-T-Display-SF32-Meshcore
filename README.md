@@ -88,6 +88,12 @@ Vesper is free and open source. If it's useful to you, you can support its devel
 <td align="center"><img src="docs/images/starlit.png" width="180"><br><sub>Your Starlit</sub></td>
 <td align="center"><img src="docs/images/starlit-petted.png" width="180"><br><sub>Stroked</sub></td>
 <td align="center"><img src="docs/images/starlit-friend.png" width="180"><br><sub>Meeting a friend's</sub></td>
+<td align="center"><img src="docs/images/boot.png" width="180"><br><sub>Boot screen</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/images/node-card.png" width="180"><br><sub>A node's card</sub></td>
+<td align="center"><img src="docs/images/ping.png" width="180"><br><sub>Ping a repeater</sub></td>
+<td></td>
 <td></td>
 </tr>
 </table>
