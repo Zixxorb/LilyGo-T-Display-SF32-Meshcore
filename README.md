@@ -50,7 +50,7 @@ device shows what's happening on the mesh, tests links, finds repeaters and keep
 |---|---|
 | **7 clock faces** | Color, Sun (sun and moon on the sky's arc), Starlit, Digital, Analog, Big, Info. Hold the clock to switch |
 | **Signal tools** | Signal tester, repeater **finder** (warmer/colder), 902-928 MHz **band scan**, **LoRa networks** nearby (Meshtastic, MeshCore, LoRaWAN) |
-| **Mesh at a glance** | Activity graph, heard nodes, **My Nodes**, one **card per node** (details, path-hash size, battery on request) |
+| **Mesh at a glance** | Activity graph, heard nodes, **My Nodes**, one **card per node** (details, path-hash size, battery on request, ping a repeater) |
 | **Battery** | 48 h history graph, time left, low-battery protection |
 | **Starlits** | A little critter of your own, fed by the mesh traffic it hears: stroke it, boop it, play. It reflects the device and shows **today's finds**; meet your friends' Starlits |
 | **Mesh SOS** | Triple-press A: location + battery to a channel, repeated; turns on low power mode |
@@ -475,6 +475,13 @@ button: one telemetry request to that node, at most one every 5 s and nothing on
 schedule, so the mesh isn't loaded with polling. It shows "no reply" after 10 s (longer for
 far nodes, up to 20 s); an answer that comes later still shows. A node answers only if its
 own telemetry setting shares with you; repeaters want a login for it.
+
+A repeater's or room server's card also has **Ping**: one MeshCore trace along the route to
+it and back the same way. It shows the round trip time and each link's SNR in both
+directions (you > first repeater > ... > it > ... > you), so you can see which hop is weak.
+The route is the contact's stored path, or else the path its latest advert came in by; with
+neither, Ping says there's no route yet. Chat nodes don't pass traces on, so they have no
+Ping. Tap the result to ping again (at most one every 3 s).
 
 </details>
 

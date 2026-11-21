@@ -62,7 +62,11 @@ extern "C" bool sf32_ab_test_stretch(void);  // SF32Board.cpp: battery test, the
 #ifndef AUTO_OFF_MILLIS
   #define AUTO_OFF_MILLIS     15000   // 15 seconds
 #endif
+#ifdef SF32_SPLASH_TEST
+#define BOOT_SCREEN_MILLIS   120000  // test builds: long enough for a screenshot
+#else
 #define BOOT_SCREEN_MILLIS   3000   // 3 seconds
+#endif
 
 #ifdef PIN_STATUS_LED
 #define LED_ON_MILLIS     20
@@ -108,21 +112,17 @@ public:
   }
 
   int render(DisplayDriver& display) override {
-    // SF32: Vesper wordmark and version, then MeshCore (what it runs) and the board
-    display.setColor(UIColor::primary_txt);
-    display.setTextSize(3);
-    display.drawTextCentered(display.width() / 2, 30, "Vesper");
-    display.setColor(THEME_ACCENT);
-    display.fillRect(58, 60, 12, 2);
+    // SF32: the Vesper logo and version, then MeshCore (what it runs) and the board
+    int y = 18 + ((SF32Display&)display).drawLogo(display.width() / 2, 18);
     display.setTextSize(1);
     display.setColor(UIColor::primary_txt);
-    display.drawTextCentered(display.width() / 2, 68, "v" VESPER_VERSION);
+    display.drawTextCentered(display.width() / 2, y + 9, "v" VESPER_VERSION);
     display.setColor(UIColor::secondary_txt);
     char tmp[40];
     sprintf(tmp, "MeshCore %s  -  T-Display-SF32", _version_info);
-    display.drawTextCentered(display.width() / 2, 82, tmp);
+    display.drawTextCentered(display.width() / 2, y + 23, tmp);
     display.setColor(THEME_DIM);
-    display.drawTextCentered(display.width() / 2, 94, FIRMWARE_BUILD_DATE);
+    display.drawTextCentered(display.width() / 2, y + 35, FIRMWARE_BUILD_DATE);
     return 1000;
   }
 
@@ -147,6 +147,7 @@ public:
 #include "ui_sun.inc"  // sunrise / sunset from the node's location (Sun and Info clock faces)
 #include "ui_adverts.inc"  // send adverts now / on a schedule (Settings > Auto advert)
 #include "ui_nodes.inc"  // My Nodes (Nodes page): starred contacts, battery on request
+#include "ui_ping.inc"  // ping a repeater (node card): a trace out and back, SNR per link
 #include "ui_pet.inc"  // the pet (Games page): its look, needs, mesh feeding, drawing
 #include "ui_meet.inc"  // Starlits meeting: a zero-hop hello between nearby Vesper boards
 

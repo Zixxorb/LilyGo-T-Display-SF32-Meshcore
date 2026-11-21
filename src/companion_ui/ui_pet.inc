@@ -788,21 +788,28 @@ public:
   bool scrolls() const { return !_detail_on && maxScroll() > 0; }
   DragScroll& drag() { _ds.max = maxScroll(); return _ds; }
   // One card per node (from here, or from the Nodes page): its Starlit, name, kind, when it was
-  // last heard and how far, its path-hash size, and its battery on request (the Battery button).
+  // last heard and how far, its path-hash size, and its battery on request (the Battery button);
+  // a repeater or room server's also has Ping (a trace there and back: ui_ping.inc).
   void openCard(const ContactInfo& c, bool only) {  // only: opened by itself (back closes it)
     memcpy(_card_key, c.id.pub_key, PUB_KEY_SIZE);
     _detail_on = true;
     _card_only = only;
+    _ping_view = false;
   }
   bool cardOnly() const { return _card_only; }
   static const int CARD_BTN_Y = 112;
-  // a tap: on a friend, its card; on a card: the Battery button asks, anywhere else is back
-  // (returns false when that leaves the screen)
+  // a tap: on a friend, its card; on a card: the Battery (or Ping) button asks, anywhere else is
+  // back; on the ping view: ping again (returns false when that leaves the screen)
   bool handleTap(int x, int y) {
     if (_detail_on) {
       ContactInfo* c = the_mesh.lookupContactByPubKey(_card_key, PUB_KEY_SIZE);
+      if (c && _ping_view) { ping(*c); return true; }
       if (c && y >= CARD_BTN_Y - 2) {
-        if (!my_nodes.ask(*c)) _task->showAlert(my_nodes.waiting() ? "Still waiting for a reply" : "Wait a few seconds", 1200);
+        if (NodePing::pingable(*c) && x >= 64) {
+          if (ping(*c)) _ping_view = true;
+        } else if (!my_nodes.ask(*c)) {
+          _task->showAlert(my_nodes.waiting() ? "Still waiting for a reply" : "Wait a few seconds", 1200);
+        }
         return true;
       }
       return back();
@@ -813,7 +820,14 @@ public:
     if (c) openCard(*c, false);
     return true;
   }
-  bool back() {  // swipe right / the button: out of a card first (false: leave the screen)
+  bool ping(const ContactInfo& c) {
+    const char* why = "";
+    if (node_ping.start(c, &why)) return true;
+    _task->showAlert(why, 1400);
+    return false;
+  }
+  bool back() {  // swipe right / the button: out of the ping view, then a card (false: leave the screen)
+    if (_detail_on && _ping_view) { _ping_view = false; return true; }
     if (!_detail_on || _card_only) return false;
     _detail_on = false;
     return true;
@@ -822,6 +836,7 @@ public:
     SF32Display& sd = (SF32Display&)d;
     bool still = _task->lowPower();
     ContactInfo* cp = _detail_on ? the_mesh.lookupContactByPubKey(_card_key, PUB_KEY_SIZE) : NULL;
+    if (cp && _ping_view) return renderPing(d, *cp);
     if (cp) {  // a node's card
       const ContactInfo& c = *cp;
       themeHeader(d, "Node", _task->getBattMilliVolts());
@@ -849,6 +864,26 @@ public:
       d.drawTextCentered(64, 102, tmp);
       // the Battery button: asks it (once, when tapped); shows the answer
       NodeReading* r = my_nodes.reading(c.id.pub_key, false);
+      if (NodePing::pingable(c)) {  // a repeater / room server: Battery and Ping, side by side
+        ColorVal bc2 = UIColor::primary_txt;
+        if (r && r->state == 1) strcpy(tmp, "asking...");
+        else if (r && r->state == 3) { strcpy(tmp, "no reply"); bc2 = UIColor::warning_txt; }
+        else if (r && r->state == 2 && r->mv) {
+          int pct = sf32BatteryPercent(r->mv);
+          sprintf(tmp, "%d.%02dV %d%%", r->mv / 1000, (r->mv % 1000) / 10, pct);
+          bc2 = pct <= 15 ? UIColor::warning_txt : THEME_ACCENT;
+        } else if (r && r->state == 2) strcpy(tmp, "private");
+        else strcpy(tmp, "Battery");
+        themeCard(d, 4, CARD_BTN_Y, 58, 14);
+        d.setColor(bc2);
+        if (d.getTextWidth(tmp) > 54) d.drawTextEllipsized(6, CARD_BTN_Y + 3, 54, tmp); else d.drawTextCentered(33, CARD_BTN_Y + 3, tmp);
+        themeCard(d, 66, CARD_BTN_Y, 58, 14);
+        uint8_t rt[PING_MAX_HOPS * 2]; int hops; uint8_t h;
+        d.setColor(NodePing::route(c, rt, hops, h) ? UIColor::primary_txt : THEME_DIM);
+        d.drawTextCentered(95, CARD_BTN_Y + 3, "Ping");
+        if (my_nodes.expire()) {}
+        return still ? 60000 : 80;
+      }
       ColorVal bc = UIColor::primary_txt;
       if (r && r->state == 1) strcpy(tmp, "Battery: asking...");
       else if (r && r->state == 3) { strcpy(tmp, "Battery: no reply (tap to retry)"); bc = UIColor::warning_txt; }
@@ -894,6 +929,81 @@ public:
     scrollBar(d);
     return moving || _ds.active ? 16 : 60000;  // still: nothing to redraw
   }
+  // the ping view: round trip and each link's SNR (you > first hop > ... > it > ... > you)
+  void pingLabel(DisplayDriver& d, int k, const ContactInfo& c, char* out) {
+    if (k < 0 || k >= node_ping.n) { strcpy(out, "you"); return; }
+    if (k == node_ping.n / 2) {  // it
+      char nm[sizeof(c.name)];
+      d.translateUTF8ToBlocks(nm, c.name, sizeof(nm));
+      snprintf(out, 9, "%s", nm);
+      return;
+    }
+    const uint8_t* p = &node_ping.path[k * node_ping.hs];
+    if (node_ping.hs == 2) sprintf(out, "%02x%02x", p[0], p[1]); else sprintf(out, "%02x", p[0]);
+  }
+  void pingRow(DisplayDriver& d, int r, int y, const ContactInfo& c) {
+    char a[12], b[12], tmp[32];
+    pingLabel(d, r - 1, c, a);
+    pingLabel(d, r, c, b);
+    snprintf(tmp, sizeof(tmp), "%s > %s", a, b);
+    d.setColor(UIColor::secondary_txt);
+    d.drawTextEllipsized(6, y, 76, tmp);
+    float s = node_ping.snr[r] / 4.0f;
+    sprintf(tmp, "%.1f dB", s);
+    d.setColor(s >= 0 ? THEME_GOOD : (s >= -7 ? UIColor::primary_txt : UIColor::warning_txt));
+    d.drawTextRightAlign(122, y, tmp);
+  }
+  int renderPing(DisplayDriver& d, const ContactInfo& c) {
+    themeHeader(d, "Ping", _task->getBattMilliVolts());
+    char name[sizeof(c.name)], tmp[40];
+    d.translateUTF8ToBlocks(name, c.name, sizeof(name));
+    d.setTextSize(1);
+    d.setColor(UIColor::primary_txt);
+    if (d.getTextWidth(name) > 120) d.drawTextEllipsized(4, 26, 120, name); else d.drawTextCentered(64, 26, name);
+    if (node_ping.expire()) _task->showAlert("No reply", 1200);
+    if (!node_ping.isFor(c.id.pub_key) || node_ping.state == NodePing::WAITING) {
+      d.setColor(UIColor::secondary_txt);
+      sprintf(tmp, "Pinging...  %lu s", node_ping.waited() / 1000);
+      d.drawTextCentered(64, 56, tmp);
+      int hops = node_ping.n / 2;
+      if (hops == 0) strcpy(tmp, "direct");
+      else sprintf(tmp, "via %d repeater%s", hops, hops == 1 ? "" : "s");
+      d.setColor(THEME_DIM);
+      d.drawTextCentered(64, 70, tmp);
+      return 250;
+    }
+    if (node_ping.state == NodePing::NO_REPLY) {
+      d.setColor(UIColor::warning_txt);
+      d.drawTextCentered(64, 54, "No reply");
+      d.setColor(UIColor::secondary_txt);
+      d.drawTextCentered(64, 68, "out of range, busy, or the");
+      d.drawTextCentered(64, 78, "route has changed");
+      d.setColor(THEME_DIM);
+      d.drawTextCentered(64, 112, "tap to ping again");
+      return 1000;
+    }
+    // done: the round trip, then each link
+    d.setTextSize(2);
+    d.setColor(THEME_ACCENT);
+    sprintf(tmp, "%lu.%02lu s", (unsigned long)(node_ping.rtt_ms / 1000), (unsigned long)(node_ping.rtt_ms % 1000) / 10);
+    d.drawTextCentered(64, 38, tmp);
+    d.setTextSize(1);
+    int rows = node_ping.n + 1, y = 60;
+    if (rows <= 6) {
+      for (int r = 0; r < rows; r++, y += 10) pingRow(d, r, y, c);
+    } else {  // a long route: the first three links and the last two
+      for (int r = 0; r < 3; r++, y += 10) pingRow(d, r, y, c);
+      d.setColor(THEME_DIM);
+      d.drawTextCentered(64, y, "...");
+      y += 10;
+      for (int r = rows - 2; r < rows; r++, y += 10) pingRow(d, r, y, c);
+    }
+    if (rows <= 5) {
+      d.setColor(THEME_DIM);
+      d.drawTextCentered(64, 118, "tap to ping again");
+    }
+    return 60000;
+  }
   void drawFriend(DisplayDriver& d, int i, float y, bool still) {
     ContactInfo* cp = the_mesh.lookupContactByPubKey(_keys[i], KEY_LEN);  // (by key: a list that changes can't shift it)
     if (!cp) return;
@@ -933,7 +1043,7 @@ private:
   static const int KEY_LEN = 8;  // a public key prefix: plenty to tell contacts apart
   uint8_t _keys[FRIENDS_MAX][KEY_LEN];
   int _n = 0, _page = 0, _detail = 0;
-  bool _detail_on = false, _layer_ok = false, _card_only = false;
+  bool _detail_on = false, _layer_ok = false, _card_only = false, _ping_view = false;
   uint8_t _card_key[PUB_KEY_SIZE] = {};
   uint32_t _lgen = 0;
   DragScroll _ds;

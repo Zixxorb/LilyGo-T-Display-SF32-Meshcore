@@ -391,6 +391,8 @@ public:
   void onControlDataRecv(const mesh::Packet* pkt) override;
   bool onUnhandledResponse(const ContactInfo &from, uint32_t tag, const uint8_t* data, uint8_t len) override;  // SF32: My Nodes
   void onRawDataRecv(mesh::Packet* pkt) override;  // SF32: Starlits meeting (ui_meet.inc)
+  void onTraceRecv(mesh::Packet* pkt, uint32_t tag, uint32_t auth_code, uint8_t flags,
+                   const uint8_t* path_snrs, const uint8_t* path_hashes, uint8_t path_len) override;  // SF32: Ping (ui_ping.inc)
   void starlitHello() { if (!lowPower()) starlit_meet_hello(); }  // the Starlit page opened
   void starlit_meet_hello();
 

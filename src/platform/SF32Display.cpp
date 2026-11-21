@@ -6,6 +6,7 @@
 #include "bf0_hal.h"  // system_bf0_ap.h: mpu_dcache_clean
 #include "SF32Font.h"
 #include "SF32Emoji.h"  // the common emoji (tools/gen_emoji.py)
+#include "SF32Logo.h"  // the boot screen logo (tools/gen_boot_logo.py)
 // The chip's graphics hardware: much faster on PSRAM than the CPU going through its cache
 // (measured, one 480x480 frame: copy 15.5 ms by CPU, 5.2 by DMA; a blend 38 by CPU, 8 by EPIC).
 // On the SF32LB52 the panel controller has one layer only, and EPIC 2 layers plus a mask at a time.
@@ -1433,6 +1434,29 @@ int SF32Display::charAdvance(unsigned char c) const {
   if (emoji_tail(c)) return 0;
   const SF32Glyph* g = find_glyph(_text_size, c, nullptr);
   return g ? g->adv : 0;
+}
+
+int SF32Display::drawLogo(int cx, int y) {
+  int ox = px_x(cx) - SF32_LOGO_W / 2, oy = px_y(y);
+  for (int j = 0; j < SF32_LOGO_H; j++) {
+    int py = oy + j;
+    if (py < OFFSET_Y || py >= OFFSET_Y + AREA_H) continue;
+    uint16_t* d = &s_fb[py * PANEL_W];
+    const uint16_t* rgb = &sf32_logo_rgb[j * SF32_LOGO_W];
+    const uint8_t* al = &sf32_logo_a[j * SF32_LOGO_W];
+    for (int i = 0; i < SF32_LOGO_W; i++) {
+      int px = ox + i, a = al[i];
+      if (a == 0 || px < CLIP_X0 || px >= CLIP_X1) continue;
+      uint16_t fg = rgb[i];
+      if (a == 255) { d[px] = fg; continue; }
+      uint16_t bg = d[px];
+      int r = (((fg >> 11) & 0x1F) * a + ((bg >> 11) & 0x1F) * (255 - a)) / 255;
+      int g = (((fg >> 5) & 0x3F) * a + ((bg >> 5) & 0x3F) * (255 - a)) / 255;
+      int b = ((fg & 0x1F) * a + (bg & 0x1F) * (255 - a)) / 255;
+      d[px] = (uint16_t)((r << 11) | (g << 5) | b);
+    }
+  }
+  return (int)(SF32_LOGO_H / SCALE + 0.999f);
 }
 
 int SF32Display::drawChar(int pen16, int y, unsigned char c, unsigned char next) {

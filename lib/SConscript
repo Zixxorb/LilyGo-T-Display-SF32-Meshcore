@@ -88,6 +88,7 @@ elif firmware == 'companion':
                                          (['SF32_CPU_TEST'] if os.getenv('SF32_CPU_TEST') == '1' else []) +
                                          (['SF32_CPU_TOGGLE_TEST'] if os.getenv('SF32_CPU_TOGGLE_TEST') == '1' else []) +
                                          (['SF32_PM_LOG'] if os.getenv('SF32_PM_LOG') == '1' else []) +
+                                         (['SF32_SPLASH_TEST'] if os.getenv('SF32_SPLASH_TEST') == '1' else []) +  # boot screen held 2 min (screenshots)
                                          (['SF32_SUN_TEST'] if os.getenv('SF32_SUN_TEST') == '1' else []),  # Sun face at a test place
                         # compat/ first: provides <helpers/rp2040/SerialBLEInterface.h> (the SF32 one)
                         LOCAL_CCFLAGS=' "-I' + os.path.join(cwd, '..', 'src', 'platform', 'compat') + '"'

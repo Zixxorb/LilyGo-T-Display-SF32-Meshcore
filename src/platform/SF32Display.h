@@ -99,6 +99,9 @@ public:
   void fillPanelRect(int px, int py, int w, int h);
   // drawXbm, drawn `scale` times larger (smoothed), e.g. 1.5 for big page icons
   void drawXbmScaled(int x, int y, const uint8_t* bits, int w, int h, float scale);
+  // the Vesper logo (boot screen; SF32Logo.h), centred on logical x, its top at logical y;
+  // returns its height in logical px
+  int drawLogo(int cx, int y);
 
   // The Glass style: a wallpaper behind everything (background: 0 aurora, 1 dunes, 2 gradient, 3 none),
   // in colours taken from `accent` (multi: several hues), and cards (fillRect in the card or popup colour) become frosted panes: a
