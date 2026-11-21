@@ -3,7 +3,9 @@
 #pragma once
 #include <stdint.h>
 
-// Backspace gives KEY_CANCEL: UITask goes back a screen
+// Backspace gives KEY_CANCEL: UITask goes back a screen. Any other key: TDECK_KEY_ACTIVITY (it
+// wakes the screen and keeps it on, nothing else).
+#define TDECK_KEY_ACTIVITY 0x7F
 
 void tdeckKeysBegin();
 char tdeckTakeKey();  // 0: none

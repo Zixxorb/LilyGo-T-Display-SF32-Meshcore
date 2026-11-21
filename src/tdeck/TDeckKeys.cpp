@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <helpers/ui/UIScreen.h>  // KEY_*
+#include "TDeckColor.h"
 
 // Trackball: four Hall sensors, each output toggles as the ball rolls past (interrupts count the
 // edges). Enough edges make one key, so a light touch doesn't move things; after a key the ball
@@ -84,11 +85,22 @@ static char keyboardKey() {
   if (Wire.requestFrom(KB_ADDR, 1) != 1) return 0;
   char k = Wire.read();
   if (s_flush) { s_flush = false; return 0; }
+#ifdef TDECK_TOUCH_LOG
+  if (k) Serial.printf("keyboard 0x%02x\n", (uint8_t)k);
+#endif
   switch (k) {
     case '\r': case '\n': return KEY_ENTER;
     case 0x08: return KEY_CANCEL;              // Backspace: back
     case ' ': return KEY_NEXT;
-    default: return 0;  // (typing: not for now)
+#ifdef TDECK_SHOT  // debug firmware: number keys try the colour presets (TDeckColor.cpp)
+    case '1': case '2': case '3': case '4': case '5': {
+      extern void tdeck_panel_resend();
+      tdeckColorSet(k - '1');
+      tdeck_panel_resend();
+      return TDECK_KEY_ACTIVITY;
+    }
+#endif
+    default: return k ? TDECK_KEY_ACTIVITY : 0;  // (typing: not for now; it's still the user)
   }
 }
 

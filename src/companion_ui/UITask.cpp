@@ -1003,7 +1003,9 @@ void UITask::loop() {
 #ifdef VESPER_TDECK  // the T-Deck's trackball rolling and keyboard (src/tdeck/TDeckKeys.cpp)
   if (c == 0) {
     char k = tdeckTakeKey();
-    if (k == KEY_CANCEL) {  // Backspace: back a screen
+    if (k == TDECK_KEY_ACTIVITY) {  // a key that does nothing here: still the user (screen on)
+      checkDisplayOn(k);
+    } else if (k == KEY_CANCEL) {  // Backspace: back a screen
       if (checkDisplayOn(k) && curr != home) goBack();
     } else if ((k == KEY_UP || k == KEY_DOWN) && curr == home) {  // rolled up / down: as a swipe there
       if (checkDisplayOn(k) && !_aod) openMenu(k == KEY_UP ? MENU_PAGE : MENU_POWER);

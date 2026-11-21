@@ -9,6 +9,7 @@
 #include "compat/bf0_hal.h"
 #include "target.h"
 #include "TDeckDevices.h"
+#include "TDeckColor.h"
 
 #define TFT_DC     11
 #define TFT_BL     42
@@ -86,7 +87,9 @@ static void draw_rect(const char* pixels, int x1, int y1, int x2, int y2) {
   int n = 0;
   for (int r = 0; r < h; r++) {
     const uint16_t* row = src + r * stride;
-    for (int i = 0; i < w; i++) chunk[n++] = __builtin_bswap16(row[i]);
+    const uint16_t* lut = tdeck_color_lut;  // the colour correction (TDeckColor.h), panel byte order
+    if (lut) for (int i = 0; i < w; i++) chunk[n++] = lut[row[i]];
+    else for (int i = 0; i < w; i++) chunk[n++] = __builtin_bswap16(row[i]);
     if (n + w > TFT_W * 8 || r == h - 1) {
       tdeck_spi.writeBytes((const uint8_t*)chunk, n * 2);
       n = 0;
@@ -166,6 +169,7 @@ static rt_err_t lcd_open(rt_device_t dev) {
   pinMode(TFT_BL, OUTPUT);
   digitalWrite(TFT_BL, LOW);
   panel_setup();
+  tdeckColorSet(-1);  // (the default)
   return RT_EOK;
 }
 
@@ -173,6 +177,13 @@ static rt_err_t lcd_open(rt_device_t dev) {
 // debug firmware (remote.py tune N): set the panel up again with tuning groups N, and show
 // the frame again
 extern "C" uint16_t* volatile sf32_shown_fb;
+void tdeck_panel_resend() {  // the shown frame again (a colour preset tried)
+  s_x0 = 0; s_y0 = 0; s_x1 = TFT_W - 1; s_y1 = TFT_H - 1;
+  rt_err_t (*done)(rt_device_t, void*) = s_done;
+  s_done = nullptr;
+  if (sf32_shown_fb) draw_rect((const char*)sf32_shown_fb, 0, 0, TFT_W - 1, TFT_H - 1);
+  s_done = done;
+}
 void tdeck_panel_retune(uint8_t groups) {
   s_tuning = groups;
   uint8_t level = s_level;

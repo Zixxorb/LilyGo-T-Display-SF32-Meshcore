@@ -13,6 +13,7 @@
 #include <Arduino.h>
 #include "compat/rtthread.h"
 #include <SPIFFS.h>
+#include "TDeckColor.h"
 
 extern "C" uint16_t* volatile sf32_shown_fb;  // SF32Display.cpp: the frame on the panel
 void tdeck_panel_retune(uint8_t groups);  // TDeckPanel.cpp
@@ -53,6 +54,11 @@ void tdeck_shot_poll() {
     line[n] = 0;
     n = 0;
     if (strcmp(line, "shot") == 0) shot();
+    else if (strncmp(line, "color", 5) == 0) {  // "color" or "color N": the colour preset
+      extern void tdeck_panel_resend();
+      if (line[5] == ' ') { tdeckColorSet(atoi(line + 6)); tdeck_panel_resend(); }
+      Serial.printf("OK color %d lut %p\n", tdeckColorPreset(), tdeck_color_lut);
+    }
     else if (strncmp(line, "tune ", 5) == 0) { tdeck_panel_retune(atoi(line + 5)); Serial.println("OK"); }
     else if (strncmp(line, "cat /", 5) == 0 && strncmp(line + 4, "/identity", 9) != 0) {
       File f = SPIFFS.open(line + 4, "r");
