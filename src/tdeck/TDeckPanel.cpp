@@ -129,6 +129,24 @@ static rt_err_t lcd_open(rt_device_t dev) {
   command(0x11); delay(120);                         // out of sleep
   const uint8_t colmod = 0x55;  command(0x3A, &colmod, 1);  // 16 bits per pixel
   const uint8_t madctl = 0x60;  command(0x36, &madctl, 1);  // landscape
+  // The panel's own tuning, as LilyGo's T-Deck firmware sets it (TFT_eSPI's ST7789 setup):
+  // without it the chip's defaults give off colours
+  static const uint8_t TUNING[] = {
+    0xB6, 2, 0x0A, 0x82,                    // display function
+    0xB0, 2, 0x00, 0xE0,                    // RAM: 16 to 18 bit colour, r0 = r5, b0 = b5
+    0xB2, 5, 0x0C, 0x0C, 0x00, 0x33, 0x33,  // porches
+    0xB7, 1, 0x35,                          // gate voltages
+    0xBB, 1, 0x28,                          // VCOM
+    0xC0, 1, 0x0C,                          // LCM
+    0xC2, 2, 0x01, 0xFF,                    // VDV and VRH from these
+    0xC3, 1, 0x10,                          // VRH
+    0xC4, 1, 0x20,                          // VDV
+    0xC6, 1, 0x0F,                          // frame rate (60 Hz)
+    0xD0, 2, 0xA4, 0xA1,                    // power
+    0xE0, 14, 0xD0, 0x00, 0x02, 0x07, 0x0A, 0x28, 0x32, 0x44, 0x42, 0x06, 0x0E, 0x12, 0x14, 0x17,  // gamma +
+    0xE1, 14, 0xD0, 0x00, 0x02, 0x07, 0x0A, 0x28, 0x31, 0x54, 0x47, 0x0E, 0x1C, 0x17, 0x1B, 0x1E,  // gamma -
+  };
+  for (size_t i = 0; i < sizeof(TUNING); i += 2 + TUNING[i + 1]) command(TUNING[i], &TUNING[i + 2], TUNING[i + 1]);
   command(0x21);                                     // inversion on (this IPS panel needs it)
   command(0x13);                                     // normal mode
   return RT_EOK;
